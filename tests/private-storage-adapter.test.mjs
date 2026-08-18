@@ -12,6 +12,17 @@ const provider = {
     let deleted_count = 0;
     for (const key of [...objects.keys()]) if (key.startsWith(prefix)) { objects.delete(key); deleted_count += 1; }
     return { deleted_count };
+  },
+  async putObject({ bucket, key, body, content_type }) {
+    objects.set(key, { bucket, exists: true, body, content_type, byte_size: Buffer.byteLength(body) });
+    return { key };
+  },
+  async listPrefix({ prefix }) {
+    return { items: [...objects.keys()].filter(key => key.startsWith(prefix)).map(key => ({ key })) };
+  },
+  async getObject({ key }) {
+    const item = objects.get(key);
+    return item ? { body: item.body } : null;
   }
 };
 let scanResult = { malware_safe: true, magic_bytes_verified: true, detected_mime_type: 'application/pdf', sha256: 'sha-1' };
@@ -49,5 +60,14 @@ await assert.rejects(
   /MIME type is not allowed/i
 );
 
+const tombstone = await storage.recordDeletionTombstone({ case_id: 'case-1', deleted_at: '2026-08-18T15:30:00.000Z' });
+assert.equal(tombstone.key, 'deletion-ledger/case-1.json');
+const ledger = await storage.listDeletionTombstones();
+assert.deepEqual(ledger.map(item => ({ case_id: item.case_id, deleted_at: item.deleted_at })), [
+  { case_id: 'case-1', deleted_at: '2026-08-18T15:30:00.000Z' }
+]);
+assert.equal(JSON.stringify(objects.get('deletion-ledger/case-1.json')).includes('u1'), false, 'deletion ledger must not contain owner id');
+
 assert.equal(await storage.deleteCaseObjects({ case_id: 'case-1', owner_id: 'u1' }), 1);
-console.log('OK private object storage adapter');
+assert.equal(objects.has('deletion-ledger/case-1.json'), true, 'case object purge must not delete restore-safety tombstones');
+console.log('OK private object storage adapter and deletion tombstone ledger');
