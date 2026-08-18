@@ -8,8 +8,10 @@ export const DEFAULT_SECURITY_POLICY = Object.freeze({
   rate_limits: {
     create_case: { window_ms: 60_000, max: 10 },
     register_uploads: { window_ms: 60_000, max: 20 },
+    confirm_document_upload: { window_ms: 60_000, max: 30 },
     analyze_case: { window_ms: 60_000, max: 6 },
-    confirm_payment: { window_ms: 60_000, max: 20 },
+    create_payment_session: { window_ms: 60_000, max: 10 },
+    payment_webhook: { window_ms: 60_000, max: 60 },
     supplier_response: { window_ms: 60_000, max: 10 },
     delete_case: { window_ms: 60_000, max: 10 },
     read: { window_ms: 60_000, max: 120 }
@@ -34,13 +36,9 @@ export function validateOrigin(origin, allowedOrigins = []) {
 
 export function enforceRequestEnvelope(request, policy = DEFAULT_SECURITY_POLICY) {
   const method = String(request?.method ?? '').toUpperCase();
-  if (!policy.allowed_methods.includes(method)) {
-    throw new ApiError(405, 'method_not_allowed', 'HTTP-metoden er ikke tillatt.');
-  }
+  if (!policy.allowed_methods.includes(method)) throw new ApiError(405, 'method_not_allowed', 'HTTP-metoden er ikke tillatt.');
   const contentLength = Number(request?.headers?.['content-length'] ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > policy.json_body_max_bytes) {
-    throw new ApiError(413, 'request_too_large', 'Forespørselen er for stor.');
-  }
+  if (Number.isFinite(contentLength) && contentLength > policy.json_body_max_bytes) throw new ApiError(413, 'request_too_large', 'Forespørselen er for stor.');
   return true;
 }
 
@@ -56,9 +54,7 @@ export function createMemoryRateLimiter({ clock = () => Date.now() } = {}) {
         return { allowed: true, remaining: rule.max - 1, reset_at: now + rule.window_ms };
       }
       current.count += 1;
-      if (current.count > rule.max) {
-        throw new ApiError(429, 'rate_limit_exceeded', 'For mange forespørsler. Prøv igjen senere.', { reset_at: current.reset_at });
-      }
+      if (current.count > rule.max) throw new ApiError(429, 'rate_limit_exceeded', 'For mange forespørsler. Prøv igjen senere.', { reset_at: current.reset_at });
       return { allowed: true, remaining: rule.max - current.count, reset_at: current.reset_at };
     }
   };
