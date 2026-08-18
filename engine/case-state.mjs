@@ -25,7 +25,10 @@ const TRANSITIONS = {
 };
 
 function nowIso(clock) {
-  return typeof clock === 'function' ? clock() : new Date().toISOString();
+  const value = typeof clock === 'function' ? clock() : new Date().toISOString();
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error('Clock returned invalid date.');
+  return date.toISOString();
 }
 
 export function createCase({ id, owner_id, created_at = null, retention_mode = 'temporary', clock } = {}) {
@@ -76,6 +79,8 @@ export function addDocument(caseData, document, { clock } = {}) {
     sha256: document.sha256 ?? null,
     created_at: at,
     uploaded_at: document.uploaded_at ?? null,
+    upload_expires_at: document.upload_expires_at ?? null,
+    provider_upload_expires_at: document.provider_upload_expires_at ?? document.upload_expires_at ?? null,
     status: document.status ?? 'accepted'
   };
   return {
@@ -96,6 +101,8 @@ export function markDocumentUploaded(caseData, documentId, metadata = {}, { cloc
     ...current,
     status: 'uploaded',
     uploaded_at: at,
+    upload_expires_at: null,
+    provider_upload_expires_at: null,
     byte_size: metadata.byte_size ?? current.byte_size ?? null,
     mime_type: metadata.mime_type ?? current.mime_type ?? null,
     sha256: metadata.sha256 ?? current.sha256 ?? null
@@ -107,6 +114,42 @@ export function markDocumentUploaded(caseData, documentId, metadata = {}, { cloc
     updated_at: at,
     documents,
     events: [...caseData.events, { type: 'DOCUMENT_UPLOADED', at, data: { document_id: documentId, role: updated.role } }]
+  };
+}
+
+export function expireDocumentUploadWindow(caseData, documentId, { clock } = {}) {
+  const index = caseData.documents.findIndex(d => d.id === documentId);
+  if (index < 0) throw new Error(`Document not found: ${documentId}`);
+  const current = caseData.documents[index];
+  if (current.status === 'uploaded') throw new Error('Uploaded document cannot be expired as a reservation.');
+  if (current.status === 'upload_window_expired') return caseData;
+  if (current.status !== 'awaiting_upload') throw new Error(`Document upload window cannot expire from status: ${current.status}`);
+  const at = nowIso(clock);
+  const documents = [...caseData.documents];
+  documents[index] = { ...current, status: 'upload_window_expired' };
+  return {
+    ...caseData,
+    updated_at: at,
+    documents,
+    events: [...caseData.events, { type: 'DOCUMENT_UPLOAD_WINDOW_EXPIRED', at, data: { document_id: documentId, role: current.role } }]
+  };
+}
+
+export function removeDocumentReservations(caseData, documentIds = [], { clock } = {}) {
+  const ids = new Set(documentIds);
+  if (!ids.size) return caseData;
+  const removable = caseData.documents.filter(d => ids.has(d.id));
+  if (removable.some(d => d.status === 'uploaded')) throw new Error('Uploaded documents cannot be removed as expired reservations.');
+  const at = nowIso(clock);
+  return {
+    ...caseData,
+    updated_at: at,
+    documents: caseData.documents.filter(d => !ids.has(d.id)),
+    events: [...caseData.events, {
+      type: 'EXPIRED_UPLOAD_RESERVATIONS_PURGED',
+      at,
+      data: { count: removable.length }
+    }]
   };
 }
 
