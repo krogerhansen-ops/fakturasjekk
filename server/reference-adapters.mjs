@@ -49,6 +49,7 @@ export function createMemoryCaseStore() {
 
 export function createMemoryStorage() {
   const objects = new Map();
+  const deletionLedger = new Map();
   return {
     async reservePrivateObject({ case_id, owner_id, document_id, name, mime_type }) {
       const key = `private/${owner_id}/${case_id}/${document_id}`;
@@ -73,6 +74,14 @@ export function createMemoryStorage() {
         if (item.case_id === case_id && item.owner_id === owner_id) { objects.delete(key); deleted += 1; }
       }
       return deleted;
+    },
+    async recordDeletionTombstone({ case_id, deleted_at }) {
+      const tombstone = { key: `deletion-ledger/${case_id}.json`, case_id, deleted_at };
+      deletionLedger.set(case_id, tombstone);
+      return clone(tombstone);
+    },
+    async listDeletionTombstones() {
+      return [...deletionLedger.values()].map(clone).sort((a, b) => a.deleted_at.localeCompare(b.deleted_at));
     }
   };
 }
