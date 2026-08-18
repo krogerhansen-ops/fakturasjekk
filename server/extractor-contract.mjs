@@ -57,6 +57,17 @@ export function validateExtractorEnvelope(extraction = {}, catalog = {}) {
   return { valid: contract_errors.length === 0, fields, contract_errors };
 }
 
+export function createValidatedExtractor({ provider, catalog } = {}) {
+  if (!provider?.extract) throw new Error('Extractor provider requires extract.');
+  return {
+    async extract(input) {
+      const raw = await provider.extract(input);
+      const checked = validateExtractorEnvelope(raw, catalog);
+      return { fields: checked.fields, contract_errors: checked.contract_errors };
+    }
+  };
+}
+
 export function extractorInstructions(catalog = {}) {
   const fieldNames = Object.keys(catalog.fields ?? {}).join(', ');
   return [
