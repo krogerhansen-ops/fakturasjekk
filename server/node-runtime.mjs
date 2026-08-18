@@ -79,7 +79,7 @@ export function createNodeHandler({ api, authAdapter, allowedOrigins = [], secur
       const rateKey = auth.user?.id ?? (matched.route.auth === false ? `server:${req.socket.remoteAddress ?? 'unknown'}` : 'anonymous');
       if (rateLimiter && (auth.user?.id || matched.route.auth === false)) {
         const rule = securityPolicy.rate_limits[matched.route.action] ?? securityPolicy.rate_limits[matched.route.mutation ? matched.route.action : 'read'] ?? securityPolicy.rate_limits.read;
-        if (rule) rateLimiter.check({ owner_id: rateKey, action: matched.route.action, rule });
+        if (rule) await rateLimiter.check({ owner_id: rateKey, action: matched.route.action, rule });
       }
 
       const rawBody = await readRawBody(req, securityPolicy.json_body_max_bytes);
