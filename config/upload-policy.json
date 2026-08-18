@@ -1,0 +1,30 @@
+{
+  "version": "0.30.0",
+  "max_files": 8,
+  "max_file_bytes": 15728640,
+  "max_total_bytes": 52428800,
+  "allowed_mime_types": [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ],
+  "document_roles": [
+    "invoice",
+    "quote",
+    "agreement",
+    "order_confirmation",
+    "collection_notice",
+    "payment_request",
+    "other"
+  ],
+  "required_roles": ["invoice"],
+  "backend_requirements": [
+    "verify_magic_bytes",
+    "virus_malware_scan_or_equivalent",
+    "randomized_storage_key",
+    "no_public_bucket",
+    "explicit_retention_policy",
+    "access_control_per_case"
+  ]
+}
