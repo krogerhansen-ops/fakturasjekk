@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { createApi } from '../server/api.mjs';
 
 const services = {
-  async createNewCase(input) { return { id: 'case-1', owner_id: input.owner_id, state: 'draft' }; },
-  async registerUploads() { return { accepted: true, validation: { valid: true }, case: { id: 'case-1' } }; },
-  async analyzeStoredCase() { return { status: 'analysis_ready', preview: { price_nok: 29 } }; },
+  async createNewCase(input) { return { id: 'case-1', owner_id: input.owner_id, state: 'draft', retention_mode: input.retention_mode, documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: [] }; },
+  async registerUploads() { return { accepted: true, validation: { valid: true }, upload_targets: [], case: { id: 'case-1', state: 'draft', documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: [] } }; },
+  async analyzeStoredCase() { return { status: 'analysis_ready', preview: { price_nok: 29 }, case: { id: 'case-1', state: 'analysis_ready', documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: [] } }; },
   async getPaymentRequirement() { return { amount_minor: 2900, currency: 'NOK' }; },
-  async confirmPayment() { return { paid: true, case: { id: 'case-1', state: 'paid' } }; },
+  async confirmPayment() { return { paid: true, case: { id: 'case-1', state: 'paid', documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: [] } }; },
   async getFullResult() { throw new Error('Full result is locked until verified 29 NOK payment.'); },
-  async saveGeneratedDraft() { return { draft: { id: 'd1' } }; },
-  async registerSupplierResponse() { return { review: {}, follow_up: { allowed: false } }; },
+  async saveGeneratedDraft() { return { draft: { id: 'd1' }, case: { id: 'case-1', state: 'draft_ready', documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: [] } }; },
+  async registerSupplierResponse() { return { review: {}, follow_up: { allowed: false }, case: { id: 'case-1', state: 'supplier_response_received', documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: [] } }; },
   async retentionStatus() { return { retention: {}, purge: {} }; }
 };
 
@@ -24,7 +24,8 @@ const created = await api.invoke('create_case', {
   body: { buyer_type: 'consumer', subject: 'goods', retention_mode: 'temporary' }
 });
 assert.equal(created.status, 201);
-assert.equal(created.body.owner_id, 'u1');
+assert.equal(created.body.id, 'case-1');
+assert.equal('owner_id' in created.body, false);
 
 const business = await api.invoke('create_case', {
   auth: { user: { id: 'u1' } },
