@@ -135,7 +135,7 @@ export function expireDocumentUploadWindow(caseData, documentId, { clock } = {})
   };
 }
 
-export function removeDocumentReservations(caseData, documentIds = [], { clock } = {}) {
+export function removeDocumentReservations(caseData, documentIds = [], { clock, preserve_updated_at = false } = {}) {
   const ids = new Set(documentIds);
   if (!ids.size) return caseData;
   const removable = caseData.documents.filter(d => ids.has(d.id));
@@ -143,7 +143,7 @@ export function removeDocumentReservations(caseData, documentIds = [], { clock }
   const at = nowIso(clock);
   return {
     ...caseData,
-    updated_at: at,
+    updated_at: preserve_updated_at ? caseData.updated_at : at,
     documents: caseData.documents.filter(d => !ids.has(d.id)),
     events: [...caseData.events, {
       type: 'EXPIRED_UPLOAD_RESERVATIONS_PURGED',
