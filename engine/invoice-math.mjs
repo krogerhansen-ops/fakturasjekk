@@ -1,4 +1,5 @@
 function num(value) {
+  if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
