@@ -26,11 +26,19 @@ export function projectCase(caseData) {
 
 export function projectAnalysisResponse(output) {
   if (output?.status === 'needs_confirmation') {
+    const needs = output.extraction?.confirmation_needs ?? output.extraction?.review ?? [];
     return {
       status: 'needs_confirmation',
       confirmation: {
         counts: output.extraction?.counts ?? {},
-        review: (output.extraction?.review ?? []).map(item => ({ field: item.field, value: item.value, confidence: item.confidence, source_document_id: item.source_document_id, source_page: item.source_page, reason: item.reason })),
+        review: needs.map(item => ({
+          field: item.field,
+          value: item.suggested_value ?? item.value ?? null,
+          confidence: item.confidence ?? null,
+          source_document_id: item.source_document_id ?? null,
+          source_page: item.source_page ?? null,
+          reason: item.reason
+        })),
         rejected: (output.extraction?.rejected ?? []).map(item => ({ field: item.field, reason: item.reason }))
       },
       case: projectCase(output.case)
