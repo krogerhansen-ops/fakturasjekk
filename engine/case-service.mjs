@@ -1,15 +1,35 @@
 import { classifyIntake } from './intake.mjs';
 import { analyzeCase } from './analyzer.mjs';
+import { analyzeInkasso } from './inkasso.mjs';
 import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './evidence.mjs';
 import { buildDraft } from './draft.mjs';
 
-export function runCase({ intake, facts = {}, origins = {}, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
+function combineAnalysis(baseAnalysis, inkasso) {
+  if (!inkasso || inkasso.status === 'not_applicable') return baseAnalysis;
+  const status = [baseAnalysis.status, inkasso.status].includes('attention')
+    ? 'attention'
+    : [baseAnalysis.status, inkasso.status].includes('review')
+      ? 'review'
+      : baseAnalysis.status;
+
+  return {
+    ...baseAnalysis,
+    status,
+    findings: [...(baseAnalysis.findings ?? []), ...(inkasso.findings ?? [])],
+    rule_ids: [...new Set([...(baseAnalysis.rule_ids ?? []), ...(inkasso.rule_ids ?? [])])],
+    questions: [...(baseAnalysis.questions ?? []), ...(inkasso.questions ?? [])],
+    collection: inkasso
+  };
+}
+
+export function runCase({ intake, facts = {}, origins = {}, collection = null, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
   const intakeResult = classifyIntake(intake ?? {});
 
   const base = {
     engine: registry?.engine_version ?? null,
     intake: intakeResult,
     analysis: null,
+    inkasso: null,
     evidence: [],
     evidence_summary: {},
     draft: { allowed: false, reason: 'Analyse er ikke kjørt.' },
@@ -30,7 +50,10 @@ export function runCase({ intake, facts = {}, origins = {}, registry, user_note 
     case_type: intakeResult.route
   };
 
-  const analysis = analyzeCase(analysisInput, registry);
+  const invoiceAnalysis = analyzeCase(analysisInput, registry);
+  const inkasso = analyzeInkasso(collection ?? {});
+  const analysis = combineAnalysis(invoiceAnalysis, inkasso);
+
   const evidence = buildEvidenceLedger({ facts, origins, analysis, user_note });
   assertEvidenceSafety(evidence);
 
@@ -46,6 +69,7 @@ export function runCase({ intake, facts = {}, origins = {}, registry, user_note 
     ...base,
     status: analysis.status,
     analysis,
+    inkasso,
     evidence,
     evidence_summary: summarizeEvidence(evidence),
     draft
