@@ -13,3 +13,8 @@ enable_confirmations = false
 [storage]
 enabled = true
 file_size_limit = "15MiB"
+
+# Public technical preflight only. It returns no customer data and hard-checks the dedicated project URL.
+# The real Fakturasjekk API is NOT deployed by this configuration yet.
+[functions.fakturasjekk-preflight]
+verify_jwt = false

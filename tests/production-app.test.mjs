@@ -45,7 +45,12 @@ const app = createProductionApp(input);
 assert.equal(app.readiness.ready, true);
 assert.equal(app.launch_gate.launch_allowed, true);
 assert.equal(typeof app.handler, 'function');
+assert.equal(typeof app.fetchHandler, 'function');
 assert.equal(typeof app.api.invoke, 'function');
+
+const edgeHealth = await app.fetchHandler(new Request('https://jxmkaxwflouacuboaetg.supabase.co/functions/v1/fakturasjekk-api/health'));
+assert.equal(edgeHealth.status, 200);
+assert.equal(edgeHealth.headers.get('x-frame-options'), 'DENY');
 
 assert.throws(
   () => createProductionApp({ ...input, launchGate: null }),
@@ -68,4 +73,4 @@ assert.throws(
   /Production readiness failed: product.price/
 );
 
-console.log('OK production app composition');
+console.log('OK production app composition exposes Node and Fetch runtimes');
