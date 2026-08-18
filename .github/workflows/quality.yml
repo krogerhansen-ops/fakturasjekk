@@ -32,6 +32,8 @@ jobs:
         run: node tests/evidence.test.mjs
       - name: Run upload policy tests
         run: node tests/document-policy.test.mjs
+      - name: Run extraction confidence tests
+        run: node tests/extraction-policy.test.mjs
       - name: Run controlled draft tests
         run: node tests/draft.test.mjs
       - name: Run end-to-end case service tests
