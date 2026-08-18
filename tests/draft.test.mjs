@@ -24,15 +24,23 @@ const request = buildDraft({
 });
 assert.equal(request.allowed, true);
 assert.ok(request.text.includes('faktura 12345'));
+assert.ok(request.text.includes('før jeg tar endelig stilling til hele beløpet'));
+assert.ok(request.text.includes('Dette gjelder:'));
+assert.ok(request.text.includes('Kontrollen viser:'));
+assert.ok(request.text.includes('Det jeg ber om:'));
+assert.ok(request.text.includes('spesifisert redegjørelse'));
 assert.ok(request.text.includes('håndverkertjenesteloven § 32 og § 33'));
 assert.ok(request.text.includes('håndverkertjenesteloven § 36'));
 assert.ok(request.text.includes('Tilleggsopplysning fra meg:'));
 assert.ok(request.text.includes('Jeg fikk ingen beskjed om ekstraarbeid før fakturaen kom.'));
+assert.ok(request.text.includes('Dersom dere mener fakturaen er riktig, ber jeg om at grunnlaget dokumenteres'));
+assert.ok(request.text.includes('På forhånd takk for avklaringen.'));
 assert.equal(/HTJL_|FKJL_|POF_|BOF_/.test(request.text), false, 'internal rule ids must never leak');
 
 const objection = buildDraft({ analysis, registry, mode: 'objection' });
 assert.equal(objection.allowed, true);
-assert.ok(objection.text.includes('Jeg bestrider de delene av kravet'));
+assert.ok(objection.text.includes('bestrider jeg de delene av kravet'));
+assert.ok(objection.text.includes('Inntil punktene ovenfor er dokumentert og avklart'));
 
 const cleanAnalysis = analyzeCase({
   party_type: 'consumer',
@@ -59,4 +67,4 @@ const draftWithStaleRule = buildDraft({ analysis, registry: modifiedRegistry });
 assert.equal(draftWithStaleRule.allowed, true);
 assert.equal(draftWithStaleRule.text.includes('håndverkertjenesteloven § 36'), false, 'non-active rules must not be cited');
 
-console.log('OK: controlled draft generator blocks clean/unsupported cases, hides internal ids and cites active rules only.');
+console.log('OK: controlled draft generator is readable, blocks clean/unsupported cases, hides internal ids and cites active rules only.');
