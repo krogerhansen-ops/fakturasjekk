@@ -1,0 +1,62 @@
+{
+  "version": "0.65.0",
+  "tracking": {
+    "nonessential_tracking_enabled": false,
+    "advertising_profiling_enabled": false,
+    "document_content_for_marketing": false,
+    "requires_new_consent_review_before_enabling": true,
+    "forbidden_v1_markers": [
+      "google-analytics.com",
+      "googletagmanager.com",
+      "connect.facebook.net",
+      "facebook.com/tr",
+      "hotjar.com",
+      "static.hotjar.com",
+      "cdn.segment.com",
+      "api.segment.io",
+      "mixpanel.com"
+    ]
+  },
+  "third_party_personal_data": {
+    "contract_basis_must_not_be_used_as_blanket_basis": true,
+    "provisional_basis": "gdpr_6_1_f_legitimate_interests_after_documented_balancing",
+    "secondary_use_allowed": false,
+    "profiling_allowed": false,
+    "data_minimization_required": true
+  },
+  "special_categories": {
+    "requested_in_v1": false,
+    "general_article9_basis_assumed": false,
+    "automated_analysis_on_detection": "stop",
+    "preferred_resolution": "user_uploads_redacted_copy_or_case_requires_separate_review",
+    "purge_original_after_safe_handling": true
+  },
+  "ai_processing": {
+    "provider_training_on_customer_content_allowed": false,
+    "legal_rule_generation_by_provider_allowed": false,
+    "tool_use_by_document_interpreter_allowed": false,
+    "unknown_fields_fail_closed": true
+  },
+  "logging": {
+    "allowlist_only": true,
+    "document_text_allowed": false,
+    "user_note_allowed": false,
+    "supplier_response_allowed": false,
+    "generated_draft_allowed": false,
+    "access_tokens_allowed": false,
+    "storage_keys_allowed": false,
+    "secrets_allowed": false,
+    "target_ttl_days": 90
+  },
+  "security_target": {
+    "baseline": "OWASP_ASVS_LEVEL_2_INSPIRED",
+    "production_https_required": true,
+    "private_storage_required": true,
+    "distributed_rate_limit_required": true,
+    "server_side_authorization_required": true,
+    "malware_scan_required": true,
+    "magic_byte_validation_required": true,
+    "production_csp_required": true,
+    "production_hsts_required": true
+  }
+}
