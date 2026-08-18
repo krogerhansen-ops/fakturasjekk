@@ -48,15 +48,27 @@ export function projectDraftResponse(output) {
 }
 
 export function projectSupplierResponse(output) {
-  return { review: output.review, follow_up: output.follow_up, case: projectCase(output.case) };
+  const review = output.review ? {
+    allowed: output.review.allowed,
+    status: output.review.status,
+    reason: output.review.reason ?? null,
+    unanswered_count: output.review.unanswered_count ?? 0,
+    partially_answered_count: output.review.partially_answered_count ?? 0,
+    answered_count: output.review.answered_count ?? 0,
+    items: (output.review.items ?? []).map(item => ({
+      title: item.title,
+      status: item.status,
+      explanation: item.explanation,
+      active_rule_references: item.active_rule_references ?? [],
+      answer_text: item.answer_text ?? '',
+      documentation_provided: item.documentation_provided === true
+    }))
+  } : null;
+  return { review, follow_up: output.follow_up, case: projectCase(output.case) };
 }
 
 function customerFinding(finding) {
-  return {
-    severity: finding.severity,
-    title: finding.title,
-    explanation: finding.explanation
-  };
+  return { severity: finding.severity, title: finding.title, explanation: finding.explanation };
 }
 
 export function projectFullResult(result, registry) {
@@ -65,14 +77,7 @@ export function projectFullResult(result, registry) {
   const rules = ruleIds
     .map(id => ruleMap.get(id))
     .filter(rule => rule?.status === 'active')
-    .map(rule => ({
-      law: rule.law,
-      section: rule.section,
-      title: rule.title,
-      source_url: rule.source_url,
-      last_verified: rule.last_verified,
-      status: rule.status
-    }));
+    .map(rule => ({ law: rule.law, section: rule.section, title: rule.title, source_url: rule.source_url, last_verified: rule.last_verified, status: rule.status }));
 
   const evidence = (result?.evidence ?? [])
     .filter(item => item.type !== 'rule')
@@ -99,15 +104,13 @@ export function projectFullResult(result, registry) {
   };
   assertNoPrivateFields(projected);
   const text = JSON.stringify(projected);
-  if (/HTJL_|FKJL_|POF_|BOF_|INK_|ESTIMATE_ABOVE_|HANDCRAFT_INVOICE_FEE|GOODS_INVOICE_FEE/.test(text)) {
-    throw new Error('Internal rule/finding code leaked to customer result.');
-  }
+  if (/HTJL_|FKJL_|POF_|BOF_|INK_|ESTIMATE_ABOVE_|HANDCRAFT_INVOICE_FEE|GOODS_INVOICE_FEE/.test(text)) throw new Error('Internal rule/finding code leaked to customer result.');
   return projected;
 }
 
 export function assertNoPrivateFields(value) {
   const text = JSON.stringify(value ?? {});
-  const forbidden = ['storage_key', 'provider_reference', 'structured_response', 'raw_text'];
+  const forbidden = ['storage_key', 'provider_reference', 'structured_response', 'raw_text', 'finding_code'];
   for (const key of forbidden) {
     if (text.includes(`\"${key}\"`)) throw new Error(`Private field leaked: ${key}`);
   }
