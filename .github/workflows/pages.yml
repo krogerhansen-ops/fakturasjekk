@@ -33,10 +33,12 @@ jobs:
           sed "s/V0\.25/V${VERSION}/g" site/index-v025.html > _site/index.html
           cp motor-test.html _site/motor-test.html
           cp flow-test.html _site/flow-test.html
+          cp followup-test.html _site/followup-test.html
           cp admin/rules-v031.html _site/admin/rules.html
           cp engine/analyzer.mjs _site/engine/analyzer.mjs
           cp engine/intake.mjs _site/engine/intake.mjs
           cp engine/draft.mjs _site/engine/draft.mjs
+          cp engine/followup.mjs _site/engine/followup.mjs
           cp rules/rules.json _site/rules/rules.json
           cp rules/transitions.json _site/rules/transitions.json
           cp data/demo-cases.json _site/data/demo-cases.json
