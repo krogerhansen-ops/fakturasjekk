@@ -1,8 +1,13 @@
 {
-  "version": "0.30.0",
+  "version": "0.68.0",
   "max_files": 8,
   "max_file_bytes": 15728640,
   "max_total_bytes": 52428800,
+  "application_upload_acceptance_ttl_seconds": 600,
+  "maximum_provider_signed_upload_ttl_seconds": 7200,
+  "provider_token_lifetime_is_internal": true,
+  "late_upload_confirmation_fails_closed": true,
+  "orphan_cleanup_after_provider_token_expiry": true,
   "allowed_mime_types": [
     "application/pdf",
     "image/jpeg",
@@ -25,6 +30,9 @@
     "randomized_storage_key",
     "no_public_bucket",
     "explicit_retention_policy",
-    "access_control_per_case"
+    "access_control_per_case",
+    "application_acceptance_deadline_checked_before_finalize",
+    "provider_expiry_not_exposed_to_browser",
+    "orphan_upload_removed_after_provider_token_expiry"
   ]
 }
