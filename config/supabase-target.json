@@ -1,15 +1,19 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "organization_name": "Fakturasjekk",
   "project_name": "fakturasjekk-prod",
+  "project_ref": "jxmkaxwflouacuboaetg",
   "plan_target": "free",
+  "confirmed_monthly_cost": 0,
   "region": "eu-north-1",
   "dedicated_organization_required": true,
   "dedicated_project_required": true,
+  "dedicated_project_created": true,
   "shared_with_other_products": false,
   "browser_direct_table_access": false,
   "private_storage_bucket": "case-documents-private",
   "service_secret_browser_exposure_allowed": false,
+  "schema_migration_verification_status": "pending_connector_reverification",
   "security_advisor_required_before_launch": true,
   "production_upload_must_remain_disabled_until_verified": true
 }
