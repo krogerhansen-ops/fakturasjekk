@@ -31,8 +31,11 @@ jobs:
           mkdir -p _site/admin _site/engine _site/rules
           cp index.html _site/index.html
           cp motor-test.html _site/motor-test.html
+          cp flow-test.html _site/flow-test.html
           cp admin/rules.html _site/admin/rules.html
           cp engine/analyzer.mjs _site/engine/analyzer.mjs
+          cp engine/intake.mjs _site/engine/intake.mjs
+          cp engine/draft.mjs _site/engine/draft.mjs
           cp rules/rules.json _site/rules/rules.json
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
