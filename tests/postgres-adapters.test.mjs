@@ -4,10 +4,17 @@ import { createPostgresCaseStore, createPostgresIdempotencyStore, createPostgres
 const now = '2026-08-18T14:00:00.000Z';
 const caseRow = {
   id: 'case-1', owner_id: 'u1', state: 'draft', retention_mode: 'temporary',
-  snapshot: { id: 'case-1', owner_id: 'u1', state: 'draft', retention_mode: 'temporary', documents: [], analyses: [], payments: [] },
+  snapshot: {
+    id: 'case-1', owner_id: 'u1', state: 'draft', retention_mode: 'temporary',
+    intake_request: { subject: 'Privat fakturatvist', buyer_type: 'consumer' },
+    documents: [{ id: 'doc-sensitive', original_name: 'faktura.pdf' }],
+    analyses: [{ result: 'sensitive analysis' }],
+    payments: []
+  },
   created_at: now, updated_at: now, deleted_at: null
 };
 let deleted = false;
+const purgedTables = [];
 const claims = new Map();
 const idem = new Map();
 const audit = [];
@@ -17,7 +24,13 @@ const db = {
       if (params[0] !== 'case-1' || params[1] !== 'u1' || deleted) return { rows: [] };
       return { rows: [caseRow] };
     }
-    if (sql.includes("UPDATE cases SET state='deleted'")) {
+    if (sql.startsWith('DELETE FROM ')) {
+      const table = sql.split(/\s+/)[2];
+      purgedTables.push(table);
+      assert.deepEqual(params, ['case-1', 'u1']);
+      return { rows: [], rowCount: 1 };
+    }
+    if (sql.includes("state='deleted'") && sql.includes('buyer_type=NULL') && sql.includes('snapshot=$4::jsonb')) {
       deleted = true;
       const snapshot = JSON.parse(params[3]);
       return { rows: [{ ...caseRow, state: 'deleted', snapshot, updated_at: params[2], deleted_at: params[2] }] };
@@ -56,6 +69,13 @@ await assert.rejects(() => caseStore.getOwned('case-1', 'u2'), /not found|owned/
 const tombstone = await deleteOwned('case-1', 'u1', { deleted_at: '2026-08-18T15:00:00.000Z' });
 assert.equal(tombstone.state, 'deleted');
 assert.equal(tombstone.deleted_at, '2026-08-18T15:00:00.000Z');
+assert.deepEqual(purgedTables, ['followups', 'supplier_responses', 'drafts', 'analyses', 'documents', 'case_events']);
+assert.equal('documents' in tombstone, false);
+assert.equal('analyses' in tombstone, false);
+assert.equal('intake_request' in tombstone, false);
+assert.equal(JSON.stringify(tombstone).includes('Privat fakturatvist'), false);
+assert.equal(JSON.stringify(tombstone).includes('faktura.pdf'), false);
+assert.equal(JSON.stringify(tombstone).includes('sensitive analysis'), false);
 
 const eventStore = createPostgresPaymentEventStore({ db });
 assert.equal((await eventStore.claim({ provider: 'p', provider_reference: 'ref-1', case_id: 'case-a' })).status, 'new');
@@ -75,4 +95,4 @@ await auditAdapter.write({ actor_id: 'u1', case_id: 'case-1', action: 'case.test
 assert.equal(audit.length, 1);
 assert.equal(audit[0].metadata.status, 'ok');
 
-console.log('OK PostgreSQL adapters');
+console.log('OK PostgreSQL adapters purge personal case content on delete');
