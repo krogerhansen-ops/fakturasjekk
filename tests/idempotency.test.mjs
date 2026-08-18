@@ -20,6 +20,21 @@ const replay = await service.run({ key: 'abcdefgh123', operation: 'create_case',
 assert.deepEqual(replay, first);
 assert.equal(calls, 1);
 
+let failCalls = 0;
+await assert.rejects(
+  () => service.run({ key: 'retrykey123', operation: 'analyze_case', owner_id: 'u1' }, async () => {
+    failCalls += 1;
+    throw new Error('temporary failure');
+  }),
+  /temporary failure/
+);
+const retry = await service.run({ key: 'retrykey123', operation: 'analyze_case', owner_id: 'u1' }, async () => {
+  failCalls += 1;
+  return { status: 200, body: { ok: true } };
+});
+assert.equal(retry.body.ok, true);
+assert.equal(failCalls, 2);
+
 await assert.rejects(
   () => service.run({ key: 'bad', operation: 'create_case', owner_id: 'u1' }, async () => ({})),
   /Idempotency-Key/
