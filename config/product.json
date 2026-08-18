@@ -1,6 +1,6 @@
 {
   "name": "Fakturasjekk.no",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "market": "NO",
   "audience": "consumer",
   "mode": "external_test",
@@ -10,7 +10,8 @@
     "full_invoice_check",
     "objection_draft",
     "rule_and_paragraph_control",
-    "inkasso_track_when_applicable"
+    "inkasso_track_when_applicable",
+    "supplier_response_follow_up"
   ],
   "demo_free": true,
   "full_check_free": false,
