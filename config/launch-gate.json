@@ -1,5 +1,5 @@
 {
-  "version": "0.61.0",
+  "version": "0.65.0",
   "launch_mode": "blocked_until_all_required_complete",
   "checks": [
     { "id": "TECH_PRODUCTION_HOSTING", "category": "technical", "required": true, "status": "todo", "evidence": null },
@@ -10,37 +10,49 @@
     { "id": "TECH_DOCUMENT_EXTRACTOR", "category": "technical", "required": true, "status": "todo", "evidence": null },
     { "id": "TECH_RESPONSE_INTERPRETER", "category": "technical", "required": true, "status": "todo", "evidence": null },
     { "id": "TECH_PAYMENT_PROVIDER_WEBHOOK", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_BACKUP_RETENTION_TEST", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_DELETE_END_TO_END_TEST", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_BACKUP_RETENTION_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "docs/RETENTION-AND-DELETION-VERIFICATION.md defines provider and restore-test requirements; actual production test remains." },
+    { "id": "TECH_DELETE_END_TO_END_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "docs/RETENTION-AND-DELETION-VERIFICATION.md defines the exact production E2E deletion test; actual production providers remain." },
+    { "id": "TECH_ASVS_L2_BASELINE", "category": "technical", "required": true, "status": "complete", "evidence": "docs/SECURITY-ASVS-L2-BASELINE.md plus hardened server/security-policy.mjs and automated hardening tests." },
+    { "id": "TECH_NO_NONESSENTIAL_TRACKING", "category": "technical", "required": true, "status": "complete", "evidence": "config/privacy-security-policy.json disables non-essential tracking and CI scans the public site for known tracker markers." },
 
-    { "id": "LEGAL_DPIA_DECISION", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md – product decision is to require a DPIA before live customer-document processing." },
-    { "id": "LEGAL_DPIA_COMPLETE", "category": "privacy", "required": true, "status": "todo", "evidence": null, "note": "Complete and approve DPIA with actual production providers/data flows before production upload is enabled." },
-    { "id": "LEGAL_PROCESSING_BASIS_MAP", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Draft treatment-purpose/basis map exists in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md; final validation requires actual controller and provider stack." },
-    { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Required privacy-notice contents are specified; controller identity, processors/transfers and final contact details remain." },
-    { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": null },
-    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": null, "note": "Complete after actual hosting/auth/storage/AI/payment providers are selected." },
-    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_DIGITALYTELSER_COMPLIANCE", "category": "commerce", "required": true, "status": "complete", "evidence": "docs/DIGITALYTELSER-COMPLIANCE.md defines V1 delivery promises, defect handling and non-waiver of mandatory consumer rights." },
+    { "id": "LEGAL_DPIA_DECISION", "category": "privacy", "required": true, "status": "complete", "evidence": "Product decision: DPIA is mandatory before live customer-document processing." },
+    { "id": "LEGAL_DPIA_COMPLETE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/DPIA-2026-08-18.md contains the product-level DPIA and risk register; final approval requires actual production providers, controller identity and residual-risk sign-off." },
+    { "id": "LEGAL_PROCESSING_BASIS_MAP", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/ROPA.md and docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md map customer, third-party, audit and special-category treatment; final provider/controller validation remains." },
+    { "id": "LEGAL_THIRD_PARTY_BASIS", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md documents that contract necessity is not a blanket basis for third persons and defines a limited legitimate-interest path with minimization." },
+    { "id": "LEGAL_ARTICLE9_FAIL_CLOSED", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md and config/privacy-security-policy.json block normal V1 analysis of special-category data and require separate review where necessary." },
+    { "id": "LEGAL_ROPA", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/ROPA.md contains processing activities, purposes, categories, bases, retention and security measures; controller/provider fields must be completed before live." },
+    { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Required privacy-notice contents are specified; controller identity, actual processors/transfers and contact details remain." },
+    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md contains the provider register and approval criteria; all production providers are BLOCKED until populated." },
+    { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines required DPA/subprocessor controls; actual contracts depend on selected providers." },
+    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines EEA-first, transfer mapping, SCC/adequacy and supplementary-measure review; actual providers are not selected." },
+    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json and docs/RETENTION-AND-DELETION-VERIFICATION.md define 24h/7d/90d plus backup/audit requirements; final approval requires provider validation and DPIA sign-off." },
     { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Operational workflow drafted in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md; final contact channel and production end-to-end test remain." },
-    { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Minimum incident workflow drafted in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md; named responsible person/contact channel remains." },
+    { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/NO-TRACKING-AND-INCIDENT-RESPONSE.md contains containment, risk assessment, 72-hour decision flow, evidence handling and post-incident actions; named responsible persons remain." },
 
     { "id": "COMMERCE_SELLER_IDENTITY", "category": "commerce", "required": true, "status": "todo", "evidence": null, "note": "Legal seller/controller identity, organization number where applicable and customer contact must be fixed before paid launch." },
-    { "id": "COMMERCE_TERMS", "category": "commerce", "required": true, "status": "in_progress", "evidence": "Required terms structure documented in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md; seller identity/provider-dependent clauses remain." },
+    { "id": "COMMERCE_TERMS", "category": "commerce", "required": true, "status": "in_progress", "evidence": "docs/DIGITALYTELSER-COMPLIANCE.md and docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md define required terms; seller identity/provider-dependent clauses remain." },
     { "id": "COMMERCE_PRIVACY_AT_CHECKOUT", "category": "commerce", "required": true, "status": "in_progress", "evidence": "Checkout privacy requirements documented; actual checkout implementation remains." },
     { "id": "COMMERCE_29_NOK_TOTAL_PRICE", "category": "commerce", "required": true, "status": "complete", "evidence": "29 NOK is fixed in product config, payment gate, OpenAPI and automated price/version tests." },
-    { "id": "COMMERCE_CANCELLATION_RIGHT_REVIEW", "category": "commerce", "required": true, "status": "complete", "evidence": "Current immediate-service delivery/withdrawal-right requirements reviewed against angrerettloven and documented in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md." },
+    { "id": "COMMERCE_CANCELLATION_RIGHT_REVIEW", "category": "commerce", "required": true, "status": "complete", "evidence": "Immediate-service delivery/withdrawal-right requirements reviewed and documented." },
     { "id": "COMMERCE_CANCELLATION_IMPLEMENTATION", "category": "commerce", "required": true, "status": "todo", "evidence": null, "note": "Implement explicit request for immediate service start, acknowledgement where required, and durable confirmation in actual payment flow." },
     { "id": "COMMERCE_RECEIPT_FLOW", "category": "commerce", "required": true, "status": "todo", "evidence": null },
 
     { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "docs/LEGAL-REVIEW-2026-08-18.md – active V1 rules manually re-verified against Lovdata on 2026-08-18." },
     { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "Lov 2026-05-22-19 remains 'Kongen bestemmer'; current 1988 law remains runtime-active. See docs/LEGAL-REVIEW-2026-08-18.md." },
 
-    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions Fakturasjekk quality gate run 242 completed successfully for PR #2 / launch candidate." },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions quality gate was green before this hardening branch; hardening PR must also be green before merge." },
     { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
     { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; regression tests cover deterministic engine behavior." }
   ],
   "official_reference_pages": [
+    "https://lovdata.no/nav/lov/2022-06-17-56/kap3",
+    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/om-behandlingsgrunnlag/nodvendig-for-a-oppfylle-en-avtale/",
+    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/om-behandlingsgrunnlag/nodvendig-for-a-ivareta-legitime-interesser---interesseavveiing/",
+    "https://lovdata.no/dokument/NL/lov/2018-06-15-38/gdpr%2FARTIKKEL_9",
     "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/vurdering-av-personvernkonsekvenser/",
-    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/programvareutvikling-med-innebygd-personvern/",
-    "https://lovdata.no/lov/2014-06-20-27"
+    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/protokoll-over-behandlingsaktiviteter/",
+    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/overforing-av-personopplysninger-ut-av-eos/",
+    "https://www.datatilsynet.no/personvern-pa-ulike-omrader/internett-og-apper/bruk-av-informasjonskapsler-og-andre-sporingsteknologier/"
   ]
 }
