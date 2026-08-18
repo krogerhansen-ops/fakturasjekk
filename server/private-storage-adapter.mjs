@@ -24,6 +24,26 @@ export function createPrivateObjectStorageAdapter({
     return `${deletion_ledger_prefix}/${encodeURIComponent(caseId)}.json`;
   }
 
+  async function listDeletionTombstones() {
+    const listed = await provider.listPrefix({ bucket, prefix: `${deletion_ledger_prefix}/` });
+    const items = Array.isArray(listed) ? listed : (listed?.items ?? []);
+    const output = [];
+    for (const item of items) {
+      const key = typeof item === 'string' ? item : item?.key;
+      if (!key?.startsWith(`${deletion_ledger_prefix}/`)) continue;
+      const object = await provider.getObject({ bucket, key });
+      const raw = typeof object === 'string' ? object : object?.body;
+      if (typeof raw !== 'string') throw new Error('Deletion tombstone body is missing.');
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch { throw new Error('Deletion tombstone JSON is invalid.'); }
+      if (parsed?.version !== 1 || typeof parsed.case_id !== 'string' || Number.isNaN(Date.parse(parsed.deleted_at))) {
+        throw new Error('Deletion tombstone is invalid.');
+      }
+      output.push({ key, case_id: parsed.case_id, deleted_at: parsed.deleted_at });
+    }
+    return output.sort((a, b) => a.deleted_at.localeCompare(b.deleted_at));
+  }
+
   return {
     async reservePrivateObject({ case_id, owner_id, document_id, mime_type, byte_size }) {
       const storage_key = `${prefix({ owner_id, case_id })}${encodeURIComponent(document_id)}-${crypto.randomUUID()}`;
@@ -99,24 +119,19 @@ export function createPrivateObjectStorageAdapter({
       return { key, case_id, deleted_at };
     },
 
-    async listDeletionTombstones() {
-      const listed = await provider.listPrefix({ bucket, prefix: `${deletion_ledger_prefix}/` });
-      const items = Array.isArray(listed) ? listed : (listed?.items ?? []);
-      const output = [];
-      for (const item of items) {
-        const key = typeof item === 'string' ? item : item?.key;
-        if (!key?.startsWith(`${deletion_ledger_prefix}/`)) continue;
-        const object = await provider.getObject({ bucket, key });
-        const raw = typeof object === 'string' ? object : object?.body;
-        if (typeof raw !== 'string') throw new Error('Deletion tombstone body is missing.');
-        let parsed;
-        try { parsed = JSON.parse(raw); } catch { throw new Error('Deletion tombstone JSON is invalid.'); }
-        if (parsed?.version !== 1 || typeof parsed.case_id !== 'string' || Number.isNaN(Date.parse(parsed.deleted_at))) {
-          throw new Error('Deletion tombstone is invalid.');
-        }
-        output.push({ key, case_id: parsed.case_id, deleted_at: parsed.deleted_at });
+    listDeletionTombstones,
+
+    async purgeDeletionTombstonesBefore({ cutoff }) {
+      const cutoffMs = Date.parse(cutoff);
+      if (!Number.isFinite(cutoffMs)) throw new Error('Deletion tombstone purge requires a valid cutoff.');
+      const tombstones = await listDeletionTombstones();
+      let purged = 0;
+      for (const tombstone of tombstones) {
+        if (Date.parse(tombstone.deleted_at) >= cutoffMs) continue;
+        const result = await provider.deletePrefix({ bucket, prefix: tombstone.key });
+        purged += Number(result?.deleted_count ?? 0) > 0 ? 1 : 0;
       }
-      return output.sort((a, b) => a.deleted_at.localeCompare(b.deleted_at));
+      return { checked: tombstones.length, purged, cutoff: new Date(cutoffMs).toISOString() };
     }
   };
 }
