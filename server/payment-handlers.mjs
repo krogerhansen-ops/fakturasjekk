@@ -1,7 +1,7 @@
+import { ApiError } from './api-errors.mjs';
 import { requireUser, requireCaseId, requireBodyObject } from './auth-policy.mjs';
-import { projectPaymentConfirmation, assertNoPrivateFields } from './public-projection.mjs';
 
-export function createPaymentHandlers({ services, idempotency = null } = {}) {
+export function createPaymentHandlers({ services, gateway = null, idempotency = null, allowedReturnOrigins = [] } = {}) {
   async function mutate(request, operation, fn) {
     if (!idempotency) return fn();
     const key = request?.headers?.['idempotency-key'] ?? request?.headers?.['Idempotency-Key'];
@@ -15,16 +15,34 @@ export function createPaymentHandlers({ services, idempotency = null } = {}) {
       return { status: 200, body: await services.getPaymentRequirement({ case_id, owner_id: user.id }) };
     },
 
-    async confirm_payment(request) {
+    async create_payment_session(request) {
+      if (!gateway?.createSession) throw new ApiError(503, 'payment_provider_unavailable', 'Betaling er ikke koblet til ennå.');
       const user = requireUser(request);
       const case_id = requireCaseId(request.params);
-      const body = requireBodyObject(request.body);
-      return mutate(request, `confirm_payment:${case_id}`, async () => {
-        const output = await services.confirmPayment({ case_id, owner_id: user.id, confirmation: body.confirmation });
-        const response = projectPaymentConfirmation(output);
-        assertNoPrivateFields(response);
-        return { status: output.paid ? 200 : 422, body: response };
+      const body = request.body == null ? {} : requireBodyObject(request.body);
+      let return_url = body.return_url ?? null;
+      if (return_url) {
+        let parsed;
+        try { parsed = new URL(return_url); } catch { throw new ApiError(400, 'invalid_return_url', 'Ugyldig returadresse.'); }
+        if (!allowedReturnOrigins.includes(parsed.origin)) throw new ApiError(400, 'invalid_return_url', 'Returadressen er ikke tillatt.');
+        return_url = parsed.toString();
+      }
+      return mutate(request, `payment_session:${case_id}`, async () => {
+        const requirement = await services.getPaymentRequirement({ case_id, owner_id: user.id });
+        const session = await gateway.createSession({ case_id, owner_id: user.id, requirement, return_url });
+        return { status: 201, body: session };
       });
+    }
+  };
+}
+
+export function createPaymentWebhookHandler({ webhookService, expectedProvider } = {}) {
+  return {
+    async payment_webhook(request) {
+      if (!webhookService?.process) throw new ApiError(503, 'payment_provider_unavailable', 'Betalingsmottak er ikke konfigurert.');
+      if (expectedProvider && request.params?.provider !== expectedProvider) throw new ApiError(404, 'route_not_found', 'Endepunktet finnes ikke.');
+      const result = await webhookService.process({ headers: request.headers ?? {}, raw_body: request.raw_body ?? '' });
+      return { status: result.accepted ? 200 : 422, body: { accepted: result.accepted } };
     }
   };
 }
