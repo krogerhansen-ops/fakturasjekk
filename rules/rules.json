@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.21.0",
+  "engine_version": "0.28.0",
   "jurisdiction": "NO",
   "audience": "consumer",
   "last_full_review": "2026-08-18",
@@ -87,6 +87,54 @@
       "status": "active",
       "scope": ["invoice", "formal_requirements"],
       "notes": "Formelle fakturamangler skal ikke automatisk presenteres som at hovedkravet bortfaller."
+    },
+    {
+      "id": "INK_8_GOOD_PRACTICE",
+      "law": "inkassoloven (1988)",
+      "section": "§ 8",
+      "title": "God inkassoskikk",
+      "source_url": "https://lovdata.no/lov/1988-05-13-26/%C2%A78",
+      "expected_phrase": "urimelig påtrykk, skade eller ulempe",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "debt_collection", "good_practice"],
+      "notes": "Gjelder mens 1988-loven fortsatt er i kraft. Brudd på god inkassoskikk betyr ikke automatisk at selve hovedkravet bortfaller."
+    },
+    {
+      "id": "INK_9_NOTICE",
+      "law": "inkassoloven (1988)",
+      "section": "§ 9",
+      "title": "Inkassovarsel og betalingsfrist",
+      "source_url": "https://lovdata.no/lov/1988-05-13-26/%C2%A79",
+      "expected_phrase": "betalingsfrist som må ha løpt ut",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "debt_collection", "collection_notice"],
+      "notes": "Inkassovarsel skal sendes etter forfall og gi minst 14 dagers betalingsfrist."
+    },
+    {
+      "id": "INK_10_PAYMENT_REQUEST",
+      "law": "inkassoloven (1988)",
+      "section": "§ 10",
+      "title": "Betalingsoppfordring",
+      "source_url": "https://lovdata.no/lov/1988-05-13-26/%C2%A710",
+      "expected_phrase": "komme med innsigelser mot kravet",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "debt_collection", "payment_request", "dispute"],
+      "notes": "Forhold som gir grunn til tvil om kravet er rettmessig skal vurderes før betalingsoppfordring sendes."
+    },
+    {
+      "id": "INK_17_COLLECTION_COSTS",
+      "law": "inkassoloven (1988)",
+      "section": "§ 17",
+      "title": "Kostnader ved utenrettslig inndriving",
+      "source_url": "https://lovdata.no/lov/1988-05-13-26/%C2%A717",
+      "expected_phrase": "innsigelser som det var rimelig grunn til å få vurdert",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "debt_collection", "costs", "dispute"],
+      "notes": "Inndrivingskostnader kan falle bort ved rimelig begrunnede innsigelser eller brudd på god inkassoskikk; dette er ikke det samme som at hovedkravet faller bort."
     }
   ]
 }
