@@ -1,0 +1,14 @@
+{
+  "name": "fakturasjekk",
+  "private": true,
+  "version": "0.41.0",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/run-tests.mjs",
+    "legal:check": "node scripts/legal-source-check.mjs",
+    "legal:transition": "node scripts/legal-transition-check.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
