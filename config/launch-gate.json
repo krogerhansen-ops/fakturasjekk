@@ -1,0 +1,39 @@
+{
+  "version": "0.61.0",
+  "launch_mode": "blocked_until_all_required_complete",
+  "checks": [
+    { "id": "TECH_PRODUCTION_HOSTING", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_POSTGRES_PRODUCTION", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_PRIVATE_OBJECT_STORAGE", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_AUTH_PROVIDER", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_DISTRIBUTED_RATE_LIMIT", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_DOCUMENT_EXTRACTOR", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_RESPONSE_INTERPRETER", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_PAYMENT_PROVIDER_WEBHOOK", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_BACKUP_RETENTION_TEST", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_DELETE_END_TO_END_TEST", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_DPIA_DECISION", "category": "privacy", "required": true, "status": "todo", "evidence": null, "note": "Document whether a DPIA is required; if required, complete it before live personal-data processing." },
+    { "id": "LEGAL_PROCESSING_BASIS_MAP", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": null, "note": "Required if chosen providers create an international transfer issue." },
+    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "todo", "evidence": null },
+    { "id": "COMMERCE_TERMS", "category": "commerce", "required": true, "status": "todo", "evidence": null },
+    { "id": "COMMERCE_PRIVACY_AT_CHECKOUT", "category": "commerce", "required": true, "status": "todo", "evidence": null },
+    { "id": "COMMERCE_29_NOK_TOTAL_PRICE", "category": "commerce", "required": true, "status": "todo", "evidence": null },
+    { "id": "COMMERCE_CANCELLATION_RIGHT_REVIEW", "category": "commerce", "required": true, "status": "todo", "evidence": null, "note": "Final purchase flow must be reviewed for the actual service-delivery/withdrawal-right setup before launch." },
+    { "id": "COMMERCE_RECEIPT_FLOW", "category": "commerce", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "todo", "evidence": null },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "todo", "evidence": null },
+    { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
+    { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "todo", "evidence": null }
+  ],
+  "official_reference_pages": [
+    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/vurdere-personvernkonsekvenser-dpia/",
+    "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/innebygd-personvern-og-personvern-som-standard/",
+    "https://www.forbrukertilsynet.no/lov-og-rett/angrerettloven"
+  ]
+}
