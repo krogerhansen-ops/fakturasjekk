@@ -28,7 +28,8 @@ Ingen produksjonsleverandør som behandler kundedata kan godkjennes før følgen
 | PostgreSQL | Supabase, prosjekt `fakturasjekk-prod` | databehandler forventet | `eu-north-1` (Stockholm) | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / BLOCKED FOR LIVE DATA |
 | Privat object storage | Supabase Storage, bucket `case-documents-private` | databehandler forventet | `eu-north-1` prosjektregion; faktisk lagringsarkitektur bekreftes i provider review | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / BLOCKED FOR LIVE DATA |
 | Auth | Supabase Auth | databehandler forventet for bruker-/identitetsdata | `eu-north-1` prosjektregion; faktisk behandlingsflyt bekreftes | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / BLOCKED FOR LIVE DATA |
-| Dokumenttolk/OCR/KI | [velges] | databehandler forventet for saksinnhold | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
+| OCR / maskinlesing | Google Cloud Vision, `DOCUMENT_TEXT_DETECTION` | databehandler forventet for dokumentinnhold; må bekreftes kontraktuelt | Vision location `eu` er hardt krav i kode; faktisk Google Cloud prosjekt/ressurslokasjon bekreftes live | kartlegges | nei | ikke godkjent | ukjent; support/underleverandørtilgang må kartlegges selv om OCR-endepunkt er EU | ikke vurdert | SELECTED CANDIDATE / BLOCKED FOR LIVE DATA |
+| Faktatolk etter OCR | [velges] | databehandler forventet for OCR-tekst/saksinnhold | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
 | Svarrunde 2-tolk | [velges] | databehandler forventet | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
 | Betaling | [Vipps er foretrukket kandidat] | ofte selvstendig behandlingsansvarlig for deler / vurderes konkret | [kartlegges] | [kartlegges] | nei | kontrakt | ukjent | vurderes | BLOCKED |
 | E-post/kvittering | [velges] | databehandler forventet for meldingsdata | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
@@ -48,6 +49,22 @@ Dedikert Supabase-organisasjon og prosjekt er opprettet særskilt for Fakturasje
 Dette er et **leverandørvalg**, ikke en GDPR-godkjenning. Før ekte dokumenter behandles skal DPA, underleverandørliste, supporttilgang, behandlingssteder og eventuelle overføringer utenfor EØS vurderes og føres inn her.
 
 Supabase dokumenterer at hvert prosjekt ligger i én valgt primærregion, at `eu-north-1` er Stockholm, og at deres hosted platform har sikkerhets-/compliance-kontroller under en delt ansvarsmodell. Fakturasjekk beholder ansvaret for egen arkitektur, tilgang, schema, brukere, dataminimering, retention og tredjepartsintegrasjoner.
+
+## Google Cloud Vision – kjent teknisk status
+
+Google Cloud Vision er valgt som OCR-kandidat fordi V1 kan bruke regional location `eu`, fordi API-et støtter `DOCUMENT_TEXT_DETECTION` for bilder og PDF, og fordi dagens prisstruktur har et gratis månedlig OCR-volum som passer tidlig pilottrafikk.
+
+Implementert kode/policy:
+
+- `server/google-vision-ocr.mjs`
+- `config/ocr-policy.json`
+- `docs/GOOGLE-VISION-OCR.md`
+- hard fail dersom location ikke er `eu`
+- fler-siders PDF behandles i maks fem sider per request, men `totalPages` brukes til å sikre at hele dokumentet er behandlet
+- V1-grense maks 20 sider per dokument for å begrense kostnad og ressursbruk
+- OCR er eksplisitt separert fra juridisk motor og faktatolk
+
+Dette er **ikke** en GDPR-godkjenning. Før live må Google Cloud-prosjekt, IAM/OAuth, DPA, underleverandører, supporttilgang, behandlingssteder og eventuell tredjelandstilgang dokumenteres. OCR-tekst skal følge Fakturasjekks eksisterende retention og skal ikke brukes til leverandørens generelle modelltrening/sekundærformål uten en ny eksplisitt og lovlig beslutning.
 
 ## EØS-first beslutning
 
@@ -76,3 +93,6 @@ Produksjonsavtalen for OCR/KI/Svarrunde 2 skal kreve at kundedokumenter og saksi
 - Supabase – regions: https://supabase.com/docs/guides/platform/regions
 - Supabase – security: https://supabase.com/docs/guides/security
 - Supabase – shared responsibility: https://supabase.com/docs/guides/deployment/shared-responsibility-model
+- Google Cloud Vision – pricing: https://cloud.google.com/vision/pricing
+- Google Cloud Vision – regionalization: https://cloud.google.com/vision/docs/ocr#regionalization
+- Google Cloud Vision – AnnotateFileRequest: https://docs.cloud.google.com/vision/docs/reference/rest/v1/AnnotateFileRequest
