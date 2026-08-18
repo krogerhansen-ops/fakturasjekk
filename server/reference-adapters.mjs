@@ -15,21 +15,20 @@ export function createMemoryCaseStore() {
     },
     async getOwned(caseId, ownerId) {
       const value = cases.get(caseId);
-      if (!value || value.owner_id !== ownerId || value.deleted_at) {
-        throw new Error('Case not found or not owned by user.');
-      }
+      if (!value || value.owner_id !== ownerId || value.deleted_at) throw new Error('Case not found or not owned by user.');
+      return clone(value);
+    },
+    async getForSystem(caseId) {
+      const value = cases.get(caseId);
+      if (!value || value.deleted_at) throw new Error('Case not found.');
       return clone(value);
     },
     async listOwned(ownerId) {
-      return [...cases.values()]
-        .filter(item => item.owner_id === ownerId && !item.deleted_at)
-        .map(clone);
+      return [...cases.values()].filter(item => item.owner_id === ownerId && !item.deleted_at).map(clone);
     },
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
       const value = cases.get(caseId);
-      if (!value || value.owner_id !== ownerId || value.deleted_at) {
-        throw new Error('Case not found or not owned by user.');
-      }
+      if (!value || value.owner_id !== ownerId || value.deleted_at) throw new Error('Case not found or not owned by user.');
       const deleted = { ...value, deleted_at, state: 'deleted' };
       cases.set(caseId, clone(deleted));
       return clone(deleted);
@@ -60,10 +59,7 @@ export function createMemoryStorage() {
     async deleteCaseObjects({ case_id, owner_id }) {
       let deleted = 0;
       for (const [key, item] of objects.entries()) {
-        if (item.case_id === case_id && item.owner_id === owner_id) {
-          objects.delete(key);
-          deleted += 1;
-        }
+        if (item.case_id === case_id && item.owner_id === owner_id) { objects.delete(key); deleted += 1; }
       }
       return deleted;
     }
@@ -71,12 +67,7 @@ export function createMemoryStorage() {
 }
 
 export function createStaticExtractor({ output }) {
-  return {
-    async extract() {
-      if (typeof output === 'function') return clone(await output());
-      return clone(output);
-    }
-  };
+  return { async extract() { return clone(typeof output === 'function' ? await output() : output); } };
 }
 
 export function createMemoryIdempotencyStore() {
