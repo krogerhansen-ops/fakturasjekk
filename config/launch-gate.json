@@ -1,11 +1,14 @@
 {
-  "version": "0.65.0",
+  "version": "0.66.0",
   "launch_mode": "blocked_until_all_required_complete",
   "checks": [
+    { "id": "TECH_DEDICATED_SUPABASE_PROJECT", "category": "technical", "required": true, "status": "complete", "evidence": "Dedicated Free-plan organization Fakturasjekk and project fakturasjekk-prod were created in eu-north-1; project ref is recorded in config/supabase-target.json. Karriere is not shared or used." },
+    { "id": "TECH_SUPABASE_SCHEMA_VERIFIED", "category": "technical", "required": true, "status": "todo", "evidence": "supabase/migrations/20260818231500_fakturasjekk_core.sql is ready; live read-back verification remains because the Supabase connector became unavailable during migration verification." },
+    { "id": "TECH_SUPABASE_SECURITY_ADVISOR", "category": "technical", "required": true, "status": "todo", "evidence": "Run Supabase Security Advisor against fakturasjekk-prod and resolve launch-relevant findings after connector access is restored." },
     { "id": "TECH_PRODUCTION_HOSTING", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_POSTGRES_PRODUCTION", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_PRIVATE_OBJECT_STORAGE", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_AUTH_PROVIDER", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_POSTGRES_PRODUCTION", "category": "technical", "required": true, "status": "todo", "evidence": "Dedicated Supabase Postgres project exists; schema/read-back verification is still required before this gate can close." },
+    { "id": "TECH_PRIVATE_OBJECT_STORAGE", "category": "technical", "required": true, "status": "todo", "evidence": "Dedicated private bucket definition exists in the Supabase migration; live bucket/read-access verification is still required." },
+    { "id": "TECH_AUTH_PROVIDER", "category": "technical", "required": true, "status": "todo", "evidence": "Supabase Auth is the selected V1 target; production JWT issuer/project-lock configuration is implemented, but live Auth verification remains." },
     { "id": "TECH_DISTRIBUTED_RATE_LIMIT", "category": "technical", "required": true, "status": "todo", "evidence": null },
     { "id": "TECH_DOCUMENT_EXTRACTOR", "category": "technical", "required": true, "status": "todo", "evidence": null },
     { "id": "TECH_RESPONSE_INTERPRETER", "category": "technical", "required": true, "status": "todo", "evidence": null },
@@ -23,9 +26,9 @@
     { "id": "LEGAL_ARTICLE9_FAIL_CLOSED", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md and config/privacy-security-policy.json block normal V1 analysis of special-category data and require separate review where necessary." },
     { "id": "LEGAL_ROPA", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/ROPA.md contains processing activities, purposes, categories, bases, retention and security measures; controller/provider fields must be completed before live." },
     { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Required privacy-notice contents are specified; controller identity, actual processors/transfers and contact details remain." },
-    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md contains the provider register and approval criteria; all production providers are BLOCKED until populated." },
+    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase is selected for database/auth/storage in Stockholm and is recorded as a production dependency; DPA/subprocessor/transfer documentation must still be approved before live. See docs/PROCESSORS-AND-TRANSFERS.md." },
     { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines required DPA/subprocessor controls; actual contracts depend on selected providers." },
-    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines EEA-first, transfer mapping, SCC/adequacy and supplementary-measure review; actual providers are not selected." },
+    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "Supabase project region is eu-north-1/Stockholm. Subprocessor/support/transfer paths still require documented review before live." },
     { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json and docs/RETENTION-AND-DELETION-VERIFICATION.md define 24h/7d/90d plus backup/audit requirements; final approval requires provider validation and DPIA sign-off." },
     { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Operational workflow drafted in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md; final contact channel and production end-to-end test remain." },
     { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/NO-TRACKING-AND-INCIDENT-RESPONSE.md contains containment, risk assessment, 72-hour decision flow, evidence handling and post-incident actions; named responsible persons remain." },
@@ -41,7 +44,7 @@
     { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "docs/LEGAL-REVIEW-2026-08-18.md – active V1 rules manually re-verified against Lovdata on 2026-08-18." },
     { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "Lov 2026-05-22-19 remains 'Kongen bestemmer'; current 1988 law remains runtime-active. See docs/LEGAL-REVIEW-2026-08-18.md." },
 
-    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions quality gate was green before this hardening branch; hardening PR must also be green before merge." },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions quality gate was green before this production-lock branch; this branch must also be green before merge." },
     { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
     { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; regression tests cover deterministic engine behavior." }
   ],
@@ -53,6 +56,9 @@
     "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/vurdering-av-personvernkonsekvenser/",
     "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/protokoll-over-behandlingsaktiviteter/",
     "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/overforing-av-personopplysninger-ut-av-eos/",
-    "https://www.datatilsynet.no/personvern-pa-ulike-omrader/internett-og-apper/bruk-av-informasjonskapsler-og-andre-sporingsteknologier/"
+    "https://www.datatilsynet.no/personvern-pa-ulike-omrader/internett-og-apper/bruk-av-informasjonskapsler-og-andre-sporingsteknologier/",
+    "https://supabase.com/docs/guides/platform/regions",
+    "https://supabase.com/docs/guides/security",
+    "https://supabase.com/docs/guides/deployment/shared-responsibility-model"
   ]
 }
