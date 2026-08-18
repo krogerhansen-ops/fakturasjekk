@@ -1,10 +1,11 @@
-import { createCase, transitionCase, addDocument, addAnalysis, addPayment, addDraft, addSupplierResponse, addFollowUp } from '../engine/case-state.mjs';
+import { createCase, transitionCase, addDocument, markDocumentUploaded, addAnalysis, addPayment, addDraft, addSupplierResponse, addFollowUp } from '../engine/case-state.mjs';
 import { validateUploadSet } from '../engine/document-policy.mjs';
 import { validateExtraction, toEvidenceOrigins } from '../engine/extraction-policy.mjs';
 import { runCase } from '../engine/case-service.mjs';
 import { paymentRequirement, validatePaymentConfirmation, shouldUnlockFullResult } from '../engine/payment-gate.mjs';
 import { reviewSupplierResponse, buildFollowUpDraft } from '../engine/followup.mjs';
 import { computeRetention, purgePlan } from '../engine/retention.mjs';
+import { normalizeStorageReservation, publicUploadTarget, assertUploadTargetSafe } from './storage-contract.mjs';
 
 function requireAdapter(adapters, name) {
   const adapter = adapters?.[name];
@@ -28,25 +29,72 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
   async function registerUploads({ case_id, owner_id, files }) {
     let caseData = await store.getOwned(case_id, owner_id);
     const validation = validateUploadSet(files, uploadPolicy);
-    if (!validation.valid) return { accepted: false, validation, case: caseData };
+    if (!validation.valid) return { accepted: false, validation, upload_targets: [], case: caseData };
 
+    const uploadTargets = [];
     for (const file of files) {
       const documentId = await store.nextId('document');
-      const storageKey = await storage.reservePrivateObject({ case_id, owner_id, document_id: documentId, name: file.name, mime_type: file.mime_type });
+      const reservation = normalizeStorageReservation(await storage.reservePrivateObject({
+        case_id,
+        owner_id,
+        document_id: documentId,
+        name: file.name,
+        mime_type: file.mime_type,
+        byte_size: file.size
+      }));
+      const target = publicUploadTarget({ document_id: documentId, reservation });
+      if (target) {
+        assertUploadTargetSafe(target);
+        uploadTargets.push(target);
+      }
       caseData = addDocument(caseData, {
         id: documentId,
         role: file.role,
         name: file.name,
-        storage_key: storageKey,
-        status: 'awaiting_upload'
+        mime_type: file.mime_type,
+        storage_key: reservation.storage_key,
+        status: target ? 'awaiting_upload' : 'uploaded'
       }, { clock });
     }
     await store.save(caseData);
-    return { accepted: true, validation, case: caseData };
+    return { accepted: true, validation, upload_targets: uploadTargets, case: caseData };
+  }
+
+  async function confirmDocumentUpload({ case_id, owner_id, document_id }) {
+    let caseData = await store.getOwned(case_id, owner_id);
+    const document = caseData.documents.find(d => d.id === document_id);
+    if (!document) throw new Error('Document not found.');
+    if (document.status === 'uploaded') return { uploaded: true, document, case: caseData };
+    if (document.status !== 'awaiting_upload') throw new Error('Document is not awaiting upload.');
+    if (!storage.finalizeUpload) throw new Error('Storage adapter does not support upload finalization.');
+
+    const verified = await storage.finalizeUpload({
+      case_id,
+      owner_id,
+      document_id,
+      storage_key: document.storage_key,
+      expected_mime_type: document.mime_type,
+      max_file_bytes: uploadPolicy.max_file_bytes,
+      allowed_mime_types: uploadPolicy.allowed_mime_types
+    });
+    if (!verified?.uploaded || !verified?.magic_bytes_verified || verified?.malware_safe !== true) {
+      throw new Error('Uploaded document failed server-side verification.');
+    }
+    if (Number(verified.byte_size) > Number(uploadPolicy.max_file_bytes)) throw new Error('Uploaded document is too large.');
+    if (!uploadPolicy.allowed_mime_types.includes(verified.mime_type)) throw new Error('Uploaded document type is not allowed.');
+
+    caseData = markDocumentUploaded(caseData, document_id, {
+      byte_size: verified.byte_size,
+      mime_type: verified.mime_type,
+      sha256: verified.sha256 ?? null
+    }, { clock });
+    await store.save(caseData);
+    return { uploaded: true, document: caseData.documents.find(d => d.id === document_id), case: caseData };
   }
 
   async function analyzeStoredCase({ case_id, owner_id, user_note = '', collection = null }) {
     let caseData = await store.getOwned(case_id, owner_id);
+    if (caseData.documents.some(d => d.status === 'awaiting_upload')) throw new Error('All reserved documents must be uploaded and verified before analysis.');
     const documents = await storage.listCaseDocuments({ case_id, owner_id, records: caseData.documents });
     if (!documents.some(d => d.role === 'invoice')) throw new Error('Invoice document is required before analysis.');
 
@@ -168,6 +216,7 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
   return {
     createNewCase,
     registerUploads,
+    confirmDocumentUpload,
     analyzeStoredCase,
     getPaymentRequirement,
     confirmPayment,
