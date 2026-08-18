@@ -28,8 +28,9 @@ jobs:
       - name: Build public artifact
         run: |
           rm -rf _site
-          mkdir -p _site/admin _site/engine _site/rules _site/data
-          cp site/index-v025.html _site/index.html
+          mkdir -p _site/admin _site/engine _site/rules _site/data _site/config
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('config/product.json','utf8')).version")
+          sed "s/V0\.25/V${VERSION}/g" site/index-v025.html > _site/index.html
           cp motor-test.html _site/motor-test.html
           cp flow-test.html _site/flow-test.html
           cp admin/rules.html _site/admin/rules.html
@@ -38,6 +39,7 @@ jobs:
           cp engine/draft.mjs _site/engine/draft.mjs
           cp rules/rules.json _site/rules/rules.json
           cp data/demo-cases.json _site/data/demo-cases.json
+          cp config/product.json _site/config/product.json
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
