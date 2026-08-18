@@ -1,0 +1,28 @@
+{
+  "version": "0.45.0",
+  "fields": {
+    "invoice_number": { "type": "string", "critical": true, "roles": ["invoice"] },
+    "invoice_total": { "type": "number", "critical": true, "roles": ["invoice"] },
+    "invoice_date": { "type": "date", "critical": false, "roles": ["invoice"] },
+    "due_date": { "type": "date", "critical": false, "roles": ["invoice", "collection_notice", "payment_request"] },
+    "seller_name": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "seller_org_number": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "currency": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "vat_total": { "type": "number", "critical": false, "roles": ["invoice"] },
+    "invoice_fee": { "type": "number", "critical": true, "roles": ["invoice"] },
+    "lines": { "type": "line_items", "critical": false, "roles": ["invoice"] },
+    "agreed_price": { "type": "number", "critical": true, "roles": ["quote", "agreement", "order_confirmation"] },
+    "price_basis": { "type": "enum", "values": ["fixed", "estimate", "quote", "hourly", "unknown"], "critical": false, "roles": ["quote", "agreement", "order_confirmation"] },
+    "invoice_fee_agreed": { "type": "boolean", "critical": false, "roles": ["quote", "agreement", "order_confirmation"] },
+    "surcharge_documented": { "type": "boolean", "critical": false, "roles": ["agreement", "quote", "correspondence", "other"] },
+    "price_increase_after_start": { "type": "boolean", "critical": false, "roles": ["correspondence", "invoice", "quote"] },
+    "customer_notified": { "type": "boolean", "critical": false, "roles": ["correspondence", "quote", "agreement"] },
+    "missing_formal_fields": { "type": "string_array", "critical": false, "roles": ["invoice"] }
+  },
+  "principles": [
+    "Extract facts, not legal conclusions.",
+    "Unknown or ambiguous values must be omitted, not guessed.",
+    "Every returned field must include source document and page.",
+    "Boolean values require explicit support in the source; absence of evidence is not automatically false."
+  ]
+}
