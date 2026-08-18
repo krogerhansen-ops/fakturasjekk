@@ -28,20 +28,14 @@ export function apiErrorResponse(error, requestId = null) {
 
 export function mapServiceError(error) {
   const message = String(error?.message ?? '');
-  if (/not found|does not exist|owner|owned|access|forbidden/i.test(message)) {
-    return new ApiError(404, 'case_not_found', 'Saken finnes ikke.');
-  }
-  if (/locked until verified 29 NOK payment/i.test(message)) {
-    return new ApiError(402, 'payment_required', 'Fullresultatet krever verifisert betaling på 29 kr.');
-  }
-  if (/invoice document is required/i.test(message)) {
-    return new ApiError(409, 'invoice_required', 'Faktura må være lastet opp før analyse.');
-  }
-  if (/analysis must exist/i.test(message)) {
-    return new ApiError(409, 'analysis_required', 'Analysen må være ferdig først.');
-  }
-  if (/no controlled draft/i.test(message)) {
-    return new ApiError(409, 'draft_unavailable', 'Det finnes ikke et kontrollert utkast for denne analysen.');
-  }
+  if (/not found|does not exist|owner|owned|access|forbidden/i.test(message)) return new ApiError(404, 'case_not_found', 'Saken finnes ikke.');
+  if (/locked until verified 29 NOK payment/i.test(message)) return new ApiError(402, 'payment_required', 'Fullresultatet krever verifisert betaling på 29 kr.');
+  if (/all reserved documents must be uploaded and verified/i.test(message)) return new ApiError(409, 'uploads_not_finalized', 'Alle dokumenter må være ferdig lastet opp og verifisert før analyse.');
+  if (/uploaded document failed server-side verification/i.test(message)) return new ApiError(422, 'upload_verification_failed', 'Dokumentet bestod ikke sikkerhetskontrollen.');
+  if (/uploaded document is too large/i.test(message)) return new ApiError(422, 'uploaded_file_too_large', 'Dokumentet er for stort.');
+  if (/uploaded document type is not allowed/i.test(message)) return new ApiError(422, 'uploaded_file_type_not_allowed', 'Dokumenttypen er ikke tillatt.');
+  if (/invoice document is required/i.test(message)) return new ApiError(409, 'invoice_required', 'Faktura må være lastet opp før analyse.');
+  if (/analysis must exist/i.test(message)) return new ApiError(409, 'analysis_required', 'Analysen må være ferdig først.');
+  if (/no controlled draft/i.test(message)) return new ApiError(409, 'draft_unavailable', 'Det finnes ikke et kontrollert utkast for denne analysen.');
   return error;
 }
