@@ -1,6 +1,6 @@
 {
   "name": "Fakturasjekk.no",
-  "version": "0.21.0",
+  "version": "0.31.0",
   "market": "NO",
   "audience": "consumer",
   "mode": "external_test",
@@ -8,7 +8,9 @@
   "price_label": "29 kr",
   "includes": [
     "full_invoice_check",
-    "objection_draft"
+    "objection_draft",
+    "rule_and_paragraph_control",
+    "inkasso_track_when_applicable"
   ],
   "demo_free": true,
   "full_check_free": false,
