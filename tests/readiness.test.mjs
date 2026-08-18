@@ -5,26 +5,32 @@ const activeRule = { status: 'active', source_url: 'https://lovdata.no/lov/test'
 const adapters = {
   caseStore: { getOwned() {}, save() {} },
   storage: { reservePrivateObject() {}, listCaseDocuments() {} },
-  extractor: { extract() {} }
+  extractor: { extract() {} },
+  responseInterpreter: { interpret() {} }
 };
 const gateway = { createSession() {}, verifyEvent() {} };
 const good = evaluateReadiness({
-  product: { price_nok: 29, full_check_free: false, market: 'NO', audience: 'consumer' },
-  registry: { rules: [activeRule] },
-  adapters,
-  paymentGateway: gateway
+  product: { price_nok: 29, full_check_free: false, market: 'NO', audience: 'consumer', includes: ['supplier_response_follow_up'] },
+  registry: { rules: [activeRule] }, adapters, paymentGateway: gateway
 });
 assert.equal(good.ready, true);
 assert.equal(good.failed_count, 0);
 
+const missingResponseInterpreter = evaluateReadiness({
+  product: { price_nok: 29, full_check_free: false, market: 'NO', audience: 'consumer', includes: ['supplier_response_follow_up'] },
+  registry: { rules: [activeRule] },
+  adapters: { ...adapters, responseInterpreter: null }, paymentGateway: gateway
+});
+assert.equal(missingResponseInterpreter.ready, false);
+assert.ok(missingResponseInterpreter.checks.some(c => c.name === 'response_interpreter' && c.ok === false));
+
 const bad = evaluateReadiness({
-  product: { price_nok: 0, full_check_free: true, market: 'NO', audience: 'consumer' },
+  product: { price_nok: 0, full_check_free: true, market: 'NO', audience: 'consumer', includes: ['supplier_response_follow_up'] },
   registry: { rules: [{ ...activeRule, source_url: 'https://example.com/fake' }] },
-  adapters: { caseStore: adapters.caseStore },
-  paymentGateway: null
+  adapters: { caseStore: adapters.caseStore }, paymentGateway: null
 });
 assert.equal(bad.ready, false);
-assert.ok(bad.failed_count >= 4);
+assert.ok(bad.failed_count >= 5);
 const publicBad = publicReadiness(bad);
 assert.equal(JSON.stringify(publicBad).includes('example.com'), false);
 assert.equal(JSON.stringify(publicBad).includes('Lovdata-kilde'), false);
