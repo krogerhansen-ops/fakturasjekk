@@ -9,8 +9,11 @@ assert.equal(validateOrigin('https://fakturasjekk.no', ['https://fakturasjekk.no
 assert.equal(validateOrigin('https://evil.example', ['https://fakturasjekk.no']), false);
 
 enforceRequestEnvelope({ method: 'POST', headers: { 'content-length': '100' } });
-assert.throws(() => enforceRequestEnvelope({ method: 'DELETE', headers: {} }), /ikke tillatt/i);
+enforceRequestEnvelope({ method: 'DELETE', headers: {} });
+assert.throws(() => enforceRequestEnvelope({ method: 'PATCH', headers: {} }), /ikke tillatt/i);
 assert.throws(() => enforceRequestEnvelope({ method: 'POST', headers: { 'content-length': String(DEFAULT_SECURITY_POLICY.json_body_max_bytes + 1) } }), /for stor/i);
+assert.equal(DEFAULT_SECURITY_POLICY.rate_limits.create_payment_session.max, 10);
+assert.equal(DEFAULT_SECURITY_POLICY.rate_limits.payment_webhook.max, 60);
 
 let now = 1000;
 const limiter = createMemoryRateLimiter({ clock: () => now });
