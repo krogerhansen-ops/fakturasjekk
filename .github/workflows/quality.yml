@@ -34,6 +34,8 @@ jobs:
         run: node tests/document-policy.test.mjs
       - name: Run extraction confidence tests
         run: node tests/extraction-policy.test.mjs
+      - name: Run retention and deletion tests
+        run: node tests/retention.test.mjs
       - name: Run controlled draft tests
         run: node tests/draft.test.mjs
       - name: Run supplier-response follow-up tests
