@@ -32,7 +32,15 @@ export function createMemoryCaseStore() {
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
       const value = cases.get(caseId);
       if (!value || value.owner_id !== ownerId || value.deleted_at) throw new Error('Case not found or not owned by user.');
-      const deleted = { ...value, deleted_at, state: 'deleted' };
+      const deleted = {
+        id: value.id,
+        owner_id: value.owner_id,
+        state: 'deleted',
+        retention_mode: value.retention_mode,
+        created_at: value.created_at,
+        updated_at: deleted_at,
+        deleted_at
+      };
       cases.set(caseId, clone(deleted));
       return clone(deleted);
     }
