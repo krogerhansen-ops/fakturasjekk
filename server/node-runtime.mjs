@@ -44,8 +44,26 @@ export function createNodeHandler({ api, authAdapter, allowedOrigins = [], secur
     let matched = null;
 
     try {
-      enforceRequestEnvelope({ method: req.method, headers: req.headers }, securityPolicy);
       const url = new URL(req.url, 'http://localhost');
+
+      if (req.method === 'OPTIONS') {
+        const requestedMethod = String(req.headers['access-control-request-method'] ?? '').toUpperCase();
+        matched = requestedMethod ? matchRoute(requestedMethod, url.pathname) : null;
+        if (!matched || matched.route.cors === false) throw new ApiError(404, 'route_not_found', 'Endepunktet finnes ikke.');
+        if (origin && !validateOrigin(origin, allowedOrigins)) throw new ApiError(403, 'origin_not_allowed', 'Origin er ikke tillatt.');
+        res.writeHead(204, {
+          ...securityHeaders({ production, sensitive: true }),
+          ...corsHeaders(origin, allowedOrigins),
+          'x-request-id': requestId,
+          'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+          'access-control-allow-headers': 'authorization, content-type, idempotency-key, x-request-id',
+          'access-control-max-age': '600'
+        });
+        res.end();
+        return;
+      }
+
+      enforceRequestEnvelope({ method: req.method, headers: req.headers }, securityPolicy);
       matched = matchRoute(req.method, url.pathname);
       if (!matched) throw new ApiError(404, 'route_not_found', 'Endepunktet finnes ikke.');
 
@@ -56,18 +74,6 @@ export function createNodeHandler({ api, authAdapter, allowedOrigins = [], secur
         ...(useCors ? corsHeaders(origin, allowedOrigins) : {}),
         'x-request-id': requestId
       };
-
-      if (req.method === 'OPTIONS') {
-        if (!useCors) throw new ApiError(405, 'method_not_allowed', 'HTTP-metoden er ikke tillatt.');
-        res.writeHead(204, {
-          ...baseHeaders,
-          'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
-          'access-control-allow-headers': 'authorization, content-type, idempotency-key, x-request-id',
-          'access-control-max-age': '600'
-        });
-        res.end();
-        return;
-      }
 
       const auth = matched.route.auth === false ? { user: null } : await authenticateRequest({ headers: req.headers }, authAdapter);
       const rateKey = auth.user?.id ?? (matched.route.auth === false ? `server:${req.socket.remoteAddress ?? 'unknown'}` : 'anonymous');
