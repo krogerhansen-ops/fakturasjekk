@@ -1,6 +1,6 @@
 import { ApiError } from './api-errors.mjs';
 import { requireUser, requireCaseId, requireBodyObject, requireString } from './auth-policy.mjs';
-import { projectCase, projectAnalysisResponse, projectDraftResponse, projectSupplierResponse, projectFullResult, assertNoPrivateFields } from './public-projection.mjs';
+import { projectCase, projectAnalysisResponse, projectDraftResponse, projectFullResult, assertNoPrivateFields } from './public-projection.mjs';
 
 export function createCaseHandlers({ services, registry = null, idempotency = null, clock = () => new Date() } = {}) {
   async function mutate(request, operation, fn) {
@@ -76,17 +76,6 @@ export function createCaseHandlers({ services, registry = null, idempotency = nu
       return mutate(request, `create_draft:${case_id}`, async () => {
         const output = await services.saveGeneratedDraft({ case_id, owner_id: user.id, mode: body.mode ?? 'request' });
         return { status: 201, body: safe(projectDraftResponse(output)) };
-      });
-    },
-
-    async supplier_response(request) {
-      const user = requireUser(request);
-      const case_id = requireCaseId(request.params);
-      const body = requireBodyObject(request.body);
-      if (!body.response_record || !body.structured_response) throw new ApiError(400, 'supplier_response_required', 'Leverandørsvar mangler.');
-      return mutate(request, `supplier_response:${case_id}`, async () => {
-        const output = await services.registerSupplierResponse({ case_id, owner_id: user.id, response_record: body.response_record, structured_response: body.structured_response });
-        return { status: 201, body: safe(projectSupplierResponse(output)) };
       });
     },
 
