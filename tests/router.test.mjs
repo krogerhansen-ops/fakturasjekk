@@ -9,6 +9,9 @@ assert.equal(b.params.case_id, 'case-123');
 const c = matchRoute('DELETE', '/v1/cases/case%20x');
 assert.equal(c.route.action, 'delete_case');
 assert.equal(c.params.case_id, 'case x');
+const d = matchRoute('POST', '/v1/cases/case-123/facts/confirm');
+assert.equal(d.route.action, 'confirm_facts');
+assert.equal(d.params.case_id, 'case-123');
 assert.equal(matchRoute('PATCH', '/v1/cases/case-1'), null);
 assert.equal(matchRoute('GET', '/v1/nope'), null);
 
