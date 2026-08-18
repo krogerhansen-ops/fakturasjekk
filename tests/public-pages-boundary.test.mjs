@@ -6,6 +6,9 @@ const page = fs.readFileSync(new URL('../site/index-launch-candidate.html', impo
 const rootIndex = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 assert.match(workflow, /site\/index-launch-candidate\.html/);
+assert.match(workflow, /cp site\/index-launch-candidate\.html _site\/index\.html/);
+assert.match(workflow, /cp site\/index-launch-candidate\.html _site\/site\/index-launch-candidate\.html/);
+assert.match(workflow, /cmp -s _site\/index\.html _site\/site\/index-launch-candidate\.html/);
 for (const forbidden of ['cp server/', 'cp admin/', 'motor-test.html _site', 'flow-test.html _site', 'followup-test.html _site']) {
   assert.equal(workflow.includes(forbidden), false, `Public Pages must not publish ${forbidden}`);
 }
@@ -26,4 +29,4 @@ assert.match(rootIndex, /site\/index-launch-candidate\.html/);
 assert.equal(rootIndex.includes('V0.20'), false, 'Root Pages entrypoint must not fall back to the old V0.20 demo');
 assert.equal(rootIndex.includes('Ekstern test · V0.20'), false, 'Old external-test page must not be deployable from root');
 
-console.log('OK public Pages launch-candidate boundary and root fallback');
+console.log('OK public Pages launch-candidate boundary, root fallback and universal tester path');
