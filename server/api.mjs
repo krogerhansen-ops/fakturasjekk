@@ -1,5 +1,6 @@
 import { apiErrorResponse, mapServiceError, ApiError } from './api-errors.mjs';
 import { createCaseHandlers } from './case-handlers.mjs';
+import { createFactConfirmationHandlers } from './fact-confirmation-handlers.mjs';
 import { createPaymentHandlers, createPaymentWebhookHandler } from './payment-handlers.mjs';
 import { createManagementHandlers } from './management-handlers.mjs';
 import { createSystemHandlers } from './system-handlers.mjs';
@@ -22,6 +23,7 @@ export function createApi({
   const handlers = {
     ...createSystemHandlers({ readiness, version }),
     ...createCaseHandlers({ services, registry, idempotency, clock }),
+    ...(services?.confirmFacts ? createFactConfirmationHandlers({ services, idempotency }) : {}),
     ...createSupplierResponseHandlers({ supplierResponseService, idempotency }),
     ...createPaymentHandlers({ services, gateway: paymentGateway, idempotency, allowedReturnOrigins }),
     ...(paymentWebhookService ? createPaymentWebhookHandler({ webhookService: paymentWebhookService, expectedProvider: paymentProviderName }) : {}),
