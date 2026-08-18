@@ -1,23 +1,34 @@
 openapi: 3.1.0
 info:
   title: Fakturasjekk API
-  version: 0.46.0
-  description: Production API contract for Fakturasjekk.no. Full check plus objection draft costs NOK 29. Payment is unlocked only by a server-verified provider webhook.
+  version: 0.50.0
+  description: API for Fakturasjekk.no. Full fakturasjekk + innsigelsesutkast costs NOK 29. Payment access is granted only after a server-verified provider webhook.
 servers:
   - url: https://api.fakturasjekk.no
 security:
   - bearerAuth: []
 paths:
+  /health:
+    get:
+      security: []
+      summary: Liveness
+      responses:
+        '200': { description: Prosessen svarer }
+  /ready:
+    get:
+      security: []
+      summary: Production readiness without secrets
+      responses:
+        '200': { description: Alle nødvendige produksjonskontroller er klare }
+        '503': { description: Én eller flere produksjonskontroller mangler }
   /v1/cases:
     get:
-      operationId: listCases
-      summary: List brukerens saker
+      summary: Mine saker
       responses:
-        '200': { description: Mine saker }
+        '200': { description: Sikker saksoversikt uten dokumentinnhold }
         '401': { $ref: '#/components/responses/Error' }
     post:
-      operationId: createCase
-      summary: Opprett ny sak
+      summary: Opprett sak
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody:
         required: true
@@ -27,10 +38,8 @@ paths:
       responses:
         '201': { description: Sak opprettet }
         '400': { $ref: '#/components/responses/Error' }
-        '401': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}:
     delete:
-      operationId: deleteCase
       summary: Slett sak og private dokumentobjekter
       parameters:
         - $ref: '#/components/parameters/CaseId'
@@ -40,8 +49,7 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/uploads:
     post:
-      operationId: registerUploads
-      summary: Valider dokumentsett og opprett tidsbegrensede private opplastingsmål
+      summary: Valider dokumentsett og opprett private, tidsbegrensede opplastingsmål
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -60,7 +68,7 @@ paths:
                   items: { $ref: '#/components/schemas/FileDescriptor' }
       responses:
         '200':
-          description: Dokumentreservasjoner opprettet
+          description: Opplastingsmål opprettet; storage_key eksponeres aldri
           content:
             application/json:
               schema:
@@ -70,11 +78,10 @@ paths:
                   upload_targets:
                     type: array
                     items: { $ref: '#/components/schemas/UploadTarget' }
-        '422': { description: Dokumentsett avvist }
+        '422': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/documents/{document_id}/confirm:
     post:
-      operationId: confirmDocumentUpload
-      summary: Server-verifiser at reservert dokument er lastet opp og sikkerhetskontrollert
+      summary: Server-verifiser filtype, størrelse, magic bytes og malware-status før analyse
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/DocumentId'
@@ -85,8 +92,8 @@ paths:
         '422': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/analyze:
     post:
-      operationId: analyzeCase
-      summary: Kjør dokumentuttrekk og kontrollmotor
+      summary: Kjør dokumentuttrekk og deterministisk kontrollmotor
+      description: Før betaling returneres bare forhåndsvisning eller eksplisitte avklaringsbehov.
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -100,31 +107,27 @@ paths:
                 user_note: { type: string, maxLength: 4000 }
                 collection: { type: object, additionalProperties: true }
       responses:
-        '200': { description: Forhåndsvisning eller avklaringsbehov; fullt resultat er betalingslåst }
+        '200': { description: Forhåndsvisning eller avklaringsbehov }
         '409': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/payment:
     get:
-      operationId: getPaymentRequirement
       summary: Hent betalingskrav
       parameters: [ { $ref: '#/components/parameters/CaseId' } ]
       responses:
         '200':
-          description: Betalingskrav
+          description: Fast pris for saken
           content:
             application/json:
               schema:
                 type: object
-                required: [case_id, amount_minor, amount_nok, currency]
                 properties:
-                  case_id: { type: string }
                   amount_minor: { type: integer, const: 2900 }
                   amount_nok: { type: integer, const: 29 }
                   currency: { type: string, const: NOK }
   /v1/cases/{case_id}/payment/session:
     post:
-      operationId: createPaymentSession
-      summary: Opprett checkout hos valgt betalingsleverandør
-      description: Kunden kan starte betaling, men kan ikke selv bekrefte betalingsstatus.
+      summary: Opprett checkout hos betalingsleverandør
+      description: Klienten kan starte betaling, men kan aldri bekrefte betalingsstatus selv.
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -145,9 +148,9 @@ paths:
         '503': { $ref: '#/components/responses/Error' }
   /v1/webhooks/payment/{provider}:
     post:
-      operationId: paymentWebhook
-      summary: Signaturverifisert server-til-server betalingshendelse
       security: []
+      summary: Signaturverifisert server-til-server betalingshendelse
+      description: Rå request-body bevares til leverandørens signaturkontroll. Ingen browserbekreftelse godtas.
       parameters:
         - name: provider
           in: path
@@ -164,16 +167,14 @@ paths:
         '422': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/result:
     get:
-      operationId: getFullResult
-      summary: Hent fullt kundesikkert kontrollresultat
-      description: Krever server-verifisert betaling på 29 kr for samme sak. Interne regel-ID-er og funnkoder eksponeres ikke.
+      summary: Hent fullt kundesikkert resultat
+      description: Krever server-verifisert 29 kr-betaling. Interne funnkoder, regel-ID-er, storage keys og provider references eksponeres ikke.
       parameters: [ { $ref: '#/components/parameters/CaseId' } ]
       responses:
-        '200': { description: Fullt resultat med funn, beregninger, bevisgrunnlag, regel-/paragrafkontroll og kontrollert utkast }
+        '200': { description: Funn, beregninger, bevisgrunnlag, regel-/paragrafkontroll og kontrollert utkast }
         '402': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/draft:
     post:
-      operationId: createDraft
       summary: Lagre kontrollert innsigelsesutkast
       parameters:
         - $ref: '#/components/parameters/CaseId'
@@ -183,8 +184,8 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/supplier-response:
     post:
-      operationId: registerSupplierResponse
-      summary: Registrer leverandørsvar og kjør Svarrunde 2
+      summary: Lim inn leverandørens svar og kjør Svarrunde 2 server-side
+      description: Klienten sender bare svartekst. Interne finding_code/structured_response-felt avvises.
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -194,15 +195,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [response_record, structured_response]
+              required: [response_text]
+              additionalProperties: false
               properties:
-                response_record: { type: object, additionalProperties: true }
-                structured_response: { type: object, additionalProperties: true }
+                response_text: { type: string, minLength: 1, maxLength: 20000 }
+                invoice_reference: { type: string, maxLength: 200 }
       responses:
-        '201': { description: Svar gjennomgått; interne finding-koder eksponeres ikke }
+        '201': { description: Svar-dekning og eventuell oppfølging uten interne koder }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/retention:
     get:
-      operationId: getRetentionStatus
       summary: Hent lagrings- og slettestatus
       parameters: [ { $ref: '#/components/parameters/CaseId' } ]
       responses:
@@ -231,7 +234,7 @@ components:
       schema: { type: string, minLength: 8, maxLength: 200 }
   responses:
     Error:
-      description: Standardisert API-feil uten interne stack traces
+      description: Standardisert feil uten interne stack traces
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
