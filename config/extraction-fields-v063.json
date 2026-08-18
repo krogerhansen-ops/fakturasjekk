@@ -1,0 +1,41 @@
+{
+  "version": "0.63.0",
+  "fields": {
+    "invoice_number": { "type": "string", "critical": true, "roles": ["invoice"] },
+    "invoice_total": { "type": "number", "critical": true, "roles": ["invoice"] },
+    "stated_subtotal": { "type": "number", "critical": false, "roles": ["invoice"] },
+    "stated_vat": { "type": "number", "critical": false, "roles": ["invoice"] },
+    "invoice_date": { "type": "date", "critical": false, "roles": ["invoice"] },
+    "due_date": { "type": "date", "critical": false, "roles": ["invoice", "collection_notice", "payment_request"] },
+    "seller_name": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "seller_org_number": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "seller_address": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "buyer_name": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "currency": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "invoice_fee": { "type": "number", "critical": true, "roles": ["invoice"] },
+    "invoice_lines": { "type": "line_items", "critical": false, "roles": ["invoice"] },
+    "agreed_price": { "type": "number", "critical": true, "roles": ["quote", "agreement", "order_confirmation"] },
+    "agreement_lines": { "type": "line_items", "critical": false, "roles": ["quote", "agreement", "order_confirmation"] },
+    "price_basis": { "type": "enum", "values": ["fixed", "estimate", "quote", "hourly", "unknown"], "critical": false, "roles": ["quote", "agreement", "order_confirmation"] },
+    "invoice_fee_agreed": { "type": "boolean", "critical": false, "roles": ["quote", "agreement", "order_confirmation"] },
+    "surcharge_documented": { "type": "boolean", "critical": false, "roles": ["agreement", "quote", "correspondence", "other"] },
+    "price_increase_after_start": { "type": "boolean", "critical": false, "roles": ["correspondence", "invoice", "quote"] },
+    "customer_notified": { "type": "boolean", "critical": false, "roles": ["correspondence", "quote", "agreement"] }
+  },
+  "line_item_shape": {
+    "description": "required string",
+    "quantity": "optional number",
+    "unit_price": "optional number",
+    "amount": "optional number",
+    "vat_rate": "optional numeric percent explicitly stated on document",
+    "vat_amount": "optional number explicitly stated on document"
+  },
+  "principles": [
+    "Extract facts, not legal conclusions.",
+    "Keep invoice lines and agreement/quote lines in separate fields.",
+    "Do not derive a list of legal/formal defects in the extractor; extract the underlying fields and let deterministic code evaluate them.",
+    "Unknown or ambiguous values must be omitted, not guessed.",
+    "Every returned field must include source document and page.",
+    "Boolean values require explicit support in the source; absence of evidence is not automatically false."
+  ]
+}
