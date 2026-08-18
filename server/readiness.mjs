@@ -13,6 +13,9 @@ export function evaluateReadiness({ product, registry, adapters = {}, paymentGat
   add('case_store', Boolean(adapters.caseStore?.getOwned && adapters.caseStore?.save), 'Sakslagring må være konfigurert.');
   add('private_storage', Boolean(adapters.storage?.reservePrivateObject && adapters.storage?.listCaseDocuments), 'Privat dokumentlagring må være konfigurert.');
   add('extractor', Boolean(adapters.extractor?.extract), 'Dokumenttolk må være konfigurert.');
+  if ((product?.includes ?? []).includes('supplier_response_follow_up')) {
+    add('response_interpreter', Boolean(adapters.responseInterpreter?.interpret), 'Svarrunde 2-tolk må være konfigurert.');
+  }
   add('payment_gateway', Boolean(paymentGateway?.createSession && paymentGateway?.verifyEvent), 'Server-verifisert betalingsgateway må være konfigurert.');
 
   const failed = checks.filter(check => !check.ok);
