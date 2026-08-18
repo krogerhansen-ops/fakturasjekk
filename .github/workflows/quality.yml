@@ -38,6 +38,8 @@ jobs:
         run: node tests/draft.test.mjs
       - name: Run supplier-response follow-up tests
         run: node tests/followup.test.mjs
+      - name: Run case lifecycle tests
+        run: node tests/case-state.test.mjs
       - name: Run end-to-end case service tests
         run: node tests/case-service.test.mjs
       - name: Validate public demo fixtures
