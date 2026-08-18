@@ -13,6 +13,7 @@ import { createValidatedResponseInterpreter, createDevelopmentResponseInterprete
 import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentProviderGateway, createDevelopmentPaymentProvider } from './payment-provider-contract.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
+import { createMemoryPaymentEventStore } from './payment-event-store.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 
 if (process.env.NODE_ENV === 'production') throw new Error('dev-server cannot run in production');
@@ -51,7 +52,8 @@ const supplierResponseService = createSupplierResponseService({ caseStore, servi
 const management = createCaseManagement({ caseStore, storage, audit });
 const paymentProvider = createDevelopmentPaymentProvider({ name: 'dev-pay' });
 const paymentGateway = createPaymentProviderGateway({ provider: paymentProvider, product, allowed_providers: ['dev-pay'] });
-const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, audit });
+const paymentEventStore = createMemoryPaymentEventStore();
+const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, eventStore: paymentEventStore, audit });
 const readiness = () => evaluateReadiness({ product, registry, adapters, paymentGateway });
 const api = createApi({
   services,
