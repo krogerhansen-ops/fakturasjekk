@@ -3,11 +3,13 @@ import { createCaseHandlers } from './case-handlers.mjs';
 import { createPaymentHandlers, createPaymentWebhookHandler } from './payment-handlers.mjs';
 import { createManagementHandlers } from './management-handlers.mjs';
 import { createSystemHandlers } from './system-handlers.mjs';
+import { createSupplierResponseHandlers } from './supplier-response-handlers.mjs';
 
 export function createApi({
   services,
   registry = null,
   management = null,
+  supplierResponseService = null,
   paymentGateway = null,
   paymentWebhookService = null,
   paymentProviderName = null,
@@ -20,6 +22,7 @@ export function createApi({
   const handlers = {
     ...createSystemHandlers({ readiness, version }),
     ...createCaseHandlers({ services, registry, idempotency, clock }),
+    ...createSupplierResponseHandlers({ supplierResponseService, idempotency }),
     ...createPaymentHandlers({ services, gateway: paymentGateway, idempotency, allowedReturnOrigins }),
     ...(paymentWebhookService ? createPaymentWebhookHandler({ webhookService: paymentWebhookService, expectedProvider: paymentProviderName }) : {}),
     ...(management ? createManagementHandlers({ management, idempotency }) : {})
