@@ -9,6 +9,7 @@ export const ROUTES = Object.freeze([
   { method: 'POST', path: '/v1/cases/:case_id/uploads', action: 'register_uploads', auth: true, mutation: true },
   { method: 'POST', path: '/v1/cases/:case_id/documents/:document_id/confirm', action: 'confirm_document_upload', auth: true, mutation: true },
   { method: 'POST', path: '/v1/cases/:case_id/analyze', action: 'analyze_case', auth: true, mutation: true },
+  { method: 'POST', path: '/v1/cases/:case_id/facts/confirm', action: 'confirm_facts', auth: true, mutation: true },
   { method: 'GET', path: '/v1/cases/:case_id/payment', action: 'payment_requirement', auth: true, mutation: false },
   { method: 'POST', path: '/v1/cases/:case_id/payment/session', action: 'create_payment_session', auth: true, mutation: true },
   { method: 'POST', path: '/v1/webhooks/payment/:provider', action: 'payment_webhook', auth: false, mutation: true, raw_body: true, cors: false },
