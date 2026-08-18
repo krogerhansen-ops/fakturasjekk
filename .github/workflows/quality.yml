@@ -20,35 +20,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run legal/data regression tests
-        run: node tests/regression.test.mjs
-      - name: Run intake classifier tests
-        run: node tests/intake.test.mjs
-      - name: Run deterministic engine tests
-        run: node tests/engine.test.mjs
-      - name: Run inkasso engine tests
-        run: node tests/inkasso.test.mjs
-      - name: Run evidence provenance tests
-        run: node tests/evidence.test.mjs
-      - name: Run upload policy tests
-        run: node tests/document-policy.test.mjs
-      - name: Run extraction confidence tests
-        run: node tests/extraction-policy.test.mjs
-      - name: Run retention and deletion tests
-        run: node tests/retention.test.mjs
-      - name: Run payment gate tests
-        run: node tests/payment-gate.test.mjs
-      - name: Run controlled draft tests
-        run: node tests/draft.test.mjs
-      - name: Run supplier-response follow-up tests
-        run: node tests/followup.test.mjs
-      - name: Run case lifecycle tests
-        run: node tests/case-state.test.mjs
-      - name: Run end-to-end case service tests
-        run: node tests/case-service.test.mjs
-      - name: Run backend service integration tests
-        run: node tests/server-services.test.mjs
-      - name: Validate public demo fixtures
-        run: node tests/demo-fixtures.test.mjs
-      - name: Run public messaging tests
-        run: node tests/content.test.mjs
+      - name: Run all Fakturasjekk tests
+        run: npm test
