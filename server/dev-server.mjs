@@ -11,6 +11,7 @@ import { createMemoryRateLimiter } from './security-policy.mjs';
 import { createValidatedExtractor } from './extractor-contract.mjs';
 import { createPaymentProviderGateway, createDevelopmentPaymentProvider } from './payment-provider-contract.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
+import { evaluateReadiness } from './readiness.mjs';
 
 if (process.env.NODE_ENV === 'production') throw new Error('dev-server cannot run in production');
 const readJson = path => JSON.parse(fs.readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -41,11 +42,13 @@ const rawExtractor = {
   }
 };
 const extractor = createValidatedExtractor({ provider: rawExtractor, catalog: extractionCatalog });
-const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters: { caseStore, storage, extractor } });
+const adapters = { caseStore, storage, extractor };
+const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters });
 const management = createCaseManagement({ caseStore, storage, audit });
 const paymentProvider = createDevelopmentPaymentProvider({ name: 'dev-pay' });
 const paymentGateway = createPaymentProviderGateway({ provider: paymentProvider, product, allowed_providers: ['dev-pay'] });
 const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, audit });
+const readiness = () => evaluateReadiness({ product, registry, adapters, paymentGateway });
 const api = createApi({
   services,
   registry,
@@ -54,6 +57,8 @@ const api = createApi({
   paymentWebhookService,
   paymentProviderName: 'dev-pay',
   allowedReturnOrigins: ['http://localhost:5173', 'http://127.0.0.1:5500'],
+  readiness,
+  version: product.version,
   idempotency
 });
 const authAdapter = createDevelopmentAuthAdapter({ users: { 'dev-user-token': { id: 'dev-user', email: 'dev@fakturasjekk.local' } } });
@@ -61,6 +66,7 @@ const handler = createNodeHandler({ api, authAdapter, allowedOrigins: ['http://l
 const port = Number(process.env.PORT ?? 3000);
 await startNodeServer({ handler, port, host: '127.0.0.1' });
 console.log(`Fakturasjekk synthetic API running at http://127.0.0.1:${port}`);
+console.log('Health: /health · Readiness: /ready');
 console.log('Development bearer token: dev-user-token');
 console.log('Development payment provider: dev-pay');
 console.log('Synthetic data only. Do not upload real customer documents.');
