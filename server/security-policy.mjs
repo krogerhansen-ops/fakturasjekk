@@ -25,8 +25,13 @@ export function securityHeaders({ production = true, sensitive = true } = {}) {
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
     'x-frame-options': 'DENY',
-    'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+    'content-security-policy': "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; object-src 'none'",
+    'permissions-policy': 'camera=(), microphone=(), geolocation=(), usb=(), payment=()',
+    'cross-origin-opener-policy': 'same-origin',
+    'cross-origin-resource-policy': 'same-origin',
+    'x-permitted-cross-domain-policies': 'none',
     'cache-control': sensitive ? 'no-store, max-age=0' : 'private, max-age=0',
+    'pragma': sensitive ? 'no-cache' : 'no-cache',
     ...(production ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {})
   };
 }
