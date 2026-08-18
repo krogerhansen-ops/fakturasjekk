@@ -6,10 +6,11 @@ export function createPrivateObjectStorageAdapter({
   bucket,
   upload_ttl_seconds = 600,
   key_prefix = 'cases',
+  deletion_ledger_prefix = 'deletion-ledger',
   clock = () => new Date()
 } = {}) {
-  if (!provider?.createSignedPut || !provider?.headObject || !provider?.deletePrefix) {
-    throw new Error('Private storage provider requires createSignedPut, headObject and deletePrefix.');
+  if (!provider?.createSignedPut || !provider?.headObject || !provider?.deletePrefix || !provider?.putObject || !provider?.listPrefix || !provider?.getObject) {
+    throw new Error('Private storage provider requires createSignedPut, headObject, deletePrefix, putObject, listPrefix and getObject.');
   }
   if (!scanner?.scanObject) throw new Error('Private storage scanner requires scanObject.');
   if (!bucket) throw new Error('Private storage bucket is required.');
@@ -17,6 +18,10 @@ export function createPrivateObjectStorageAdapter({
 
   function prefix({ owner_id, case_id }) {
     return `${key_prefix}/${encodeURIComponent(owner_id)}/${encodeURIComponent(case_id)}/`;
+  }
+
+  function deletionTombstoneKey(caseId) {
+    return `${deletion_ledger_prefix}/${encodeURIComponent(caseId)}.json`;
   }
 
   return {
@@ -78,6 +83,40 @@ export function createPrivateObjectStorageAdapter({
     async deleteCaseObjects({ case_id, owner_id }) {
       const result = await provider.deletePrefix({ bucket, prefix: prefix({ owner_id, case_id }) });
       return Number(result?.deleted_count ?? 0);
+    },
+
+    async recordDeletionTombstone({ case_id, deleted_at }) {
+      if (!case_id || !deleted_at || Number.isNaN(Date.parse(deleted_at))) throw new Error('Deletion tombstone requires case_id and valid deleted_at.');
+      const key = deletionTombstoneKey(case_id);
+      const body = JSON.stringify({ version: 1, case_id, deleted_at });
+      await provider.putObject({
+        bucket,
+        key,
+        body,
+        content_type: 'application/json',
+        cache_control: 'no-store'
+      });
+      return { key, case_id, deleted_at };
+    },
+
+    async listDeletionTombstones() {
+      const listed = await provider.listPrefix({ bucket, prefix: `${deletion_ledger_prefix}/` });
+      const items = Array.isArray(listed) ? listed : (listed?.items ?? []);
+      const output = [];
+      for (const item of items) {
+        const key = typeof item === 'string' ? item : item?.key;
+        if (!key?.startsWith(`${deletion_ledger_prefix}/`)) continue;
+        const object = await provider.getObject({ bucket, key });
+        const raw = typeof object === 'string' ? object : object?.body;
+        if (typeof raw !== 'string') throw new Error('Deletion tombstone body is missing.');
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch { throw new Error('Deletion tombstone JSON is invalid.'); }
+        if (parsed?.version !== 1 || typeof parsed.case_id !== 'string' || Number.isNaN(Date.parse(parsed.deleted_at))) {
+          throw new Error('Deletion tombstone is invalid.');
+        }
+        output.push({ key, case_id: parsed.case_id, deleted_at: parsed.deleted_at });
+      }
+      return output.sort((a, b) => a.deleted_at.localeCompare(b.deleted_at));
     }
   };
 }
