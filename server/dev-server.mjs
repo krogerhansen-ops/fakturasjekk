@@ -8,6 +8,9 @@ import { createApi } from './api.mjs';
 import { createDevelopmentAuthAdapter } from './auth-adapter.mjs';
 import { createNodeHandler, startNodeServer } from './node-runtime.mjs';
 import { createMemoryRateLimiter } from './security-policy.mjs';
+import { createValidatedExtractor } from './extractor-contract.mjs';
+import { createPaymentProviderGateway, createDevelopmentPaymentProvider } from './payment-provider-contract.mjs';
+import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 
 if (process.env.NODE_ENV === 'production') throw new Error('dev-server cannot run in production');
 const readJson = path => JSON.parse(fs.readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -15,6 +18,7 @@ const registry = readJson('../rules/rules.json');
 const product = readJson('../config/product.json');
 const uploadPolicy = readJson('../config/upload-policy.json');
 const extractionPolicy = readJson('../config/extraction-policy.json');
+const extractionCatalog = readJson('../config/extraction-fields.json');
 const retentionPolicy = readJson('../config/retention-policy.json');
 
 const caseStore = createMemoryCaseStore();
@@ -22,7 +26,7 @@ const storage = createMemoryStorage();
 const auditAdapter = createMemoryAudit();
 const audit = createAuditLogger({ adapter: auditAdapter });
 const idempotency = createIdempotencyService({ store: createMemoryIdempotencyStore() });
-const extractor = {
+const rawExtractor = {
   async extract({ documents }) {
     const invoice = documents.find(d => d.role === 'invoice');
     const quote = documents.find(d => d.role === 'quote') ?? invoice;
@@ -36,13 +40,27 @@ const extractor = {
     }};
   }
 };
+const extractor = createValidatedExtractor({ provider: rawExtractor, catalog: extractionCatalog });
 const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters: { caseStore, storage, extractor } });
 const management = createCaseManagement({ caseStore, storage, audit });
-const api = createApi({ services, management, idempotency });
+const paymentProvider = createDevelopmentPaymentProvider({ name: 'dev-pay' });
+const paymentGateway = createPaymentProviderGateway({ provider: paymentProvider, product, allowed_providers: ['dev-pay'] });
+const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, audit });
+const api = createApi({
+  services,
+  registry,
+  management,
+  paymentGateway,
+  paymentWebhookService,
+  paymentProviderName: 'dev-pay',
+  allowedReturnOrigins: ['http://localhost:5173', 'http://127.0.0.1:5500'],
+  idempotency
+});
 const authAdapter = createDevelopmentAuthAdapter({ users: { 'dev-user-token': { id: 'dev-user', email: 'dev@fakturasjekk.local' } } });
 const handler = createNodeHandler({ api, authAdapter, allowedOrigins: ['http://localhost:5173', 'http://127.0.0.1:5500'], rateLimiter: createMemoryRateLimiter(), production: false });
 const port = Number(process.env.PORT ?? 3000);
 await startNodeServer({ handler, port, host: '127.0.0.1' });
 console.log(`Fakturasjekk synthetic API running at http://127.0.0.1:${port}`);
 console.log('Development bearer token: dev-user-token');
+console.log('Development payment provider: dev-pay');
 console.log('Synthetic data only. Do not upload real customer documents.');
