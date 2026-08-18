@@ -28,5 +28,7 @@ jobs:
         run: node tests/engine.test.mjs
       - name: Run controlled draft tests
         run: node tests/draft.test.mjs
+      - name: Validate public demo fixtures
+        run: node tests/demo-fixtures.test.mjs
       - name: Run public messaging tests
         run: node tests/content.test.mjs
