@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
+const transitions = JSON.parse(fs.readFileSync(new URL('../rules/transitions.json', import.meta.url), 'utf8'));
 
 function normalizeHtml(html) {
   return html
@@ -17,21 +18,21 @@ function normalizeHtml(html) {
     .toLowerCase();
 }
 
+async function fetchNormalized(url) {
+  const response = await fetch(url, {
+    redirect: 'follow',
+    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.28 (+https://fakturasjekk.no)' },
+    signal: AbortSignal.timeout(20000)
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return normalizeHtml(await response.text());
+}
+
 const failures = [];
+
 for (const rule of registry.rules.filter(r => r.status === 'active')) {
   try {
-    const response = await fetch(rule.source_url, {
-      redirect: 'follow',
-      headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.21 (+https://fakturasjekk.no)' },
-      signal: AbortSignal.timeout(20000)
-    });
-
-    if (!response.ok) {
-      failures.push(`${rule.id}: HTTP ${response.status} fra ${rule.source_url}`);
-      continue;
-    }
-
-    const text = normalizeHtml(await response.text());
+    const text = await fetchNormalized(rule.source_url);
     const expected = rule.expected_phrase.toLowerCase().replace(/\s+/g, ' ').trim();
     if (!text.includes(expected)) {
       failures.push(`${rule.id}: kontrollfrasen finnes ikke lenger i kilden: "${rule.expected_phrase}"`);
@@ -43,10 +44,27 @@ for (const rule of registry.rules.filter(r => r.status === 'active')) {
   }
 }
 
+for (const transition of transitions.transitions ?? []) {
+  if (transition.status !== 'awaiting_commencement') continue;
+  try {
+    const currentText = await fetchNormalized(transition.current_source_url);
+    const pending = transition.expected_pending_phrase.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!currentText.includes(pending)) {
+      failures.push(`${transition.id}: overgangsfrasen er endret eller borte. Mulig ikrafttredelse/endring må kontrolleres straks. ${transition.action_when_changed}`);
+    } else {
+      console.log(`OK ${transition.id} · fortsatt awaiting_commencement`);
+    }
+
+    await fetchNormalized(transition.new_source_url);
+  } catch (error) {
+    failures.push(`${transition.id}: overgangskontroll feilet: ${error.message}`);
+  }
+}
+
 if (failures.length) {
-  console.error('\nFAIL-CLOSED: Minst én aktiv rettskilde må kontrolleres manuelt før regelen kan anses som fersk.');
+  console.error('\nFAIL-CLOSED: Minst én aktiv rettskilde eller lovovergang må kontrolleres manuelt før berørte regler kan anses som ferske.');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`\nOK: ${registry.rules.filter(r => r.status === 'active').length} aktive rettskilder svarte og inneholdt forventet kontrollfrase.`);
+console.log(`\nOK: ${registry.rules.filter(r => r.status === 'active').length} aktive regler og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
