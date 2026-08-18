@@ -65,6 +65,7 @@ export function createApiClient({ baseUrl, getToken, fetchImpl = globalThis.fetc
     uploadSigned,
     confirmDocument: (caseId, documentId) => request(`/v1/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(documentId)}/confirm`, { method: 'POST', mutation: true }),
     analyze: (caseId, input = {}) => request(`/v1/cases/${encodeURIComponent(caseId)}/analyze`, { method: 'POST', mutation: true, body: input }),
+    confirmFacts: (caseId, items) => request(`/v1/cases/${encodeURIComponent(caseId)}/facts/confirm`, { method: 'POST', mutation: true, body: { items } }),
     getPaymentRequirement: caseId => request(`/v1/cases/${encodeURIComponent(caseId)}/payment`),
     createPaymentSession: (caseId, return_url) => request(`/v1/cases/${encodeURIComponent(caseId)}/payment/session`, { method: 'POST', mutation: true, body: return_url ? { return_url } : {} }),
     getResult: caseId => request(`/v1/cases/${encodeURIComponent(caseId)}/result`),
