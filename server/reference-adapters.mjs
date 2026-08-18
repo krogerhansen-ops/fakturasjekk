@@ -24,6 +24,15 @@ export function createMemoryCaseStore() {
       return [...cases.values()]
         .filter(item => item.owner_id === ownerId && !item.deleted_at)
         .map(clone);
+    },
+    async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
+      const value = cases.get(caseId);
+      if (!value || value.owner_id !== ownerId || value.deleted_at) {
+        throw new Error('Case not found or not owned by user.');
+      }
+      const deleted = { ...value, deleted_at, state: 'deleted' };
+      cases.set(caseId, clone(deleted));
+      return clone(deleted);
     }
   };
 }
