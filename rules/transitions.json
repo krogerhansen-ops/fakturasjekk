@@ -1,0 +1,16 @@
+{
+  "transitions": [
+    {
+      "id": "INKASSO_2026_COMMENCEMENT",
+      "topic": "inkassolov",
+      "current_law": "lov 13. mai 1988 nr. 26",
+      "current_source_url": "https://lovdata.no/lov/1988-05-13-26",
+      "new_law": "lov 22. mai 2026 nr. 19",
+      "new_source_url": "https://lovdata.no/lov/2026-05-22-19",
+      "status": "awaiting_commencement",
+      "expected_pending_phrase": "i kraft fra den tid Kongen bestemmer",
+      "last_verified": "2026-08-18",
+      "action_when_changed": "Set all INK_* rules to review_required and perform manual legal review before reactivation."
+    }
+  ]
+}
