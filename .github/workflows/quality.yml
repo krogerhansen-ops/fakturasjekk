@@ -22,5 +22,7 @@ jobs:
           node-version: '22'
       - name: Run legal/data regression tests
         run: node tests/regression.test.mjs
+      - name: Run deterministic engine tests
+        run: node tests/engine.test.mjs
       - name: Run public messaging tests
         run: node tests/content.test.mjs
