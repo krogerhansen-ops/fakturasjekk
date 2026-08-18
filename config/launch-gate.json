@@ -1,20 +1,28 @@
 {
-  "version": "0.66.0",
+  "version": "0.69.0",
   "launch_mode": "blocked_until_all_required_complete",
   "checks": [
-    { "id": "TECH_DEDICATED_SUPABASE_PROJECT", "category": "technical", "required": true, "status": "complete", "evidence": "Dedicated Free-plan organization Fakturasjekk and project fakturasjekk-prod were created in eu-north-1; project ref is recorded in config/supabase-target.json. Karriere is not shared or used." },
-    { "id": "TECH_SUPABASE_SCHEMA_VERIFIED", "category": "technical", "required": true, "status": "todo", "evidence": "supabase/migrations/20260818231500_fakturasjekk_core.sql is ready; live read-back verification remains because the Supabase connector became unavailable during migration verification." },
-    { "id": "TECH_SUPABASE_SECURITY_ADVISOR", "category": "technical", "required": true, "status": "todo", "evidence": "Run Supabase Security Advisor against fakturasjekk-prod and resolve launch-relevant findings after connector access is restored." },
-    { "id": "TECH_PRODUCTION_HOSTING", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_POSTGRES_PRODUCTION", "category": "technical", "required": true, "status": "todo", "evidence": "Dedicated Supabase Postgres project exists; schema/read-back verification is still required before this gate can close." },
-    { "id": "TECH_PRIVATE_OBJECT_STORAGE", "category": "technical", "required": true, "status": "todo", "evidence": "Dedicated private bucket definition exists in the Supabase migration; live bucket/read-access verification is still required." },
-    { "id": "TECH_AUTH_PROVIDER", "category": "technical", "required": true, "status": "todo", "evidence": "Supabase Auth is the selected V1 target; production JWT issuer/project-lock configuration is implemented, but live Auth verification remains." },
-    { "id": "TECH_DISTRIBUTED_RATE_LIMIT", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_DEDICATED_SUPABASE_PROJECT", "category": "technical", "required": true, "status": "complete", "evidence": "Dedicated Free-plan organization Fakturasjekk and project fakturasjekk-prod were created in eu-north-1; project ref jxmkaxwflouacuboaetg is recorded in config/supabase-target.json. Karriere is not shared or used." },
+    { "id": "TECH_SUPABASE_PROJECT_LOCK_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "server/production-config.mjs and CI reject any production Supabase URL, database connection, Auth issuer or storage bucket that does not belong to the dedicated Fakturasjekk project." },
+    { "id": "TECH_SUPABASE_EDGE_RUNTIME_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "server/fetch-runtime.mjs reuses the canonical API routes/auth/CORS/rate limits/raw webhook handling/security headers for Web/Edge; server/production-app.mjs exposes it without forking business/legal logic." },
+    { "id": "TECH_SUPABASE_DATA_ADAPTER_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "server/supabase-data-adapters.mjs and server/supabase-edge-platform.mjs provide server-only Supabase Data API/Auth/idempotency/audit/payment-claim/rate-limit adapters; secret keys are not exposed to the browser." },
+    { "id": "TECH_UPLOAD_ACCEPTANCE_WINDOW_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "config/upload-policy.json and server/services.mjs enforce a 10-minute Fakturasjekk acceptance deadline even if a provider upload token lives longer; provider expiry/storage keys remain internal and orphan cleanup is retention-neutral." },
+    { "id": "TECH_PRIVACY_DELETE_RESTORE_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "Case deletion purges content-bearing records, keeps only minimal tombstones, writes a bounded private deletion ledger before purge and re-applies deletion after restore. Regression tests cover manual and retention-driven deletion." },
+    { "id": "TECH_FREE_BACKUP_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "scripts/backup-supabase-free.sh streams pg_dump directly into age encryption, caps ordinary backup rotation at 35 days and excludes short-lived source-document Storage from standard database backup." },
+    { "id": "TECH_SUPABASE_MANUAL_DEPLOY_WORKFLOW", "category": "technical", "required": true, "status": "complete", "evidence": ".github/workflows/supabase-production.yml is workflow_dispatch-only, pinned to reviewed Supabase CLI v2.111.0, hard-locked to project jxmkaxwflouacuboaetg, always dry-runs migrations first and can deploy only the fail-closed preflight function. CI run 284 passed after explicit workflow hygiene allowlisting." },
+
+    { "id": "TECH_SUPABASE_SCHEMA_VERIFIED", "category": "technical", "required": true, "status": "todo", "evidence": "Three reviewed Supabase migrations plus scripts/verify-supabase-live.sql are ready; live read-back remains required before this gate closes." },
+    { "id": "TECH_SUPABASE_SECURITY_ADVISOR", "category": "technical", "required": true, "status": "todo", "evidence": "Run Supabase Security Advisor against fakturasjekk-prod and resolve launch-relevant findings after stable live access/deploy." },
+    { "id": "TECH_PRODUCTION_HOSTING", "category": "technical", "required": true, "status": "in_progress", "evidence": "Static customer demo is hosted on GitHub Pages. Supabase Edge runtime/preflight code and a project-locked manual deploy workflow are ready; live Edge deployment remains unverified." },
+    { "id": "TECH_POSTGRES_PRODUCTION", "category": "technical", "required": true, "status": "in_progress", "evidence": "Dedicated Supabase Postgres project exists and server/Data API adapters are implemented; migrations and live schema/grant/RLS read-back remain required." },
+    { "id": "TECH_PRIVATE_OBJECT_STORAGE", "category": "technical", "required": true, "status": "in_progress", "evidence": "Private bucket schema, ownership controls, short acceptance window, malware/magic-byte contract and orphan cleanup are implemented; concrete live Supabase signed-upload/provider flow and bucket access read-back remain required." },
+    { "id": "TECH_AUTH_PROVIDER", "category": "technical", "required": true, "status": "in_progress", "evidence": "Supabase Auth is selected; production project/issuer lock and minimal server verification adapter are implemented. Live Auth signup/session/JWT verification remains required." },
+    { "id": "TECH_DISTRIBUTED_RATE_LIMIT", "category": "technical", "required": true, "status": "in_progress", "evidence": "Canonical rate-limit schema, atomic service_role-only Supabase RPC and distributed limiter adapter are implemented and regression-tested; live migration/concurrency verification remains." },
     { "id": "TECH_DOCUMENT_EXTRACTOR", "category": "technical", "required": true, "status": "todo", "evidence": null },
     { "id": "TECH_RESPONSE_INTERPRETER", "category": "technical", "required": true, "status": "todo", "evidence": null },
     { "id": "TECH_PAYMENT_PROVIDER_WEBHOOK", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_BACKUP_RETENTION_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "docs/RETENTION-AND-DELETION-VERIFICATION.md defines provider and restore-test requirements; actual production test remains." },
-    { "id": "TECH_DELETE_END_TO_END_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "docs/RETENTION-AND-DELETION-VERIFICATION.md defines the exact production E2E deletion test; actual production providers remain." },
+    { "id": "TECH_BACKUP_RETENTION_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "Encrypted Free-plan backup and restore-safety code/runbook exist; launch still requires an actual isolated backup/restore test against the production stack." },
+    { "id": "TECH_DELETE_END_TO_END_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "Privacy-first delete/restore code is regression-tested; launch still requires a real database + object-storage + restore E2E with synthetic data." },
     { "id": "TECH_ASVS_L2_BASELINE", "category": "technical", "required": true, "status": "complete", "evidence": "docs/SECURITY-ASVS-L2-BASELINE.md plus hardened server/security-policy.mjs and automated hardening tests." },
     { "id": "TECH_NO_NONESSENTIAL_TRACKING", "category": "technical", "required": true, "status": "complete", "evidence": "config/privacy-security-policy.json disables non-essential tracking and CI scans the public site for known tracker markers." },
 
@@ -26,11 +34,11 @@
     { "id": "LEGAL_ARTICLE9_FAIL_CLOSED", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md and config/privacy-security-policy.json block normal V1 analysis of special-category data and require separate review where necessary." },
     { "id": "LEGAL_ROPA", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/ROPA.md contains processing activities, purposes, categories, bases, retention and security measures; controller/provider fields must be completed before live." },
     { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Required privacy-notice contents are specified; controller identity, actual processors/transfers and contact details remain." },
-    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase is selected for database/auth/storage in Stockholm and is recorded as a production dependency; DPA/subprocessor/transfer documentation must still be approved before live. See docs/PROCESSORS-AND-TRANSFERS.md." },
+    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase is selected for database/auth/storage in Stockholm and recorded in docs/PROCESSORS-AND-TRANSFERS.md; DPA/subprocessor/support/transfer documentation still requires approval before live." },
     { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines required DPA/subprocessor controls; actual contracts depend on selected providers." },
-    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "Supabase project region is eu-north-1/Stockholm. Subprocessor/support/transfer paths still require documented review before live." },
-    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json and docs/RETENTION-AND-DELETION-VERIFICATION.md define 24h/7d/90d plus backup/audit requirements; final approval requires provider validation and DPIA sign-off." },
-    { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Operational workflow drafted in docs/PRIVACY-AND-COMMERCE-LAUNCH-DRAFT.md; final contact channel and production end-to-end test remain." },
+    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "Supabase project region is eu-north-1/Stockholm. Subprocessor/support/transfer paths and remaining OCR/AI/payment/email providers still require documented review before live." },
+    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json defines 24h/7d/90d, 35-day backup cap and 45-day restore-safety deletion ledger. Final approval requires live provider/E2E validation and DPIA sign-off." },
+    { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Operational workflow drafted; final controller/privacy contact and production end-to-end exercise remain." },
     { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/NO-TRACKING-AND-INCIDENT-RESPONSE.md contains containment, risk assessment, 72-hour decision flow, evidence handling and post-incident actions; named responsible persons remain." },
 
     { "id": "COMMERCE_SELLER_IDENTITY", "category": "commerce", "required": true, "status": "todo", "evidence": null, "note": "Legal seller/controller identity, organization number where applicable and customer contact must be fixed before paid launch." },
@@ -44,7 +52,7 @@
     { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "docs/LEGAL-REVIEW-2026-08-18.md – active V1 rules manually re-verified against Lovdata on 2026-08-18." },
     { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "Lov 2026-05-22-19 remains 'Kongen bestemmer'; current 1988 law remains runtime-active. See docs/LEGAL-REVIEW-2026-08-18.md." },
 
-    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions quality gate was green before this production-lock branch; this branch must also be green before merge." },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions Fakturasjekk quality gate run 284 completed successfully after the manual Supabase production workflow and explicit hygiene review were added; preceding upload/privacy/Edge packages also passed before merge." },
     { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
     { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; regression tests cover deterministic engine behavior." }
   ],
@@ -59,6 +67,8 @@
     "https://www.datatilsynet.no/personvern-pa-ulike-omrader/internett-og-apper/bruk-av-informasjonskapsler-og-andre-sporingsteknologier/",
     "https://supabase.com/docs/guides/platform/regions",
     "https://supabase.com/docs/guides/security",
-    "https://supabase.com/docs/guides/deployment/shared-responsibility-model"
+    "https://supabase.com/docs/guides/deployment/shared-responsibility-model",
+    "https://supabase.com/docs/guides/functions",
+    "https://supabase.com/docs/guides/platform/backups"
   ]
 }
