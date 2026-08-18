@@ -82,6 +82,19 @@ export function createMemoryStorage() {
     },
     async listDeletionTombstones() {
       return [...deletionLedger.values()].map(clone).sort((a, b) => a.deleted_at.localeCompare(b.deleted_at));
+    },
+    async purgeDeletionTombstonesBefore({ cutoff }) {
+      const cutoffMs = Date.parse(cutoff);
+      if (!Number.isFinite(cutoffMs)) throw new Error('Deletion tombstone purge requires a valid cutoff.');
+      const checked = deletionLedger.size;
+      let purged = 0;
+      for (const [caseId, item] of deletionLedger.entries()) {
+        if (Date.parse(item.deleted_at) < cutoffMs) {
+          deletionLedger.delete(caseId);
+          purged += 1;
+        }
+      }
+      return { checked, purged, cutoff: new Date(cutoffMs).toISOString() };
     }
   };
 }
