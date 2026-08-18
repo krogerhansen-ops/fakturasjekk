@@ -37,7 +37,13 @@ function lineView(line, index) {
   };
 }
 
-export function compareDocumentLines({ agreement_lines = [], invoice_lines = [], similarity_threshold = 0.86, amount_tolerance = 0.02 } = {}) {
+export function compareDocumentLines({
+  agreement_lines = [],
+  invoice_lines = [],
+  similarity_threshold = 0.70,
+  auto_match_threshold = 0.86,
+  amount_tolerance = 0.02
+} = {}) {
   const agreement = agreement_lines.map(lineView);
   const invoice = invoice_lines.map(lineView);
   const usedInvoice = new Set();
@@ -58,10 +64,19 @@ export function compareDocumentLines({ agreement_lines = [], invoice_lines = [],
         .map((line, index) => ({ line, index, score: usedInvoice.has(index) ? 0 : jaccard(a.description, line.description) }))
         .filter(x => x.score >= similarity_threshold)
         .sort((x, y) => y.score - x.score);
-      if (scored.length === 1 || (scored.length > 1 && scored[0].score - scored[1].score >= 0.15)) {
+
+      if (scored.length === 1 && scored[0].score >= auto_match_threshold) {
         candidate = { line: scored[0].line, score: scored[0].score, method: 'unique_token_similarity' };
-      } else if (scored.length > 1) {
-        ambiguous.push({ agreement: a, candidates: scored.map(x => x.line), reason: 'Beskrivelsen ligner flere fakturalinjer. Fakturasjekk velger ikke automatisk.' });
+      } else if (scored.length > 1 && scored[0].score >= auto_match_threshold && scored[0].score - scored[1].score >= 0.15) {
+        candidate = { line: scored[0].line, score: scored[0].score, method: 'unique_token_similarity' };
+      } else if (scored.length) {
+        ambiguous.push({
+          agreement: a,
+          candidates: scored.map(x => x.line),
+          reason: scored.length > 1
+            ? 'Beskrivelsen ligner flere fakturalinjer. Fakturasjekk velger ikke automatisk.'
+            : 'Beskrivelsen ligner én fakturalinje, men likheten er ikke høy nok for sikker automatisk matching.'
+        });
         continue;
       }
     }
