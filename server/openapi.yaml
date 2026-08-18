@@ -1,33 +1,47 @@
 openapi: 3.1.0
 info:
   title: Fakturasjekk API
-  version: 0.39.0
-  description: Production API contract for Fakturasjekk.no. Full result requires verified payment of NOK 29 for the matching case.
+  version: 0.46.0
+  description: Production API contract for Fakturasjekk.no. Full check plus objection draft costs NOK 29. Payment is unlocked only by a server-verified provider webhook.
 servers:
   - url: https://api.fakturasjekk.no
 security:
   - bearerAuth: []
 paths:
   /v1/cases:
+    get:
+      operationId: listCases
+      summary: List brukerens saker
+      responses:
+        '200': { description: Mine saker }
+        '401': { $ref: '#/components/responses/Error' }
     post:
       operationId: createCase
       summary: Opprett ny sak
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCaseRequest'
+            schema: { $ref: '#/components/schemas/CreateCaseRequest' }
       responses:
         '201': { description: Sak opprettet }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+  /v1/cases/{case_id}:
+    delete:
+      operationId: deleteCase
+      summary: Slett sak og private dokumentobjekter
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Sak slettet }
+        '404': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/uploads:
     post:
       operationId: registerUploads
-      summary: Valider og registrer dokumenter for privat opplasting
+      summary: Valider dokumentsett og opprett tidsbegrensede private opplastingsmål
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -42,12 +56,33 @@ paths:
                 files:
                   type: array
                   minItems: 1
-                  maxItems: 10
+                  maxItems: 8
                   items: { $ref: '#/components/schemas/FileDescriptor' }
       responses:
-        '200': { description: Dokumentreservasjoner opprettet }
+        '200':
+          description: Dokumentreservasjoner opprettet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  upload_targets:
+                    type: array
+                    items: { $ref: '#/components/schemas/UploadTarget' }
         '422': { description: Dokumentsett avvist }
-        '401': { $ref: '#/components/responses/Error' }
+  /v1/cases/{case_id}/documents/{document_id}/confirm:
+    post:
+      operationId: confirmDocumentUpload
+      summary: Server-verifiser at reservert dokument er lastet opp og sikkerhetskontrollert
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/DocumentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Dokument verifisert }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/analyze:
     post:
       operationId: analyzeCase
@@ -65,14 +100,13 @@ paths:
                 user_note: { type: string, maxLength: 4000 }
                 collection: { type: object, additionalProperties: true }
       responses:
-        '200': { description: Analyse eller avklaringsbehov }
+        '200': { description: Forhåndsvisning eller avklaringsbehov; fullt resultat er betalingslåst }
         '409': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/payment:
     get:
       operationId: getPaymentRequirement
-      summary: Hent betalingskrav for saken
-      parameters:
-        - $ref: '#/components/parameters/CaseId'
+      summary: Hent betalingskrav
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
       responses:
         '200':
           description: Betalingskrav
@@ -80,38 +114,62 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [case_id, amount_minor, amount_nok, currency]
                 properties:
+                  case_id: { type: string }
                   amount_minor: { type: integer, const: 2900 }
+                  amount_nok: { type: integer, const: 29 }
                   currency: { type: string, const: NOK }
-  /v1/cases/{case_id}/payment/confirm:
+  /v1/cases/{case_id}/payment/session:
     post:
-      operationId: confirmPayment
-      summary: Registrer server-verifisert betalingsbekreftelse
+      operationId: createPaymentSession
+      summary: Opprett checkout hos valgt betalingsleverandør
+      description: Kunden kan starte betaling, men kan ikke selv bekrefte betalingsstatus.
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required: [confirmation]
               properties:
-                confirmation:
-                  $ref: '#/components/schemas/PaymentConfirmation'
+                return_url: { type: string, format: uri }
       responses:
-        '200': { description: Betaling verifisert }
-        '422': { description: Betaling kunne ikke verifiseres }
+        '201':
+          description: Checkout opprettet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentSession' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/webhooks/payment/{provider}:
+    post:
+      operationId: paymentWebhook
+      summary: Signaturverifisert server-til-server betalingshendelse
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Verifisert hendelse behandlet }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/result:
     get:
       operationId: getFullResult
-      summary: Hent fullt kontrollresultat
-      description: Krever verifisert betaling på 29 kr for samme sak.
-      parameters:
-        - $ref: '#/components/parameters/CaseId'
+      summary: Hent fullt kundesikkert kontrollresultat
+      description: Krever server-verifisert betaling på 29 kr for samme sak. Interne regel-ID-er og funnkoder eksponeres ikke.
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
       responses:
-        '200': { description: Fullt resultat }
+        '200': { description: Fullt resultat med funn, beregninger, bevisgrunnlag, regel-/paragrafkontroll og kontrollert utkast }
         '402': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/draft:
     post:
@@ -141,13 +199,12 @@ paths:
                 response_record: { type: object, additionalProperties: true }
                 structured_response: { type: object, additionalProperties: true }
       responses:
-        '201': { description: Svar gjennomgått }
+        '201': { description: Svar gjennomgått; interne finding-koder eksponeres ikke }
   /v1/cases/{case_id}/retention:
     get:
       operationId: getRetentionStatus
       summary: Hent lagrings- og slettestatus
-      parameters:
-        - $ref: '#/components/parameters/CaseId'
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
       responses:
         '200': { description: Retention- og purge-plan }
 components:
@@ -162,6 +219,11 @@ components:
       in: path
       required: true
       schema: { type: string, maxLength: 128 }
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -172,8 +234,7 @@ components:
       description: Standardisert API-feil uten interne stack traces
       content:
         application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
   schemas:
     CreateCaseRequest:
       type: object
@@ -187,21 +248,24 @@ components:
       required: [name, mime_type, size, role]
       properties:
         name: { type: string, maxLength: 255 }
-        mime_type: { type: string }
-        size: { type: integer, minimum: 1 }
-        role: { type: string, enum: [invoice, quote, agreement, order_confirmation, correspondence, collection_notice, supplier_response, other] }
-    PaymentConfirmation:
+        mime_type: { type: string, enum: [application/pdf, image/jpeg, image/png, image/webp] }
+        size: { type: integer, minimum: 1, maximum: 15728640 }
+        role: { type: string, enum: [invoice, quote, agreement, order_confirmation, collection_notice, payment_request, other] }
+    UploadTarget:
       type: object
-      required: [case_id, amount_minor, currency, status, provider, provider_reference, verified_server_side]
+      required: [document_id, upload_url]
       properties:
-        case_id: { type: string }
-        amount_minor: { type: integer, const: 2900 }
-        currency: { type: string, const: NOK }
-        status: { type: string }
+        document_id: { type: string }
+        upload_url: { type: string, format: uri }
+        expires_at: { type: [string, 'null'], format: date-time }
+        required_headers: { type: object, additionalProperties: { type: string } }
+    PaymentSession:
+      type: object
+      required: [provider, checkout_url]
+      properties:
         provider: { type: string }
-        provider_reference: { type: string }
-        verified_server_side: { type: boolean, const: true }
-        paid_at: { type: string, format: date-time }
+        checkout_url: { type: string, format: uri }
+        expires_at: { type: [string, 'null'], format: date-time }
     ErrorResponse:
       type: object
       required: [error]
