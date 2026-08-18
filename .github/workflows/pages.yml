@@ -30,18 +30,24 @@ jobs:
           rm -rf _site
           mkdir -p _site/site _site/engine _site/rules _site/data _site/config
           cp site/index-launch-candidate.html _site/index.html
-          cp site/index-launch-candidate.html _site/site/index-launch-candidate.html
+          cp -R site/* _site/site/
           cp engine/analyzer.mjs _site/engine/analyzer.mjs
           cp engine/draft.mjs _site/engine/draft.mjs
           cp rules/rules.json _site/rules/rules.json
           cp data/demo-cases.json _site/data/demo-cases.json
           cp config/product.json _site/config/product.json
           touch _site/.nojekyll
-      - name: Verify public artifact boundaries
+      - name: Verify public artifact boundaries and demo dependencies
         run: |
           test -f _site/index.html
           test -f _site/site/index-launch-candidate.html
-          cmp -s _site/index.html _site/site/index-launch-candidate.html
+          test -f _site/site/engine/analyzer.mjs
+          test -f _site/site/engine/draft.mjs
+          test -f _site/site/rules/rules.json
+          test -f _site/site/data/demo-cases.json
+          test -f _site/site/config/product.json
+          test -f _site/engine/analyzer.mjs
+          test -f _site/engine/draft.mjs
           test ! -d _site/server
           test ! -d _site/admin
           test ! -f _site/motor-test.html
