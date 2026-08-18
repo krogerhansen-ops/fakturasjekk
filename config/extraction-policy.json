@@ -1,0 +1,22 @@
+{
+  "version": "0.31.0",
+  "critical_fields": [
+    "invoice_total",
+    "agreed_price",
+    "invoice_fee",
+    "invoice_number"
+  ],
+  "min_confidence": {
+    "critical": 0.95,
+    "standard": 0.85
+  },
+  "require_source_location": true,
+  "allow_missing": true,
+  "guess_missing_values": false,
+  "rules": [
+    "Every extracted value must retain its document source.",
+    "Critical values below confidence threshold require user confirmation or a second extraction pass.",
+    "Missing values must remain missing; the extraction layer must not infer a value merely to complete the schema.",
+    "User-confirmed values remain user-confirmed evidence unless the document source is independently verified."
+  ]
+}
