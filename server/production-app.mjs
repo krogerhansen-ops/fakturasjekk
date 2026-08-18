@@ -5,6 +5,7 @@ import { createCaseManagement } from './case-management.mjs';
 import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
+import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createApi } from './api.mjs';
 import { createNodeHandler, startNodeServer } from './node-runtime.mjs';
 
@@ -13,8 +14,24 @@ function required(value, name, method = null) {
   return value;
 }
 
-export function createProductionApp({ config, product, registry, uploadPolicy, extractionPolicy, retentionPolicy, adapters = {} } = {}) {
+export function createProductionApp({
+  config,
+  product,
+  registry,
+  uploadPolicy,
+  extractionPolicy,
+  extractionCatalog,
+  retentionPolicy,
+  launchGate,
+  adapters = {}
+} = {}) {
   if (config?.environment !== 'production') throw new Error('Production app requires validated production config.');
+  const launchGateResult = evaluateLaunchGate(launchGate ?? {});
+  if (!launchGate || !launchGateResult.valid || !launchGateResult.launch_allowed) {
+    const blocking = launchGateResult.blocking_ids?.join(', ') || 'launch_gate_missing_or_invalid';
+    throw new Error(`Production launch gate blocked: ${blocking}`);
+  }
+
   const caseStore = required(adapters.caseStore, 'caseStore', 'getOwned');
   const storage = required(adapters.storage, 'storage', 'reservePrivateObject');
   const extractor = required(adapters.extractor, 'extractor', 'extract');
@@ -27,7 +44,15 @@ export function createProductionApp({ config, product, registry, uploadPolicy, e
   const rateLimiter = required(adapters.rateLimiter, 'rateLimiter', 'check');
 
   const serviceAdapters = { caseStore, storage, extractor, responseInterpreter };
-  const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters: serviceAdapters });
+  const services = createBackendServices({
+    registry,
+    product,
+    uploadPolicy,
+    extractionPolicy,
+    extractionCatalog,
+    retentionPolicy,
+    adapters: serviceAdapters
+  });
   const audit = createAuditLogger({ adapter: auditAdapter });
   const management = createCaseManagement({ caseStore, storage, audit });
   const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
@@ -54,7 +79,7 @@ export function createProductionApp({ config, product, registry, uploadPolicy, e
     idempotency
   });
   const handler = createNodeHandler({ api, authAdapter, allowedOrigins: [config.app_origin], rateLimiter, production: true });
-  return { handler, api, services, management, readiness: readinessResult };
+  return { handler, api, services, management, readiness: readinessResult, launch_gate: launchGateResult };
 }
 
 export async function startProductionApp({ app, port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? '0.0.0.0' } = {}) {

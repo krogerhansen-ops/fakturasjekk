@@ -1,6 +1,10 @@
 import { compareDocumentLines } from './document-comparison.mjs';
 import { checkInvoiceMath } from './invoice-math.mjs';
 
+function codePart(value) {
+  return String(value ?? 'UNKNOWN').toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+}
+
 export function runDocumentChecks(facts = {}) {
   const math = Array.isArray(facts.invoice_lines)
     ? checkInvoiceMath({
@@ -19,6 +23,7 @@ export function runDocumentChecks(facts = {}) {
   if (math) {
     for (const issue of math.issues) {
       findings.push({
+        code: `DOC_MATH_${codePart(issue.type)}`,
         category: 'arithmetic',
         severity: ['stated_total_mismatch','line_sum_total_mismatch'].includes(issue.type) ? 'high' : 'medium',
         title: issue.type === 'line_amount_mismatch' ? `Regneavvik på linjen «${issue.description}»`
@@ -35,10 +40,26 @@ export function runDocumentChecks(facts = {}) {
   }
   if (comparison) {
     for (const line of comparison.added_on_invoice) {
-      findings.push({ category: 'document_difference', severity: 'medium', title: `Fakturalinje finnes ikke i tilbudet: «${line.description}»`, explanation: 'Fakturasjekk fant ingen sikker linjematch i tilbud/avtale. Dette er et dokumentavvik som bør forklares; det er ikke alene en juridisk konklusjon.', legal_conclusion: false, rule_ids: [] });
+      findings.push({
+        code: 'DOC_COMPARE_ADDED_INVOICE_LINE',
+        category: 'document_difference',
+        severity: 'medium',
+        title: `Fakturalinje finnes ikke i tilbudet: «${line.description}»`,
+        explanation: 'Fakturasjekk fant ingen sikker linjematch i tilbud/avtale. Dette er et dokumentavvik som bør forklares; det er ikke alene en juridisk konklusjon.',
+        legal_conclusion: false,
+        rule_ids: []
+      });
     }
     for (const changed of comparison.changed) {
-      findings.push({ category: 'document_difference', severity: 'medium', title: `Beløp eller mengde er endret: «${changed.invoice.description}»`, explanation: `Sammenligningen viser en endring mellom tilbud/avtale og faktura${changed.amount_difference != null ? ` på ${changed.amount_difference} kr` : ''}.`, legal_conclusion: false, rule_ids: [] });
+      findings.push({
+        code: 'DOC_COMPARE_CHANGED_LINE',
+        category: 'document_difference',
+        severity: 'medium',
+        title: `Beløp eller mengde er endret: «${changed.invoice.description}»`,
+        explanation: `Sammenligningen viser en endring mellom tilbud/avtale og faktura${changed.amount_difference != null ? ` på ${changed.amount_difference} kr` : ''}.`,
+        legal_conclusion: false,
+        rule_ids: []
+      });
     }
     for (const group of comparison.ambiguous) {
       questions.push(`Linjen «${group.agreement.description}» kan ikke matches sikkert mot én fakturalinje. Kontroller hvilke linjer som hører sammen.`);

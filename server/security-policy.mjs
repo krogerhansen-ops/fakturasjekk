@@ -10,8 +10,10 @@ export const DEFAULT_SECURITY_POLICY = Object.freeze({
     register_uploads: { window_ms: 60_000, max: 20 },
     confirm_document_upload: { window_ms: 60_000, max: 30 },
     analyze_case: { window_ms: 60_000, max: 6 },
+    confirm_facts: { window_ms: 60_000, max: 20 },
     create_payment_session: { window_ms: 60_000, max: 10 },
     payment_webhook: { window_ms: 60_000, max: 60 },
+    create_draft: { window_ms: 60_000, max: 20 },
     supplier_response: { window_ms: 60_000, max: 10 },
     delete_case: { window_ms: 60_000, max: 10 },
     read: { window_ms: 60_000, max: 120 }

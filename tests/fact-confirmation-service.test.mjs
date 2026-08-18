@@ -18,7 +18,7 @@ const product = { price_nok: 29, full_check_free: false };
 const uploadPolicy = {
   max_files: 8, max_file_bytes: 1000000, max_total_bytes: 5000000,
   allowed_mime_types: ['application/pdf'], allowed_extensions: ['.pdf'],
-  required_roles: ['invoice'], allowed_roles: ['invoice','other']
+  required_roles: ['invoice'], document_roles: ['invoice','other']
 };
 const extractionPolicy = { critical_fields: ['invoice_total','invoice_number'], min_confidence: { critical: 0.95, standard: 0.85 }, require_source_location: true };
 const extractionCatalog = { fields: { invoice_total: { type: 'number' }, invoice_number: { type: 'string' } } };

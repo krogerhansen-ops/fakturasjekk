@@ -1,11 +1,13 @@
 import { createCase, transitionCase, addDocument, markDocumentUploaded, addAnalysis, addPayment, addDraft, addSupplierResponse, addFollowUp } from '../engine/case-state.mjs';
 import { validateUploadSet } from '../engine/document-policy.mjs';
-import { validateExtraction, toEvidenceOrigins } from '../engine/extraction-policy.mjs';
+import { validateExtraction } from '../engine/extraction-policy.mjs';
 import { runCase } from '../engine/case-service.mjs';
 import { paymentRequirement, validatePaymentConfirmation, shouldUnlockFullResult } from '../engine/payment-gate.mjs';
 import { reviewSupplierResponse, buildFollowUpDraft } from '../engine/followup.mjs';
 import { computeRetention, purgePlan } from '../engine/retention.mjs';
+import { evaluateRuleSafety } from '../engine/rule-safety.mjs';
 import { normalizeStorageReservation, publicUploadTarget, assertUploadTargetSafe } from './storage-contract.mjs';
+import { confirmationNeeds, validateFactConfirmations, mergeConfirmedFacts } from './fact-confirmation.mjs';
 
 function requireAdapter(adapters, name) {
   const adapter = adapters?.[name];
@@ -13,10 +15,37 @@ function requireAdapter(adapters, name) {
   return adapter;
 }
 
-export function createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters = {}, clock } = {}) {
+function ruleSafetyNow(clock) {
+  if (typeof clock !== 'function') return new Date();
+  const value = clock();
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+export function createBackendServices({
+  registry,
+  product,
+  uploadPolicy,
+  extractionPolicy,
+  extractionCatalog = { fields: {} },
+  retentionPolicy,
+  adapters = {},
+  clock
+} = {}) {
   const store = requireAdapter(adapters, 'caseStore');
   const storage = requireAdapter(adapters, 'storage');
   const extractor = requireAdapter(adapters, 'extractor');
+
+  function assertLegalRegistryUsable() {
+    const safety = evaluateRuleSafety(registry, { now: ruleSafetyNow(clock) });
+    if (!safety.usable) {
+      const error = new Error('Active legal rule registry requires review before analysis can continue.');
+      error.code = 'legal_review_required';
+      error.blocked_rule_count = safety.blocked_count;
+      throw error;
+    }
+    return safety;
+  }
 
   async function createNewCase({ owner_id, buyer_type, subject, retention_mode = 'temporary' }) {
     const id = await store.nextId('case');
@@ -93,6 +122,7 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
   }
 
   async function analyzeStoredCase({ case_id, owner_id, user_note = '', collection = null }) {
+    assertLegalRegistryUsable();
     let caseData = await store.getOwned(case_id, owner_id);
     if (caseData.documents.some(d => d.status === 'awaiting_upload')) throw new Error('All reserved documents must be uploaded and verified before analysis.');
     const documents = await storage.listCaseDocuments({ case_id, owner_id, records: caseData.documents });
@@ -100,12 +130,25 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
 
     const extractionRaw = await extractor.extract({ case_id, owner_id, documents });
     const extraction = validateExtraction(extractionRaw, extractionPolicy);
-    if (!extraction.safe_to_continue) {
+    const existingConfirmations = caseData.fact_confirmations ?? {};
+    const merged = mergeConfirmedFacts({ validated: extraction, confirmations: existingConfirmations, documents });
+    const needs = confirmationNeeds({ validated: extraction, documents, confirmations: existingConfirmations });
+    extraction.confirmation_needs = needs;
+
+    if (!merged.safe_to_continue) {
+      caseData = {
+        ...caseData,
+        pending_fact_confirmation: {
+          validated: extraction,
+          confirmation_needs: needs
+        }
+      };
+      await store.save(caseData);
       return { status: 'needs_confirmation', extraction, case: caseData };
     }
 
-    const facts = Object.fromEntries(Object.entries(extraction.accepted).map(([field, item]) => [field, item.value]));
-    const origins = toEvidenceOrigins(extraction);
+    const facts = merged.facts;
+    const origins = merged.origins;
     const intake = {
       buyer_type: caseData.intake_request?.buyer_type,
       subject: caseData.intake_request?.subject,
@@ -114,7 +157,7 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
 
     const result = runCase({ intake, facts, origins, collection, registry, user_note, draft_mode: 'request' });
     const analysisId = await store.nextId('analysis');
-    caseData = addAnalysis(caseData, {
+    caseData = addAnalysis({ ...caseData, pending_fact_confirmation: null }, {
       id: analysisId,
       engine_version: registry.engine_version,
       status: result.status,
@@ -134,6 +177,47 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
         price_nok: product.price_nok
       },
       extraction,
+      case: caseData
+    };
+  }
+
+  async function confirmFacts({ case_id, owner_id, items }) {
+    let caseData = await store.getOwned(case_id, owner_id);
+    const pending = caseData.pending_fact_confirmation;
+    if (!pending?.validated) throw new Error('No fact confirmation is currently required for this case.');
+    const documents = await storage.listCaseDocuments({ case_id, owner_id, records: caseData.documents });
+    const validation = validateFactConfirmations({
+      items,
+      catalog: extractionCatalog,
+      documents,
+      allowedNeeds: pending.confirmation_needs ?? []
+    });
+    if (!validation.valid) {
+      return {
+        confirmed: false,
+        validation,
+        confirmed_fields: [],
+        remaining_needs: pending.confirmation_needs ?? [],
+        case: caseData
+      };
+    }
+
+    const confirmations = { ...(caseData.fact_confirmations ?? {}), ...validation.confirmations };
+    const merged = mergeConfirmedFacts({ validated: pending.validated, confirmations, documents });
+    caseData = {
+      ...caseData,
+      fact_confirmations: confirmations,
+      pending_fact_confirmation: merged.safe_to_continue ? null : {
+        validated: pending.validated,
+        confirmation_needs: merged.unresolved
+      }
+    };
+    await store.save(caseData);
+    return {
+      confirmed: true,
+      validation,
+      confirmed_fields: Object.keys(validation.confirmations),
+      remaining_needs: merged.unresolved,
       case: caseData
     };
   }
@@ -159,6 +243,7 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
   }
 
   async function getFullResult({ case_id, owner_id }) {
+    assertLegalRegistryUsable();
     const caseData = await store.getOwned(case_id, owner_id);
     const latest = caseData.analyses.at(-1);
     if (!latest) throw new Error('No analysis available.');
@@ -218,6 +303,7 @@ export function createBackendServices({ registry, product, uploadPolicy, extract
     registerUploads,
     confirmDocumentUpload,
     analyzeStoredCase,
+    confirmFacts,
     getPaymentRequirement,
     confirmPayment,
     getFullResult,

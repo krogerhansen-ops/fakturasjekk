@@ -9,7 +9,7 @@ function validValue(value, definition) {
     case 'line_items':
       return Array.isArray(value) && value.length <= 500 && value.every(line => {
         if (!line || typeof line !== 'object' || typeof line.description !== 'string' || !line.description.trim()) return false;
-        for (const key of ['quantity', 'unit_price', 'amount']) {
+        for (const key of ['quantity', 'unit_price', 'amount', 'vat_rate', 'vat_amount']) {
           if (line[key] != null && !Number.isFinite(Number(line[key]))) return false;
         }
         return true;
