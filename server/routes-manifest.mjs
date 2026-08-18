@@ -1,6 +1,8 @@
 export const API_VERSION = 'v1';
 
 export const ROUTES = Object.freeze([
+  { method: 'GET', path: '/health', action: 'health', auth: false, mutation: false, cors: false },
+  { method: 'GET', path: '/ready', action: 'readiness', auth: false, mutation: false, cors: false },
   { method: 'GET', path: '/v1/cases', action: 'list_cases', auth: true, mutation: false },
   { method: 'POST', path: '/v1/cases', action: 'create_case', auth: true, mutation: true },
   { method: 'DELETE', path: '/v1/cases/:case_id', action: 'delete_case', auth: true, mutation: true },
