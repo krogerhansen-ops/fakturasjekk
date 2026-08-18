@@ -9,6 +9,8 @@ import { createDevelopmentAuthAdapter } from './auth-adapter.mjs';
 import { createNodeHandler, startNodeServer } from './node-runtime.mjs';
 import { createMemoryRateLimiter } from './security-policy.mjs';
 import { createValidatedExtractor } from './extractor-contract.mjs';
+import { createValidatedResponseInterpreter, createDevelopmentResponseInterpreterProvider } from './response-interpreter-contract.mjs';
+import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentProviderGateway, createDevelopmentPaymentProvider } from './payment-provider-contract.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
@@ -42,8 +44,10 @@ const rawExtractor = {
   }
 };
 const extractor = createValidatedExtractor({ provider: rawExtractor, catalog: extractionCatalog });
-const adapters = { caseStore, storage, extractor };
+const responseInterpreter = createValidatedResponseInterpreter({ provider: createDevelopmentResponseInterpreterProvider() });
+const adapters = { caseStore, storage, extractor, responseInterpreter };
 const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters });
+const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
 const management = createCaseManagement({ caseStore, storage, audit });
 const paymentProvider = createDevelopmentPaymentProvider({ name: 'dev-pay' });
 const paymentGateway = createPaymentProviderGateway({ provider: paymentProvider, product, allowed_providers: ['dev-pay'] });
@@ -53,6 +57,7 @@ const api = createApi({
   services,
   registry,
   management,
+  supplierResponseService,
   paymentGateway,
   paymentWebhookService,
   paymentProviderName: 'dev-pay',
