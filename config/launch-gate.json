@@ -22,14 +22,14 @@
     { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "todo", "evidence": null },
     { "id": "COMMERCE_TERMS", "category": "commerce", "required": true, "status": "todo", "evidence": null },
     { "id": "COMMERCE_PRIVACY_AT_CHECKOUT", "category": "commerce", "required": true, "status": "todo", "evidence": null },
-    { "id": "COMMERCE_29_NOK_TOTAL_PRICE", "category": "commerce", "required": true, "status": "todo", "evidence": null },
+    { "id": "COMMERCE_29_NOK_TOTAL_PRICE", "category": "commerce", "required": true, "status": "complete", "evidence": "29 NOK is fixed in product config, payment gate, OpenAPI and automated price/version tests." },
     { "id": "COMMERCE_CANCELLATION_RIGHT_REVIEW", "category": "commerce", "required": true, "status": "todo", "evidence": null, "note": "Final purchase flow must be reviewed for the actual service-delivery/withdrawal-right setup before launch." },
     { "id": "COMMERCE_RECEIPT_FLOW", "category": "commerce", "required": true, "status": "todo", "evidence": null },
-    { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "todo", "evidence": null },
-    { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "todo", "evidence": null },
-    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "todo", "evidence": null },
+    { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "docs/LEGAL-REVIEW-2026-08-18.md – active V1 rules manually re-verified against Lovdata on 2026-08-18." },
+    { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "Lov 2026-05-22-19 remains 'Kongen bestemmer'; current 1988 law remains runtime-active. See docs/LEGAL-REVIEW-2026-08-18.md." },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "todo", "evidence": null, "note": "Set complete only after the launch-candidate PR itself passes the complete quality gate." },
     { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
-    { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "todo", "evidence": null }
+    { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; regression tests cover deterministic engine behavior." }
   ],
   "official_reference_pages": [
     "https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/vurdere-personvernkonsekvenser-dpia/",
