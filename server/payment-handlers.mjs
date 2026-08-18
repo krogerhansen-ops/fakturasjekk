@@ -1,4 +1,5 @@
 import { requireUser, requireCaseId, requireBodyObject } from './auth-policy.mjs';
+import { projectPaymentConfirmation, assertNoPrivateFields } from './public-projection.mjs';
 
 export function createPaymentHandlers({ services, idempotency = null } = {}) {
   async function mutate(request, operation, fn) {
@@ -20,7 +21,9 @@ export function createPaymentHandlers({ services, idempotency = null } = {}) {
       const body = requireBodyObject(request.body);
       return mutate(request, `confirm_payment:${case_id}`, async () => {
         const output = await services.confirmPayment({ case_id, owner_id: user.id, confirmation: body.confirmation });
-        return { status: output.paid ? 200 : 422, body: output };
+        const response = projectPaymentConfirmation(output);
+        assertNoPrivateFields(response);
+        return { status: output.paid ? 200 : 422, body: response };
       });
     }
   };
