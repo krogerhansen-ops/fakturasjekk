@@ -12,6 +12,17 @@ const provider = {
     let deleted_count = 0;
     for (const key of [...objects.keys()]) if (key.startsWith(prefix)) { objects.delete(key); deleted_count += 1; }
     return { deleted_count };
+  },
+  async putObject({ bucket, key, body, content_type }) {
+    objects.set(key, { bucket, exists: true, body, content_type, byte_size: Buffer.byteLength(body) });
+    return { key };
+  },
+  async listPrefix({ prefix }) {
+    return { items: [...objects.keys()].filter(key => key.startsWith(prefix)).map(key => ({ key })) };
+  },
+  async getObject({ key }) {
+    const item = objects.get(key);
+    return item ? { body: item.body } : null;
   }
 };
 let scanResult = { malware_safe: true, magic_bytes_verified: true, detected_mime_type: 'application/pdf', sha256: 'sha-1' };
@@ -49,5 +60,19 @@ await assert.rejects(
   /MIME type is not allowed/i
 );
 
+await storage.recordDeletionTombstone({ case_id: 'old-case', deleted_at: '2026-06-01T00:00:00.000Z' });
+const tombstone = await storage.recordDeletionTombstone({ case_id: 'case-1', deleted_at: '2026-08-18T15:30:00.000Z' });
+assert.equal(tombstone.key, 'deletion-ledger/case-1.json');
+let ledger = await storage.listDeletionTombstones();
+assert.deepEqual(ledger.map(item => item.case_id), ['old-case', 'case-1']);
+assert.equal(JSON.stringify(objects.get('deletion-ledger/case-1.json')).includes('u1'), false, 'deletion ledger must not contain owner id');
+
+const ledgerPurge = await storage.purgeDeletionTombstonesBefore({ cutoff: '2026-07-04T00:00:00.000Z' });
+assert.equal(ledgerPurge.checked, 2);
+assert.equal(ledgerPurge.purged, 1);
+ledger = await storage.listDeletionTombstones();
+assert.deepEqual(ledger.map(item => item.case_id), ['case-1']);
+
 assert.equal(await storage.deleteCaseObjects({ case_id: 'case-1', owner_id: 'u1' }), 1);
-console.log('OK private object storage adapter');
+assert.equal(objects.has('deletion-ledger/case-1.json'), true, 'case object purge must not delete restore-safety tombstones');
+console.log('OK private object storage adapter and bounded deletion tombstone ledger');

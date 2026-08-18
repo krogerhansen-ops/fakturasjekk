@@ -5,6 +5,8 @@ import { createAuditLogger } from '../server/audit.mjs';
 import { createRetentionPurgeService } from '../server/retention-purge-service.mjs';
 
 const policy = JSON.parse(fs.readFileSync(new URL('../config/retention-policy.json', import.meta.url), 'utf8'));
+assert.ok(policy.backup_requirements.deletion_ledger_ttl_days > policy.backup_requirements.ordinary_rotating_backup_max_days_product_requirement);
+
 const caseStore = createMemoryCaseStore();
 const storage = createMemoryStorage();
 const auditAdapter = createMemoryAudit();
@@ -26,11 +28,16 @@ await caseStore.save({
 });
 await storage.reservePrivateObject({ case_id: 'full-expired', owner_id: 'u1', document_id: 'doc-2', name: 'gammel.pdf', mime_type: 'application/pdf' });
 
+// Simulate an old deletion tombstone that is beyond the 45-day restore safety window.
+await storage.recordDeletionTombstone({ case_id: 'very-old-deleted-case', deleted_at: '2026-06-01T00:00:00.000Z' });
+
 const service = createRetentionPurgeService({ caseStore, storage, policy, audit, clock: () => new Date('2026-08-18T13:00:00Z') });
 const result = await service.run();
 assert.equal(result.ok, true);
 assert.equal(result.source_document_purges, 2);
 assert.equal(result.case_content_purges, 1);
+assert.equal(result.deletion_tombstones_recorded, 1);
+assert.equal(result.expired_deletion_tombstones_purged, 1);
 assert.equal(result.deleted_objects, 2);
 
 const sourceOnly = await caseStore.getOwned('source-only', 'u1');
@@ -38,9 +45,15 @@ assert.equal(sourceOnly.documents[0].status, 'purged');
 assert.equal(sourceOnly.documents[0].storage_key, null);
 await assert.rejects(() => caseStore.getOwned('full-expired', 'u1'), /not found|owned/i);
 
+const ledger = await storage.listDeletionTombstones();
+assert.deepEqual(ledger.map(item => item.case_id), ['full-expired']);
+assert.equal(ledger[0].deleted_at, '2026-08-18T13:00:00.000Z');
+
 const audits = await auditAdapter.list();
 assert.ok(audits.some(a => a.action === 'retention.source_documents_purged'));
 assert.ok(audits.some(a => a.action === 'retention.case_content_purged'));
+assert.ok(audits.some(a => a.action === 'retention.deletion_tombstones_purged'));
 assert.equal(JSON.stringify(audits).includes('faktura.pdf'), false);
+assert.equal(JSON.stringify(audits).includes('gammel.pdf'), false);
 
-console.log('OK retention purge execution');
+console.log('OK retention purge is restore-safe and expires deletion tombstones after the backup window');

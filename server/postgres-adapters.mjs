@@ -81,12 +81,29 @@ export function createPostgresCaseStore({ db } = {}) {
     },
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
       const current = await getOwned(caseId, ownerId);
-      const deleted = { ...current, state: 'deleted', deleted_at, updated_at: deleted_at };
+
+      // Privacy-first deletion: purge content-bearing child records before keeping only a minimal tombstone.
+      // Payment/audit records are intentionally separate because they may have independent legal/security retention.
+      for (const table of ['followups', 'supplier_responses', 'drafts', 'analyses', 'documents', 'case_events']) {
+        await db.query(`DELETE FROM ${table} WHERE case_id=$1 AND owner_id=$2`, [caseId, ownerId]);
+      }
+
+      const minimalSnapshot = {
+        id: current.id,
+        state: 'deleted',
+        retention_mode: current.retention_mode,
+        created_at: current.created_at,
+        updated_at: deleted_at,
+        deleted_at
+      };
       const result = await db.query(
-        `UPDATE cases SET state='deleted', deleted_at=$3, updated_at=$3, snapshot=$4::jsonb
-           WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL
+        `UPDATE cases SET
+           state='deleted', deleted_at=$3, updated_at=$3,
+           buyer_type=NULL, subject=NULL, engine_version=NULL,
+           snapshot=$4::jsonb
+         WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL
          RETURNING id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at`,
-        [caseId, ownerId, deleted_at, JSON.stringify(deleted)]
+        [caseId, ownerId, deleted_at, JSON.stringify(minimalSnapshot)]
       );
       if (!result.rows.length) throw new Error('Case not found or not owned by user.');
       return hydrateCase(result.rows[0]);

@@ -23,7 +23,8 @@ const caseStore = {
 const storage = {
   async reservePrivateObject() { return 'private/key'; },
   async listCaseDocuments() { return []; },
-  async deleteCaseObjects() { return 0; }
+  async deleteCaseObjects() { return 0; },
+  async recordDeletionTombstone() { return { key: 'deletion-ledger/test.json' }; }
 };
 const extractor = { async extract() { return { fields: {} }; } };
 const responseInterpreter = { async interpret() { return { items: [] }; } };

@@ -6,3 +6,7 @@ supabase/.branches/
 node_modules/
 .DS_Store
 *.local
+backups/
+*.dump
+*.dump.age
+*.backup

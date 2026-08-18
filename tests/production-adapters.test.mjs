@@ -11,7 +11,10 @@ const db = { async query() { return { rows: [] }; } };
 const storageProvider = {
   async createSignedPut() { return { url: 'https://storage.example/upload' }; },
   async headObject() { return { exists: true, byte_size: 1, content_type: 'application/pdf' }; },
-  async deletePrefix() { return { deleted_count: 0 }; }
+  async deletePrefix() { return { deleted_count: 0 }; },
+  async putObject() { return {}; },
+  async listPrefix() { return { items: [] }; },
+  async getObject() { return null; }
 };
 const storageScanner = { async scanObject() { return { malware_safe: true, magic_bytes_verified: true, detected_mime_type: 'application/pdf' }; } };
 const jwtVerifier = { async verify() { return { signature_valid: true, claims: {} }; } };
@@ -26,6 +29,8 @@ for (const key of ['caseStore','storage','extractor','responseInterpreter','auth
 assert.equal(typeof adapters.rateLimiter.check, 'function');
 assert.equal(typeof adapters.authAdapter.verifyBearer, 'function');
 assert.equal(typeof adapters.storage.reservePrivateObject, 'function');
+assert.equal(typeof adapters.storage.recordDeletionTombstone, 'function');
+assert.equal(typeof adapters.storage.listDeletionTombstones, 'function');
 
 assert.throws(
   () => createCoreProductionAdapters({ config: { environment: 'development' }, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway }),
@@ -35,5 +40,18 @@ assert.throws(
   () => createCoreProductionAdapters({ config, db, storageProvider, storageScanner, jwtVerifier, extractor: null, responseInterpreter, paymentGateway }),
   /extractor/i
 );
+assert.throws(
+  () => createCoreProductionAdapters({
+    config,
+    db,
+    storageProvider: { createSignedPut() {}, headObject() {}, deletePrefix() {} },
+    storageScanner,
+    jwtVerifier,
+    extractor,
+    responseInterpreter,
+    paymentGateway
+  }),
+  /putObject|listPrefix|getObject/i
+);
 
-console.log('OK production adapter composition');
+console.log('OK production adapter composition and restore-safe storage contract');

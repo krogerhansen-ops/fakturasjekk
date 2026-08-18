@@ -32,7 +32,15 @@ export function createMemoryCaseStore() {
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
       const value = cases.get(caseId);
       if (!value || value.owner_id !== ownerId || value.deleted_at) throw new Error('Case not found or not owned by user.');
-      const deleted = { ...value, deleted_at, state: 'deleted' };
+      const deleted = {
+        id: value.id,
+        owner_id: value.owner_id,
+        state: 'deleted',
+        retention_mode: value.retention_mode,
+        created_at: value.created_at,
+        updated_at: deleted_at,
+        deleted_at
+      };
       cases.set(caseId, clone(deleted));
       return clone(deleted);
     }
@@ -41,6 +49,7 @@ export function createMemoryCaseStore() {
 
 export function createMemoryStorage() {
   const objects = new Map();
+  const deletionLedger = new Map();
   return {
     async reservePrivateObject({ case_id, owner_id, document_id, name, mime_type }) {
       const key = `private/${owner_id}/${case_id}/${document_id}`;
@@ -65,6 +74,27 @@ export function createMemoryStorage() {
         if (item.case_id === case_id && item.owner_id === owner_id) { objects.delete(key); deleted += 1; }
       }
       return deleted;
+    },
+    async recordDeletionTombstone({ case_id, deleted_at }) {
+      const tombstone = { key: `deletion-ledger/${case_id}.json`, case_id, deleted_at };
+      deletionLedger.set(case_id, tombstone);
+      return clone(tombstone);
+    },
+    async listDeletionTombstones() {
+      return [...deletionLedger.values()].map(clone).sort((a, b) => a.deleted_at.localeCompare(b.deleted_at));
+    },
+    async purgeDeletionTombstonesBefore({ cutoff }) {
+      const cutoffMs = Date.parse(cutoff);
+      if (!Number.isFinite(cutoffMs)) throw new Error('Deletion tombstone purge requires a valid cutoff.');
+      const checked = deletionLedger.size;
+      let purged = 0;
+      for (const [caseId, item] of deletionLedger.entries()) {
+        if (Date.parse(item.deleted_at) < cutoffMs) {
+          deletionLedger.delete(caseId);
+          purged += 1;
+        }
+      }
+      return { checked, purged, cutoff: new Date(cutoffMs).toISOString() };
     }
   };
 }

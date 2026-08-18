@@ -1,5 +1,5 @@
 {
-  "version": "0.65.0",
+  "version": "0.67.0",
   "policy_status": "product_default_subject_to_final_dpia",
   "principle": "Store personal data only for as long as necessary for the stated purpose.",
   "modes": {
@@ -25,7 +25,10 @@
   "backup_requirements": {
     "provider_must_document_retention": true,
     "ordinary_rotating_backup_max_days_product_requirement": 35,
+    "deletion_ledger_ttl_days": 45,
+    "deletion_ledger_contains_only_case_id_and_deleted_at": true,
     "must_be_encrypted": true,
+    "source_document_storage_is_not_part_of_standard_database_backup": true,
     "restore_must_reapply_deletion_ledger_before_user_access": true,
     "deleted_cases_must_not_be_reactivated_by_restore": true,
     "production_end_to_end_restore_test_required": true
@@ -49,7 +52,9 @@
     "database_delete_end_to_end",
     "object_storage_delete_end_to_end",
     "provider_artifact_delete_where_supported",
+    "deletion_tombstone_written_before_case_purge",
     "backup_restore_does_not_resurrect_deleted_case",
+    "deletion_tombstone_expires_after_backup_window",
     "audit_contains_only_minimal_delete_status"
   ],
   "sources": [
