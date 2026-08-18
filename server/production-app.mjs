@@ -8,6 +8,7 @@ import { evaluateReadiness } from './readiness.mjs';
 import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createApi } from './api.mjs';
 import { createNodeHandler, startNodeServer } from './node-runtime.mjs';
+import { createFetchHandler } from './fetch-runtime.mjs';
 
 function required(value, name, method = null) {
   if (!value || (method && typeof value[method] !== 'function')) throw new Error(`Missing production adapter: ${name}`);
@@ -23,7 +24,8 @@ export function createProductionApp({
   extractionCatalog,
   retentionPolicy,
   launchGate,
-  adapters = {}
+  adapters = {},
+  edgeBasePath = '/functions/v1/fakturasjekk-api'
 } = {}) {
   if (config?.environment !== 'production') throw new Error('Production app requires validated production config.');
   const launchGateResult = evaluateLaunchGate(launchGate ?? {});
@@ -79,7 +81,15 @@ export function createProductionApp({
     idempotency
   });
   const handler = createNodeHandler({ api, authAdapter, allowedOrigins: [config.app_origin], rateLimiter, production: true });
-  return { handler, api, services, management, readiness: readinessResult, launch_gate: launchGateResult };
+  const fetchHandler = createFetchHandler({
+    api,
+    authAdapter,
+    allowedOrigins: [config.app_origin],
+    rateLimiter,
+    production: true,
+    basePath: edgeBasePath
+  });
+  return { handler, fetchHandler, api, services, management, readiness: readinessResult, launch_gate: launchGateResult };
 }
 
 export async function startProductionApp({ app, port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? '0.0.0.0' } = {}) {
