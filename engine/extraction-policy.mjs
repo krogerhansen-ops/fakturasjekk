@@ -1,7 +1,7 @@
 export function validateExtraction(extraction = {}, policy) {
   const accepted = {};
   const review = [];
-  const rejected = [];
+  const rejected = (extraction.contract_errors ?? []).map(reason => ({ field: 'extractor_contract', reason }));
   const critical = new Set(policy.critical_fields ?? []);
   const requireSource = policy.require_source_location === true;
 
