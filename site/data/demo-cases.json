@@ -1,0 +1,74 @@
+[
+  {
+    "id": "electrician",
+    "name": "Elektriker",
+    "story": "Prisoverslag med tillegg, mulig dobbeltføring og fakturagebyr.",
+    "next_step": "Be om spesifisert forklaring på pristillegg og dobbeltførte linjer. Fakturagebyret skal kontrolleres særskilt.",
+    "input": {
+      "party_type": "consumer",
+      "case_type": "handcraft_service",
+      "price_basis": "estimate",
+      "agreed_price": 120000,
+      "invoice_total": 146000,
+      "invoice_fee": 500,
+      "surcharge_documented": false,
+      "lines": [
+        {"description": "Arbeid og materiell", "quantity": 1, "unit_price": 136000},
+        {"description": "Servicebil", "quantity": 1, "unit_price": 2000},
+        {"description": "Servicebil", "quantity": 1, "unit_price": 2000},
+        {"description": "Fakturagebyr", "quantity": 1, "unit_price": 500},
+        {"description": "Feilsøking loft", "quantity": 1, "unit_price": 5500}
+      ]
+    }
+  },
+  {
+    "id": "moving",
+    "name": "Flyttebyrå",
+    "story": "Skriftlig pristilbud med prisøkning etter oppstart og manglende dokumentert varsling.",
+    "next_step": "Be om dokumentasjon på når og hvordan prisøkningen ble varslet, og om korrigert salgsdokumentasjon dersom formelle opplysninger mangler.",
+    "input": {
+      "party_type": "consumer",
+      "case_type": "service_quote",
+      "agreed_price": 18000,
+      "invoice_total": 27600,
+      "price_increase_after_start": true,
+      "customer_notified": false,
+      "missing_formal_fields": ["betalingsforfall"]
+    }
+  },
+  {
+    "id": "electronics",
+    "name": "Elektronikk",
+    "story": "Ordrebekreftelse med mulig dobbeltført vare og fakturagebyr som ikke er avtalt.",
+    "next_step": "Be om korrigert faktura dersom den andre dockingstasjonen er dobbeltført, og be om at fakturagebyret fjernes hvis det ikke klart følger av avtalen.",
+    "input": {
+      "party_type": "consumer",
+      "case_type": "goods",
+      "agreed_price": 25480,
+      "invoice_total": 28069,
+      "invoice_fee": 99,
+      "invoice_fee_agreed": false,
+      "lines": [
+        {"description": "PC", "quantity": 1, "unit_price": 22990},
+        {"description": "Dockingstasjon", "quantity": 1, "unit_price": 2490},
+        {"description": "Dockingstasjon", "quantity": 1, "unit_price": 2490},
+        {"description": "Fakturagebyr", "quantity": 1, "unit_price": 99}
+      ]
+    }
+  },
+  {
+    "id": "clean",
+    "name": "Ingen avvik",
+    "story": "Avtalt pris, fakturatotal og linjesum samsvarer i testgrunnlaget.",
+    "next_step": "Ingen konkret innsigelse foreslås. Kunden kan betale dersom øvrige forhold også stemmer med det som faktisk ble levert.",
+    "input": {
+      "party_type": "consumer",
+      "case_type": "goods",
+      "agreed_price": 3490,
+      "invoice_total": 3490,
+      "lines": [
+        {"description": "Vare", "quantity": 1, "unit_price": 3490}
+      ]
+    }
+  }
+]
