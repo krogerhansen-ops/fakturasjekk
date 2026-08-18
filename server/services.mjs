@@ -1,4 +1,4 @@
-import { createCase, transitionCase, addDocument, markDocumentUploaded, addAnalysis, addPayment, addDraft, addSupplierResponse, addFollowUp } from '../engine/case-state.mjs';
+import { createCase, transitionCase, addDocument, markDocumentUploaded, expireDocumentUploadWindow, addAnalysis, addPayment, addDraft, addSupplierResponse, addFollowUp } from '../engine/case-state.mjs';
 import { validateUploadSet } from '../engine/document-policy.mjs';
 import { validateExtraction } from '../engine/extraction-policy.mjs';
 import { runCase } from '../engine/case-service.mjs';
@@ -15,11 +15,19 @@ function requireAdapter(adapters, name) {
   return adapter;
 }
 
-function ruleSafetyNow(clock) {
-  if (typeof clock !== 'function') return new Date();
-  const value = clock();
+function clockDate(clock) {
+  const value = typeof clock === 'function' ? clock() : new Date();
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+  if (Number.isNaN(date.getTime())) throw new Error('Clock returned invalid date.');
+  return date;
+}
+
+function ruleSafetyNow(clock) {
+  return clockDate(clock);
+}
+
+function uploadedDocumentRecords(caseData) {
+  return (caseData.documents ?? []).filter(document => document.status === 'uploaded');
 }
 
 export function createBackendServices({
@@ -82,6 +90,8 @@ export function createBackendServices({
         name: file.name,
         mime_type: file.mime_type,
         storage_key: reservation.storage_key,
+        upload_expires_at: reservation.expires_at,
+        provider_upload_expires_at: reservation.provider_expires_at,
         status: target ? 'awaiting_upload' : 'uploaded'
       }, { clock });
     }
@@ -91,12 +101,20 @@ export function createBackendServices({
 
   async function confirmDocumentUpload({ case_id, owner_id, document_id }) {
     let caseData = await store.getOwned(case_id, owner_id);
-    const document = caseData.documents.find(d => d.id === document_id);
+    let document = caseData.documents.find(d => d.id === document_id);
     if (!document) throw new Error('Document not found.');
     if (document.status === 'uploaded') return { uploaded: true, document, case: caseData };
+    if (document.status === 'upload_window_expired') throw new Error('Upload reservation expired. Register document again.');
     if (document.status !== 'awaiting_upload') throw new Error('Document is not awaiting upload.');
-    if (!storage.finalizeUpload) throw new Error('Storage adapter does not support upload finalization.');
 
+    const acceptanceExpiryMs = document.upload_expires_at ? Date.parse(document.upload_expires_at) : null;
+    if (acceptanceExpiryMs != null && (!Number.isFinite(acceptanceExpiryMs) || clockDate(clock).getTime() > acceptanceExpiryMs)) {
+      caseData = expireDocumentUploadWindow(caseData, document_id, { clock });
+      await store.save(caseData);
+      throw new Error('Upload reservation expired. Register document again.');
+    }
+
+    if (!storage.finalizeUpload) throw new Error('Storage adapter does not support upload finalization.');
     const verified = await storage.finalizeUpload({
       case_id,
       owner_id,
@@ -118,15 +136,18 @@ export function createBackendServices({
       sha256: verified.sha256 ?? null
     }, { clock });
     await store.save(caseData);
-    return { uploaded: true, document: caseData.documents.find(d => d.id === document_id), case: caseData };
+    document = caseData.documents.find(d => d.id === document_id);
+    return { uploaded: true, document, case: caseData };
   }
 
   async function analyzeStoredCase({ case_id, owner_id, user_note = '', collection = null }) {
     assertLegalRegistryUsable();
     let caseData = await store.getOwned(case_id, owner_id);
     if (caseData.documents.some(d => d.status === 'awaiting_upload')) throw new Error('All reserved documents must be uploaded and verified before analysis.');
-    const documents = await storage.listCaseDocuments({ case_id, owner_id, records: caseData.documents });
-    if (!documents.some(d => d.role === 'invoice')) throw new Error('Invoice document is required before analysis.');
+
+    const uploadedRecords = uploadedDocumentRecords(caseData);
+    const documents = await storage.listCaseDocuments({ case_id, owner_id, records: uploadedRecords });
+    if (!documents.some(d => d.role === 'invoice')) throw new Error('Uploaded and verified invoice document is required before analysis.');
 
     const extractionRaw = await extractor.extract({ case_id, owner_id, documents });
     const extraction = validateExtraction(extractionRaw, extractionPolicy);
@@ -185,7 +206,8 @@ export function createBackendServices({
     let caseData = await store.getOwned(case_id, owner_id);
     const pending = caseData.pending_fact_confirmation;
     if (!pending?.validated) throw new Error('No fact confirmation is currently required for this case.');
-    const documents = await storage.listCaseDocuments({ case_id, owner_id, records: caseData.documents });
+    const uploadedRecords = uploadedDocumentRecords(caseData);
+    const documents = await storage.listCaseDocuments({ case_id, owner_id, records: uploadedRecords });
     const validation = validateFactConfirmations({
       items,
       catalog: extractionCatalog,
