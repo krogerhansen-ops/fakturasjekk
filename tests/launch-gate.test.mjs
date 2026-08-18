@@ -7,14 +7,19 @@ const initial = evaluateLaunchGate(config);
 assert.equal(initial.valid, true);
 assert.equal(initial.launch_allowed, false);
 assert.ok(initial.blocking_count > 10);
-assert.ok(initial.blocking_ids.includes('COMMERCE_29_NOK_TOTAL_PRICE'));
-assert.ok(initial.blocking_ids.includes('LEGAL_DPIA_DECISION'));
+assert.ok(initial.blocking_ids.includes('TECH_PRODUCTION_HOSTING'));
+assert.ok(initial.blocking_ids.includes('LEGAL_DPIA_COMPLETE'));
+assert.ok(initial.blocking_ids.includes('COMMERCE_SELLER_IDENTITY'));
 assert.ok(initial.blocking_ids.includes('QA_FULL_CI_GREEN'));
+assert.equal(initial.blocking_ids.includes('COMMERCE_29_NOK_TOTAL_PRICE'), false);
+assert.equal(initial.blocking_ids.includes('LEGAL_DPIA_DECISION'), false);
+assert.ok(initial.complete >= 5);
 
-let one = markLaunchGate(config, 'COMMERCE_29_NOK_TOTAL_PRICE', { status: 'complete', evidence: 'Product config + checkout integration test' });
+const beforeComplete = initial.complete;
+const one = markLaunchGate(config, 'QA_EXTERNAL_TESTERS', { status: 'complete', evidence: 'External end-to-end tester completed launch checklist.' });
 const oneResult = evaluateLaunchGate(one);
 assert.equal(oneResult.launch_allowed, false);
-assert.equal(oneResult.complete, 1);
+assert.equal(oneResult.complete, beforeComplete + 1);
 
 const invalid = structuredClone(config);
 invalid.checks[0].status = 'complete';
