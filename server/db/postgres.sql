@@ -1,5 +1,6 @@
 -- Fakturasjekk.no production reference schema
--- Sensitive document bytes are NOT stored in these tables. Only private storage keys are persisted.
+-- Sensitive document bytes are NOT stored in PostgreSQL. Only private object-storage keys and metadata are persisted.
+-- Browsers must never connect directly to these tables.
 
 CREATE TABLE IF NOT EXISTS cases (
   id TEXT PRIMARY KEY,
@@ -9,12 +10,14 @@ CREATE TABLE IF NOT EXISTS cases (
   buyer_type TEXT,
   subject TEXT,
   engine_version TEXT,
+  snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   closed_at TIMESTAMPTZ,
   deleted_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_cases_owner_updated ON cases(owner_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cases_retention ON cases(deleted_at, updated_at);
 
 CREATE TABLE IF NOT EXISTS case_events (
   id BIGSERIAL PRIMARY KEY,
@@ -35,15 +38,16 @@ CREATE TABLE IF NOT EXISTS documents (
   original_name TEXT NOT NULL,
   mime_type TEXT,
   byte_size BIGINT,
-  storage_key TEXT NOT NULL,
+  storage_key TEXT,
   sha256 TEXT,
   upload_status TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  uploaded_at TIMESTAMPTZ,
   purge_after TIMESTAMPTZ,
   deleted_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_storage_key ON documents(storage_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_storage_key ON documents(storage_key) WHERE storage_key IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS analyses (
   id TEXT PRIMARY KEY,
@@ -73,6 +77,16 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 CREATE INDEX IF NOT EXISTS idx_payments_case ON payments(case_id);
 
+-- Atomic claim table prevents the same provider reference from being replayed across cases.
+CREATE TABLE IF NOT EXISTS payment_event_claims (
+  provider TEXT NOT NULL,
+  provider_reference TEXT NOT NULL,
+  case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE RESTRICT,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(provider, provider_reference)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_event_claims_case ON payment_event_claims(case_id);
+
 CREATE TABLE IF NOT EXISTS drafts (
   id TEXT PRIMARY KEY,
   case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -88,6 +102,7 @@ CREATE TABLE IF NOT EXISTS supplier_responses (
   case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
   owner_id TEXT NOT NULL,
   document_id TEXT REFERENCES documents(id) ON DELETE SET NULL,
+  response_text TEXT,
   structured_response JSONB,
   received_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -104,8 +119,8 @@ CREATE TABLE IF NOT EXISTS followups (
 
 CREATE TABLE IF NOT EXISTS idempotency_keys (
   namespace TEXT PRIMARY KEY,
-  owner_id TEXT NOT NULL,
-  operation TEXT NOT NULL,
+  owner_id TEXT,
+  operation TEXT,
   state TEXT NOT NULL,
   response JSONB,
   expires_at TIMESTAMPTZ NOT NULL,
@@ -125,5 +140,9 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_case_created ON audit_log(case_id, created_at DESC);
 
--- Ownership must also be enforced in application queries and, where available,
--- with database row-level security. Do not expose tables directly to browsers.
+-- Recommended database controls for production:
+-- 1. API role gets only the exact CRUD grants required by server adapters.
+-- 2. Migration/admin role is separate from the runtime role.
+-- 3. RLS or equivalent ownership policies should be enabled where the hosting stack supports them.
+-- 4. No table, bucket or database credentials are ever exposed to browser code.
+-- 5. Backups and replicas must follow the same retention/deletion policy as primary data.
