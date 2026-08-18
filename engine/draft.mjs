@@ -20,9 +20,28 @@ function findingCanBeDrafted(finding, registry) {
   const ids = finding.rule_ids ?? [];
   if (!ids.length) return true;
   const active = activeRuleMap(registry);
-  // Fail closed: if the finding depends on any non-active or missing rule,
-  // omit the whole finding rather than risk leaking stale legal wording embedded in its explanation.
   return ids.every(id => active.has(id));
+}
+
+function requestForFinding(finding) {
+  switch (finding.code) {
+    case 'LINE_SUM_MISMATCH':
+      return 'Jeg ber om en spesifisert oppstilling som viser hvordan fakturatotalen er beregnet, og om korrigert faktura dersom summeringen er feil.';
+    case 'EXACT_DUPLICATE_LINES':
+      return 'Jeg ber om en forklaring på hvorfor de identiske linjene er ført flere ganger, og om korrigering dersom dette er en dobbeltføring.';
+    case 'ESTIMATE_ABOVE_15_CONTROL':
+      return 'Jeg ber om en spesifisert redegjørelse for hvilke tilleggsarbeider eller andre forhold som forklarer prisøkningen, og dokumentasjon på grunnlaget for eventuelle pristillegg.';
+    case 'HANDCRAFT_INVOICE_FEE':
+      return 'Jeg ber om at gebyret forklares særskilt og fjernes dersom det ikke kan kreves etter reglene som gjelder for tjenesten.';
+    case 'GOODS_INVOICE_FEE':
+      return 'Jeg ber om dokumentasjon på hvor i avtalen fakturagebyret klart er avtalt. Hvis dette ikke kan dokumenteres, ber jeg om at gebyret fjernes.';
+    case 'SERVICE_QUOTE_PRICE_INCREASE':
+      return 'Jeg ber om dokumentasjon på når og hvordan prisøkningen ble varslet, hva økningen gjelder, og hvordan beløpet er beregnet.';
+    case 'FORMAL_INVOICE_FIELDS':
+      return 'Jeg ber om at de manglende eller uklare fakturaopplysningene rettes eller presiseres. Dette er et eget kontrollpunkt og innebærer ikke i seg selv at hovedkravet bortfaller.';
+    default:
+      return 'Jeg ber om en skriftlig forklaring og dokumentasjon på dette punktet, og om korrigering dersom fakturaen ikke er riktig.';
+  }
 }
 
 export function buildDraft({ analysis, registry, invoice_reference = '', user_note = '', mode = 'request' }) {
@@ -41,17 +60,24 @@ export function buildDraft({ analysis, registry, invoice_reference = '', user_no
   const lines = [
     'Hei,',
     '',
-    `Jeg viser til faktura${ref}. Jeg ber om skriftlig avklaring av følgende punkter:`
+    `Jeg viser til faktura${ref}. Jeg har gått gjennom fakturaen og grunnlaget jeg har tilgjengelig, og det er noen punkter jeg ønsker avklart før jeg tar endelig stilling til hele beløpet.`,
+    '',
+    'Dette gjelder:'
   ];
 
   actionable.forEach((finding, index) => {
     const refs = groupReferences(finding.rule_ids ?? [], registry);
-    const refText = refs.length ? ` (${refs.map(r => `jf. ${r}`).join('; ')})` : '';
-    lines.push('', `${index + 1}. ${finding.title}${refText}`, finding.explanation);
+    const refText = refs.length ? ` – jf. ${refs.join('; ')}` : '';
+    lines.push(
+      '',
+      `${index + 1}. ${finding.title}${refText}`,
+      `Kontrollen viser: ${finding.explanation}`,
+      `Det jeg ber om: ${requestForFinding(finding)}`
+    );
   });
 
   if (analysis.questions?.length) {
-    lines.push('', 'For å kunne avklare saken ber jeg særlig om svar på:');
+    lines.push('', 'For å kunne avklare saken ber jeg også om svar på følgende:');
     analysis.questions.forEach(q => lines.push(`- ${q}`));
   }
 
@@ -61,11 +87,12 @@ export function buildDraft({ analysis, registry, invoice_reference = '', user_no
 
   lines.push('');
   if (mode === 'objection') {
-    lines.push('Jeg bestrider de delene av kravet som gjelder punktene ovenfor inntil de er dokumentert og avklart. Jeg ber om skriftlig svar og eventuelt korrigert faktura.');
+    lines.push('Inntil punktene ovenfor er dokumentert og avklart, bestrider jeg de delene av kravet som gjelder disse forholdene. Jeg ber om skriftlig svar og eventuelt korrigert faktura.');
   } else {
-    lines.push('Jeg ber om skriftlig svar på punktene ovenfor og eventuelt korrigert faktura dersom kontrollen viser feil.');
+    lines.push('Jeg ber om en skriftlig tilbakemelding på punktene ovenfor. Dersom dere mener fakturaen er riktig, ber jeg om at grunnlaget dokumenteres i svaret. Dersom noe er feil, ber jeg om korrigert faktura.');
   }
-  lines.push('', 'Vennlig hilsen');
+
+  lines.push('', 'På forhånd takk for avklaringen.', '', 'Vennlig hilsen');
 
   const text = lines.join('\n');
 
