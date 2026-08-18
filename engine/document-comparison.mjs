@@ -1,9 +1,12 @@
 function normalizeDescription(value = '') {
   return String(value)
+    .replace(/[Ææ]/g, match => match === 'Æ' ? 'Ae' : 'ae')
+    .replace(/[Øø]/g, match => match === 'Ø' ? 'O' : 'o')
+    .replace(/[Åå]/g, match => match === 'Å' ? 'A' : 'a')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9æøå]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
 }
