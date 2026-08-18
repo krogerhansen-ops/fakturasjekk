@@ -60,14 +60,19 @@ await assert.rejects(
   /MIME type is not allowed/i
 );
 
+await storage.recordDeletionTombstone({ case_id: 'old-case', deleted_at: '2026-06-01T00:00:00.000Z' });
 const tombstone = await storage.recordDeletionTombstone({ case_id: 'case-1', deleted_at: '2026-08-18T15:30:00.000Z' });
 assert.equal(tombstone.key, 'deletion-ledger/case-1.json');
-const ledger = await storage.listDeletionTombstones();
-assert.deepEqual(ledger.map(item => ({ case_id: item.case_id, deleted_at: item.deleted_at })), [
-  { case_id: 'case-1', deleted_at: '2026-08-18T15:30:00.000Z' }
-]);
+let ledger = await storage.listDeletionTombstones();
+assert.deepEqual(ledger.map(item => item.case_id), ['old-case', 'case-1']);
 assert.equal(JSON.stringify(objects.get('deletion-ledger/case-1.json')).includes('u1'), false, 'deletion ledger must not contain owner id');
+
+const ledgerPurge = await storage.purgeDeletionTombstonesBefore({ cutoff: '2026-07-04T00:00:00.000Z' });
+assert.equal(ledgerPurge.checked, 2);
+assert.equal(ledgerPurge.purged, 1);
+ledger = await storage.listDeletionTombstones();
+assert.deepEqual(ledger.map(item => item.case_id), ['case-1']);
 
 assert.equal(await storage.deleteCaseObjects({ case_id: 'case-1', owner_id: 'u1' }), 1);
 assert.equal(objects.has('deletion-ledger/case-1.json'), true, 'case object purge must not delete restore-safety tombstones');
-console.log('OK private object storage adapter and deletion tombstone ledger');
+console.log('OK private object storage adapter and bounded deletion tombstone ledger');
