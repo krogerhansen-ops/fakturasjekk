@@ -1,0 +1,92 @@
+{
+  "engine_version": "0.21.0",
+  "jurisdiction": "NO",
+  "audience": "consumer",
+  "last_full_review": "2026-08-18",
+  "rules": [
+    {
+      "id": "HTJL_32_PRICE_ESTIMATE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 32",
+      "title": "Fastsetting av prisen / prisoverslag",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A732",
+      "expected_phrase": "iallfall ikke med mer enn 15 prosent",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "handcraft_service", "price_estimate"],
+      "notes": "15 %-grensen gjelder ikke dersom annen prisgrense uttrykkelig er avtalt eller tjenesteyter har rett til pristillegg etter § 33."
+    },
+    {
+      "id": "HTJL_33_SURCHARGE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 33",
+      "title": "Pristillegg",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A733",
+      "expected_phrase": "Tjenesteyteren kan kreve pristillegg",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "handcraft_service", "surcharge"],
+      "notes": "Må vurderes mot vilkårene for tilleggsarbeid og uforutsette forhold."
+    },
+    {
+      "id": "HTJL_36_INVOICE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 36",
+      "title": "Regning og gebyrer",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A736",
+      "expected_phrase": "gebyr for skriving og sending av rekning",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "handcraft_service", "invoice", "invoice_fee"],
+      "notes": "Regningen skal gjøre det mulig å bedømme art og omfang. Pristillegg etter § 33 skal særskilt angis."
+    },
+    {
+      "id": "FKJL_37_PRICE_AND_FEE",
+      "law": "forbrukerkjøpsloven",
+      "section": "§ 37",
+      "title": "Kjøpesummens størrelse / fakturagebyr",
+      "source_url": "https://lovdata.no/lov/2002-06-21-34/%C2%A737",
+      "expected_phrase": "hvis ikke dette klart følger av avtalen",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "goods", "invoice_fee"],
+      "notes": "Gebyr for utstedelse og sending av regning krever at dette klart følger av avtalen."
+    },
+    {
+      "id": "POF_10_SERVICE_PRICES",
+      "law": "prisopplysningsforskriften",
+      "section": "§ 10",
+      "title": "Opplysningspliktens innhold",
+      "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A710",
+      "expected_phrase": "opplyse om de fullstendige prisene",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "service", "price_information"],
+      "notes": "Brukes som prisopplysningsspor, ikke alene som bevis for at et kontraktskrav er ugyldig."
+    },
+    {
+      "id": "POF_12_QUOTE",
+      "law": "prisopplysningsforskriften",
+      "section": "§ 12",
+      "title": "Pristilbud",
+      "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A712",
+      "expected_phrase": "skal forbrukeren straks orienteres om det",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["consumer", "service", "quote", "price_increase"],
+      "notes": "Relevant ved skriftlig pristilbud og nye forhold som øker prisen etter oppstart."
+    },
+    {
+      "id": "BOF_5_1_1_SALES_DOC",
+      "law": "bokføringsforskriften",
+      "section": "§ 5-1-1",
+      "title": "Salgsdokumentets innhold",
+      "source_url": "https://lovdata.no/forskrift/2004-12-01-1558/%C2%A75-1-1",
+      "expected_phrase": "Dokumentasjon av salg av varer og tjenester skal minst inneholde",
+      "last_verified": "2026-08-18",
+      "status": "active",
+      "scope": ["invoice", "formal_requirements"],
+      "notes": "Formelle fakturamangler skal ikke automatisk presenteres som at hovedkravet bortfaller."
+    }
+  ]
+}
