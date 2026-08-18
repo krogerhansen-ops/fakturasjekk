@@ -70,9 +70,12 @@ export function addDocument(caseData, document, { clock } = {}) {
     id: document.id,
     role: document.role,
     name: document.name ?? null,
+    mime_type: document.mime_type ?? null,
     storage_key: document.storage_key ?? null,
+    byte_size: document.byte_size ?? null,
     sha256: document.sha256 ?? null,
-    uploaded_at: at,
+    created_at: at,
+    uploaded_at: document.uploaded_at ?? null,
     status: document.status ?? 'accepted'
   };
   return {
@@ -80,6 +83,30 @@ export function addDocument(caseData, document, { clock } = {}) {
     updated_at: at,
     documents: [...caseData.documents, record],
     events: [...caseData.events, { type: 'DOCUMENT_ADDED', at, data: { document_id: record.id, role: record.role } }]
+  };
+}
+
+export function markDocumentUploaded(caseData, documentId, metadata = {}, { clock } = {}) {
+  const index = caseData.documents.findIndex(d => d.id === documentId);
+  if (index < 0) throw new Error(`Document not found: ${documentId}`);
+  const current = caseData.documents[index];
+  if (!['awaiting_upload', 'accepted', 'uploaded'].includes(current.status)) throw new Error(`Document cannot be marked uploaded from status: ${current.status}`);
+  const at = nowIso(clock);
+  const updated = {
+    ...current,
+    status: 'uploaded',
+    uploaded_at: at,
+    byte_size: metadata.byte_size ?? current.byte_size ?? null,
+    mime_type: metadata.mime_type ?? current.mime_type ?? null,
+    sha256: metadata.sha256 ?? current.sha256 ?? null
+  };
+  const documents = [...caseData.documents];
+  documents[index] = updated;
+  return {
+    ...caseData,
+    updated_at: at,
+    documents,
+    events: [...caseData.events, { type: 'DOCUMENT_UPLOADED', at, data: { document_id: documentId, role: updated.role } }]
   };
 }
 
