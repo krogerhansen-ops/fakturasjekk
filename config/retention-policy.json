@@ -1,0 +1,37 @@
+{
+  "version": "0.34.0",
+  "policy_status": "product_default_subject_to_final_dpia",
+  "principle": "Store personal data only for as long as necessary for the stated purpose.",
+  "modes": {
+    "temporary": {
+      "default": true,
+      "source_documents_ttl_hours_after_completed_analysis": 24,
+      "case_content_ttl_days_after_last_activity": 7,
+      "description_no": "Standardvalg. Kildedokumenter slettes kort tid etter ferdig analyse. Midlertidig saksinnhold beholdes bare for å kunne levere resultatet og håndtere tekniske feil."
+    },
+    "saved_case": {
+      "default": false,
+      "requires_explicit_user_choice": true,
+      "case_ttl_days_after_last_activity": 90,
+      "renewal_requires_user_action": true,
+      "description_no": "Brukeren velger uttrykkelig å lagre saken for oppfølging, leverandørsvar og svarrunde 2. Saken får automatisk utløpsdato som kan fornyes ved aktiv bruk."
+    }
+  },
+  "purge_behavior": {
+    "delete_source_documents": true,
+    "delete_extracted_personal_content": true,
+    "delete_generated_drafts": true,
+    "delete_supplier_responses": true,
+    "retain_only_data_required_by_separate_legal_obligation": true,
+    "separate_payment_accounting_records_from_case_documents": true
+  },
+  "user_controls": [
+    "show_expiry_date",
+    "delete_case_now",
+    "switch_from_temporary_to_saved_case_before_expiry"
+  ],
+  "sources": [
+    "https://www.datatilsynet.no/rettigheter-og-plikter/personvernprinsippene/grunnleggende-personvernprinsipper/lagringsbegrensning/",
+    "https://www.datatilsynet.no/regelverk-og-verktoy/rapporter-og-utredninger/kunstig-intelligens/vurder-personvernkonsekvensene---og-bygg-personvern-inn-i-losningene/"
+  ]
+}
