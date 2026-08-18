@@ -1,4 +1,6 @@
-export function evaluateReadiness({ product, registry, adapters = {}, paymentGateway = null } = {}) {
+import { evaluateRuleSafety } from '../engine/rule-safety.mjs';
+
+export function evaluateReadiness({ product, registry, adapters = {}, paymentGateway = null, now = new Date(), max_rule_age_days = 30 } = {}) {
   const checks = [];
   const add = (name, ok, message) => checks.push({ name, ok: ok === true, message });
 
@@ -10,6 +12,8 @@ export function evaluateReadiness({ product, registry, adapters = {}, paymentGat
   add('rules.active', activeRules.length > 0, 'Minst én aktiv, versjonert regel må være tilgjengelig.');
   add('rules.sources', activeRules.every(rule => /^https:\/\/lovdata\.no\//.test(rule.source_url ?? '') && rule.last_verified),
     'Alle aktive regler må ha Lovdata-kilde og kontrolldato.');
+  const ruleSafety = evaluateRuleSafety(registry, { now, max_age_days: max_rule_age_days });
+  add('rules.freshness', ruleSafety.usable, 'Aktive rettskilder må være kontrollert innenfor tillatt ferskhetsvindu.');
   add('case_store', Boolean(adapters.caseStore?.getOwned && adapters.caseStore?.save), 'Sakslagring må være konfigurert.');
   add('private_storage', Boolean(adapters.storage?.reservePrivateObject && adapters.storage?.listCaseDocuments), 'Privat dokumentlagring må være konfigurert.');
   add('extractor', Boolean(adapters.extractor?.extract), 'Dokumenttolk må være konfigurert.');
