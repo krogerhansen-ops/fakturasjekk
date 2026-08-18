@@ -1,10 +1,11 @@
 {
   "name": "fakturasjekk",
   "private": true,
-  "version": "0.41.0",
+  "version": "0.42.0",
   "type": "module",
   "scripts": {
     "test": "node scripts/run-tests.mjs",
+    "dev:api": "node server/dev-server.mjs",
     "legal:check": "node scripts/legal-source-check.mjs",
     "legal:transition": "node scripts/legal-transition-check.mjs"
   },
