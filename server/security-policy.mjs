@@ -4,13 +4,14 @@ export const DEFAULT_SECURITY_POLICY = Object.freeze({
   json_body_max_bytes: 256 * 1024,
   user_note_max_chars: 4000,
   supplier_response_max_chars: 20000,
-  allowed_methods: ['GET', 'POST'],
+  allowed_methods: ['GET', 'POST', 'DELETE'],
   rate_limits: {
     create_case: { window_ms: 60_000, max: 10 },
     register_uploads: { window_ms: 60_000, max: 20 },
     analyze_case: { window_ms: 60_000, max: 6 },
     confirm_payment: { window_ms: 60_000, max: 20 },
     supplier_response: { window_ms: 60_000, max: 10 },
+    delete_case: { window_ms: 60_000, max: 10 },
     read: { window_ms: 60_000, max: 120 }
   }
 });
