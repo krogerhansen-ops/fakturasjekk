@@ -1,16 +1,17 @@
 export const API_VERSION = 'v1';
 
 export const ROUTES = Object.freeze([
-  ['GET', '/v1/cases', 'list_cases', false],
-  ['POST', '/v1/cases', 'create_case', true],
-  ['DELETE', '/v1/cases/:case_id', 'delete_case', true],
-  ['POST', '/v1/cases/:case_id/uploads', 'register_uploads', true],
-  ['POST', '/v1/cases/:case_id/documents/:document_id/confirm', 'confirm_document_upload', true],
-  ['POST', '/v1/cases/:case_id/analyze', 'analyze_case', true],
-  ['GET', '/v1/cases/:case_id/payment', 'payment_requirement', false],
-  ['POST', '/v1/cases/:case_id/payment/confirm', 'confirm_payment', true],
-  ['GET', '/v1/cases/:case_id/result', 'full_result', false],
-  ['POST', '/v1/cases/:case_id/draft', 'create_draft', true],
-  ['POST', '/v1/cases/:case_id/supplier-response', 'supplier_response', true],
-  ['GET', '/v1/cases/:case_id/retention', 'retention_status', false]
-].map(([method, path, action, mutation]) => ({ method, path, action, auth: true, mutation })));
+  { method: 'GET', path: '/v1/cases', action: 'list_cases', auth: true, mutation: false },
+  { method: 'POST', path: '/v1/cases', action: 'create_case', auth: true, mutation: true },
+  { method: 'DELETE', path: '/v1/cases/:case_id', action: 'delete_case', auth: true, mutation: true },
+  { method: 'POST', path: '/v1/cases/:case_id/uploads', action: 'register_uploads', auth: true, mutation: true },
+  { method: 'POST', path: '/v1/cases/:case_id/documents/:document_id/confirm', action: 'confirm_document_upload', auth: true, mutation: true },
+  { method: 'POST', path: '/v1/cases/:case_id/analyze', action: 'analyze_case', auth: true, mutation: true },
+  { method: 'GET', path: '/v1/cases/:case_id/payment', action: 'payment_requirement', auth: true, mutation: false },
+  { method: 'POST', path: '/v1/cases/:case_id/payment/session', action: 'create_payment_session', auth: true, mutation: true },
+  { method: 'POST', path: '/v1/webhooks/payment/:provider', action: 'payment_webhook', auth: false, mutation: true, raw_body: true, cors: false },
+  { method: 'GET', path: '/v1/cases/:case_id/result', action: 'full_result', auth: true, mutation: false },
+  { method: 'POST', path: '/v1/cases/:case_id/draft', action: 'create_draft', auth: true, mutation: true },
+  { method: 'POST', path: '/v1/cases/:case_id/supplier-response', action: 'supplier_response', auth: true, mutation: true },
+  { method: 'GET', path: '/v1/cases/:case_id/retention', action: 'retention_status', auth: true, mutation: false }
+]);
