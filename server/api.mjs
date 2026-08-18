@@ -1,11 +1,13 @@
 import { apiErrorResponse, mapServiceError, ApiError } from './api-errors.mjs';
 import { createCaseHandlers } from './case-handlers.mjs';
 import { createPaymentHandlers } from './payment-handlers.mjs';
+import { createManagementHandlers } from './management-handlers.mjs';
 
-export function createApi({ services, idempotency = null, clock } = {}) {
+export function createApi({ services, management = null, idempotency = null, clock } = {}) {
   const handlers = {
     ...createCaseHandlers({ services, idempotency, clock }),
-    ...createPaymentHandlers({ services, idempotency })
+    ...createPaymentHandlers({ services, idempotency }),
+    ...(management ? createManagementHandlers({ management, idempotency }) : {})
   };
 
   return {
