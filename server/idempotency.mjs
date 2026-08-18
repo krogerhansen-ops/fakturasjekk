@@ -11,7 +11,8 @@ export function createIdempotencyService({ store, ttl_ms = 24 * 60 * 60 * 1000, 
     const existing = await store.get(namespace);
     if (existing && new Date(existing.expires_at) > clock()) {
       if (existing.state === 'completed') return existing.response;
-      throw new ApiError(409, 'request_in_progress', 'Samme operasjon behandles allerede.');
+      if (existing.state === 'running') throw new ApiError(409, 'request_in_progress', 'Samme operasjon behandles allerede.');
+      // Failed operations may retry with the same key. The next running record replaces failed state.
     }
 
     const expiresAt = new Date(clock().getTime() + ttl_ms).toISOString();
