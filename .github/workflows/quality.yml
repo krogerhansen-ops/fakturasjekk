@@ -24,5 +24,7 @@ jobs:
         run: node tests/regression.test.mjs
       - name: Run deterministic engine tests
         run: node tests/engine.test.mjs
+      - name: Run controlled draft tests
+        run: node tests/draft.test.mjs
       - name: Run public messaging tests
         run: node tests/content.test.mjs
