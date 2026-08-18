@@ -47,7 +47,8 @@ assert.equal(JSON.stringify(registered.body).includes('storage_key'), false);
 assert.ok(registered.body.case.documents.every(d => d.status === 'awaiting_upload'));
 
 const blocked = await api.invoke('analyze_case', { auth, params: { case_id: caseId }, body: {} });
-assert.equal(blocked.status, 500);
+assert.equal(blocked.status, 409);
+assert.equal(blocked.body.error.code, 'uploads_not_finalized');
 
 for (const target of registered.body.upload_targets) {
   const entry = [...storage._objects.entries()].find(([, item]) => item.document_id === target.document_id);
