@@ -79,6 +79,26 @@ function customerFinding(finding) {
   return { severity: finding.severity, title: finding.title, explanation: finding.explanation };
 }
 
+function projectDocumentChecks(checks) {
+  if (!checks) return null;
+  return {
+    arithmetic: checks.math ? {
+      valid: checks.math.valid,
+      calculated_subtotal: checks.math.calculated_subtotal,
+      calculated_vat: checks.math.calculated_vat,
+      calculated_total_from_stated: checks.math.calculated_total_from_stated,
+      calculated_total_from_lines: checks.math.calculated_total_from_lines,
+      issue_count: checks.math.issues?.length ?? 0,
+      note: checks.math.note
+    } : null,
+    comparison: checks.comparison ? {
+      ...checks.comparison.summary,
+      safe_for_automatic_conclusion: checks.comparison.safe_for_automatic_conclusion
+    } : null,
+    safe_for_automatic_conclusion: checks.safe_for_automatic_conclusion !== false
+  };
+}
+
 export function projectFullResult(result, registry) {
   const ruleMap = new Map((registry?.rules ?? []).map(rule => [rule.id, rule]));
   const ruleIds = [...new Set(result?.analysis?.rule_ids ?? [])];
@@ -104,6 +124,12 @@ export function projectFullResult(result, registry) {
       calculations: result.analysis.calculations ?? {},
       findings: (result.analysis.findings ?? []).map(customerFinding),
       questions: result.analysis.questions ?? []
+    } : null,
+    document_checks: projectDocumentChecks(result?.document_checks),
+    assurance: result?.assurance ? {
+      level: result.assurance.level,
+      counts: result.assurance.counts,
+      message: result.assurance.message
     } : null,
     rules,
     evidence,
