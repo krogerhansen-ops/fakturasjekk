@@ -25,10 +25,27 @@ function hydrateCase(row) {
 
 export function createPostgresCaseStore({ db } = {}) {
   db = requireDb(db);
+
+  const getOwned = async (caseId, ownerId) => {
+    const result = await db.query(
+      `SELECT id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at
+         FROM cases WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL LIMIT 1`, [caseId, ownerId]
+    );
+    if (!result.rows.length) throw new Error('Case not found or not owned by user.');
+    return hydrateCase(result.rows[0]);
+  };
+
+  const getForSystem = async caseId => {
+    const result = await db.query(
+      `SELECT id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at
+         FROM cases WHERE id=$1 AND deleted_at IS NULL LIMIT 1`, [caseId]
+    );
+    if (!result.rows.length) throw new Error('Case not found.');
+    return hydrateCase(result.rows[0]);
+  };
+
   return {
-    async nextId(kind) {
-      return `${kind}-${crypto.randomUUID()}`;
-    },
+    async nextId(kind) { return `${kind}-${crypto.randomUUID()}`; },
     async save(caseData) {
       const buyerType = caseData.intake_request?.buyer_type ?? null;
       const subject = caseData.intake_request?.subject ?? null;
@@ -46,22 +63,8 @@ export function createPostgresCaseStore({ db } = {}) {
       );
       return hydrateCase(result.rows[0]);
     },
-    async getOwned(caseId, ownerId) {
-      const result = await db.query(
-        `SELECT id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at
-           FROM cases WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL LIMIT 1`, [caseId, ownerId]
-      );
-      if (!result.rows.length) throw new Error('Case not found or not owned by user.');
-      return hydrateCase(result.rows[0]);
-    },
-    async getForSystem(caseId) {
-      const result = await db.query(
-        `SELECT id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at
-           FROM cases WHERE id=$1 AND deleted_at IS NULL LIMIT 1`, [caseId]
-      );
-      if (!result.rows.length) throw new Error('Case not found.');
-      return hydrateCase(result.rows[0]);
-    },
+    getOwned,
+    getForSystem,
     async listOwned(ownerId) {
       const result = await db.query(
         `SELECT id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at
@@ -77,7 +80,7 @@ export function createPostgresCaseStore({ db } = {}) {
       return result.rows.map(hydrateCase);
     },
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
-      const current = await this.getOwned(caseId, ownerId);
+      const current = await getOwned(caseId, ownerId);
       const deleted = { ...current, state: 'deleted', deleted_at, updated_at: deleted_at };
       const result = await db.query(
         `UPDATE cases SET state='deleted', deleted_at=$3, updated_at=$3, snapshot=$4::jsonb
