@@ -10,10 +10,11 @@ assert.ok(initial.blocking_count > 10);
 assert.ok(initial.blocking_ids.includes('TECH_PRODUCTION_HOSTING'));
 assert.ok(initial.blocking_ids.includes('LEGAL_DPIA_COMPLETE'));
 assert.ok(initial.blocking_ids.includes('COMMERCE_SELLER_IDENTITY'));
-assert.ok(initial.blocking_ids.includes('QA_FULL_CI_GREEN'));
+assert.ok(initial.blocking_ids.includes('QA_EXTERNAL_TESTERS'));
+assert.equal(initial.blocking_ids.includes('QA_FULL_CI_GREEN'), false);
 assert.equal(initial.blocking_ids.includes('COMMERCE_29_NOK_TOTAL_PRICE'), false);
 assert.equal(initial.blocking_ids.includes('LEGAL_DPIA_DECISION'), false);
-assert.ok(initial.complete >= 5);
+assert.ok(initial.complete >= 7);
 
 const beforeComplete = initial.complete;
 const one = markLaunchGate(config, 'QA_EXTERNAL_TESTERS', { status: 'complete', evidence: 'External end-to-end tester completed launch checklist.' });
