@@ -1,14 +1,28 @@
+function activeRuleMap(registry) {
+  return new Map((registry?.rules ?? []).filter(r => r.status === 'active').map(r => [r.id, r]));
+}
+
 function groupReferences(ruleIds = [], registry) {
-  const rules = new Map((registry?.rules ?? []).map(r => [r.id, r]));
+  const rules = activeRuleMap(registry);
   const grouped = new Map();
   for (const id of ruleIds) {
     const rule = rules.get(id);
-    if (!rule || rule.status !== 'active') continue;
+    if (!rule) continue;
     const key = rule.law;
     if (!grouped.has(key)) grouped.set(key, []);
     if (!grouped.get(key).includes(rule.section)) grouped.get(key).push(rule.section);
   }
   return [...grouped.entries()].map(([law, sections]) => `${law} ${sections.join(' og ')}`);
+}
+
+function findingCanBeDrafted(finding, registry) {
+  if (['NO_DOCUMENTED_DEVIATION', 'B2B_NOT_SUPPORTED'].includes(finding.code)) return false;
+  const ids = finding.rule_ids ?? [];
+  if (!ids.length) return true;
+  const active = activeRuleMap(registry);
+  // Fail closed: if the finding depends on any non-active or missing rule,
+  // omit the whole finding rather than risk leaking stale legal wording embedded in its explanation.
+  return ids.every(id => active.has(id));
 }
 
 export function buildDraft({ analysis, registry, invoice_reference = '', user_note = '', mode = 'request' }) {
@@ -20,8 +34,8 @@ export function buildDraft({ analysis, registry, invoice_reference = '', user_no
     return { allowed: false, reason: 'Ingen dokumenterte avvik er funnet. Innsigelse genereres ikke automatisk.' };
   }
 
-  const actionable = (analysis.findings ?? []).filter(f => !['NO_DOCUMENTED_DEVIATION', 'B2B_NOT_SUPPORTED'].includes(f.code));
-  if (!actionable.length) return { allowed: false, reason: 'Ingen punkter å ta med i utkast.' };
+  const actionable = (analysis.findings ?? []).filter(f => findingCanBeDrafted(f, registry));
+  if (!actionable.length) return { allowed: false, reason: 'Ingen punkter med aktivt og kontrollert grunnlag å ta med i utkast.' };
 
   const ref = invoice_reference ? ` ${invoice_reference}` : '';
   const lines = [
@@ -55,7 +69,7 @@ export function buildDraft({ analysis, registry, invoice_reference = '', user_no
 
   const text = lines.join('\n');
 
-  if (/\b(?:HTJL|FKJL|POF|BOF)_[A-Z0-9_]+\b/.test(text)) {
+  if (/\b(?:HTJL|FKJL|POF|BOF|INK)_[A-Z0-9_]+\b/.test(text)) {
     throw new Error('Internal rule id leaked into customer draft');
   }
 
