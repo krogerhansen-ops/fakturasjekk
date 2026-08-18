@@ -3,9 +3,9 @@ import { createCaseHandlers } from './case-handlers.mjs';
 import { createPaymentHandlers } from './payment-handlers.mjs';
 import { createManagementHandlers } from './management-handlers.mjs';
 
-export function createApi({ services, management = null, idempotency = null, clock } = {}) {
+export function createApi({ services, registry = null, management = null, idempotency = null, clock } = {}) {
   const handlers = {
-    ...createCaseHandlers({ services, idempotency, clock }),
+    ...createCaseHandlers({ services, registry, idempotency, clock }),
     ...createPaymentHandlers({ services, idempotency }),
     ...(management ? createManagementHandlers({ management, idempotency }) : {})
   };
