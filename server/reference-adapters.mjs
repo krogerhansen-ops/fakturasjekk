@@ -68,6 +68,12 @@ export function createMemoryStorage() {
         return { ...clone(record), ...clone(item) };
       });
     },
+    async deleteReservedObject({ case_id, owner_id, storage_key }) {
+      const item = objects.get(storage_key);
+      if (!item || item.case_id !== case_id || item.owner_id !== owner_id) return 0;
+      objects.delete(storage_key);
+      return 1;
+    },
     async deleteCaseObjects({ case_id, owner_id }) {
       let deleted = 0;
       for (const [key, item] of objects.entries()) {
