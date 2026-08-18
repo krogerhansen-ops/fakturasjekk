@@ -1,0 +1,29 @@
+{
+  "name": "Fakturasjekk.no",
+  "version": "0.50.0",
+  "market": "NO",
+  "audience": "consumer",
+  "mode": "external_test",
+  "price_nok": 29,
+  "price_label": "29 kr",
+  "includes": [
+    "full_invoice_check",
+    "objection_draft",
+    "rule_and_paragraph_control",
+    "inkasso_track_when_applicable",
+    "supplier_response_follow_up",
+    "saved_case_lifecycle"
+  ],
+  "demo_free": true,
+  "full_check_free": false,
+  "production_upload_enabled": false,
+  "payment_gate_enabled": true,
+  "payment_confirmation_mode": "provider_webhook_only",
+  "payment_provider": null,
+  "retention_policy": "privacy_by_default",
+  "backend_service_core": "provider_neutral",
+  "signed_private_upload_contract": true,
+  "extractor_allowlist_contract": true,
+  "customer_internal_code_exposure": false,
+  "updated_at": "2026-08-18"
+}
