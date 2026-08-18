@@ -46,6 +46,8 @@ jobs:
         run: node tests/case-state.test.mjs
       - name: Run end-to-end case service tests
         run: node tests/case-service.test.mjs
+      - name: Run backend service integration tests
+        run: node tests/server-services.test.mjs
       - name: Validate public demo fixtures
         run: node tests/demo-fixtures.test.mjs
       - name: Run public messaging tests
