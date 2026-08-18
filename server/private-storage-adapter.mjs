@@ -1,10 +1,41 @@
 import crypto from 'node:crypto';
 
+function clockDate(clock) {
+  const value = typeof clock === 'function' ? clock() : new Date();
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error('Storage clock returned an invalid date.');
+  return date;
+}
+
+function providerExpiry({ signed, now, fallbackExpiresAt, maxProviderTtlSeconds }) {
+  let expiresAt = null;
+  if (signed?.provider_expires_at != null) {
+    const parsed = new Date(signed.provider_expires_at);
+    if (Number.isNaN(parsed.getTime())) throw new Error('Storage provider returned invalid provider_expires_at.');
+    expiresAt = parsed;
+  } else if (signed?.provider_expires_in_seconds != null) {
+    const seconds = Number(signed.provider_expires_in_seconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('Storage provider returned invalid provider_expires_in_seconds.');
+    expiresAt = new Date(now.getTime() + seconds * 1000);
+  } else {
+    // Generic providers are assumed to honor the requested application TTL unless they explicitly report otherwise.
+    expiresAt = new Date(fallbackExpiresAt);
+  }
+
+  const providerTtlMs = expiresAt.getTime() - now.getTime();
+  if (providerTtlMs <= 0) throw new Error('Storage provider upload token is already expired.');
+  if (providerTtlMs > maxProviderTtlSeconds * 1000) {
+    throw new Error('Storage provider upload token lifetime exceeds the allowed maximum.');
+  }
+  return expiresAt;
+}
+
 export function createPrivateObjectStorageAdapter({
   provider,
   scanner,
   bucket,
   upload_ttl_seconds = 600,
+  max_provider_upload_ttl_seconds = 7200,
   key_prefix = 'cases',
   deletion_ledger_prefix = 'deletion-ledger',
   clock = () => new Date()
@@ -14,10 +45,19 @@ export function createPrivateObjectStorageAdapter({
   }
   if (!scanner?.scanObject) throw new Error('Private storage scanner requires scanObject.');
   if (!bucket) throw new Error('Private storage bucket is required.');
-  if (upload_ttl_seconds < 60 || upload_ttl_seconds > 900) throw new Error('Signed upload TTL must be between 60 and 900 seconds.');
+  if (upload_ttl_seconds < 60 || upload_ttl_seconds > 900) throw new Error('Application upload TTL must be between 60 and 900 seconds.');
+  if (!Number.isFinite(Number(max_provider_upload_ttl_seconds)) || Number(max_provider_upload_ttl_seconds) < upload_ttl_seconds || Number(max_provider_upload_ttl_seconds) > 7200) {
+    throw new Error('Provider upload TTL maximum must be between the application TTL and 7200 seconds.');
+  }
 
   function prefix({ owner_id, case_id }) {
     return `${key_prefix}/${encodeURIComponent(owner_id)}/${encodeURIComponent(case_id)}/`;
+  }
+
+  function assertOwnedKey({ case_id, owner_id, storage_key }) {
+    const expectedPrefix = prefix({ owner_id, case_id });
+    if (!storage_key?.startsWith(expectedPrefix)) throw new Error('Storage key does not belong to case owner.');
+    return expectedPrefix;
   }
 
   function deletionTombstoneKey(caseId) {
@@ -47,7 +87,8 @@ export function createPrivateObjectStorageAdapter({
   return {
     async reservePrivateObject({ case_id, owner_id, document_id, mime_type, byte_size }) {
       const storage_key = `${prefix({ owner_id, case_id })}${encodeURIComponent(document_id)}-${crypto.randomUUID()}`;
-      const expires_at = new Date(clock().getTime() + upload_ttl_seconds * 1000).toISOString();
+      const now = clockDate(clock);
+      const requestedExpiresAt = new Date(now.getTime() + upload_ttl_seconds * 1000);
       const signed = await provider.createSignedPut({
         bucket,
         key: storage_key,
@@ -56,17 +97,27 @@ export function createPrivateObjectStorageAdapter({
         expires_in_seconds: upload_ttl_seconds
       });
       if (!signed?.url || !/^https:\/\//i.test(signed.url)) throw new Error('Storage provider must return HTTPS signed PUT URL.');
+
+      const providerExpiresAt = providerExpiry({
+        signed,
+        now,
+        fallbackExpiresAt: requestedExpiresAt,
+        maxProviderTtlSeconds: Number(max_provider_upload_ttl_seconds)
+      });
+      // The application never accepts a completed upload beyond its own short window, even if the provider token remains valid longer.
+      const applicationExpiresAt = new Date(Math.min(requestedExpiresAt.getTime(), providerExpiresAt.getTime()));
+
       return {
         storage_key,
         upload_url: signed.url,
-        expires_at,
+        expires_at: applicationExpiresAt.toISOString(),
+        provider_expires_at: providerExpiresAt.toISOString(),
         required_headers: signed.required_headers ?? { 'content-type': mime_type }
       };
     },
 
     async finalizeUpload({ case_id, owner_id, storage_key, max_file_bytes, allowed_mime_types }) {
-      const expectedPrefix = prefix({ owner_id, case_id });
-      if (!storage_key?.startsWith(expectedPrefix)) throw new Error('Storage key does not belong to case owner.');
+      assertOwnedKey({ case_id, owner_id, storage_key });
       const head = await provider.headObject({ bucket, key: storage_key });
       if (!head?.exists) throw new Error('Uploaded object not found.');
       const byteSize = Number(head.byte_size);
@@ -89,15 +140,20 @@ export function createPrivateObjectStorageAdapter({
     },
 
     async listCaseDocuments({ case_id, owner_id, records = [] }) {
-      const expectedPrefix = prefix({ owner_id, case_id });
       const output = [];
       for (const record of records) {
-        if (!record.storage_key?.startsWith(expectedPrefix)) throw new Error('Stored document does not belong to case owner.');
+        assertOwnedKey({ case_id, owner_id, storage_key: record.storage_key });
         const head = await provider.headObject({ bucket, key: record.storage_key });
         if (!head?.exists) throw new Error('Stored document is missing.');
         output.push({ ...structuredClone(record), object_bucket: bucket, object_key: record.storage_key });
       }
       return output;
+    },
+
+    async deleteReservedObject({ case_id, owner_id, storage_key }) {
+      assertOwnedKey({ case_id, owner_id, storage_key });
+      const result = await provider.deletePrefix({ bucket, prefix: storage_key });
+      return Number(result?.deleted_count ?? 0);
     },
 
     async deleteCaseObjects({ case_id, owner_id }) {
