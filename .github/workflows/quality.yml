@@ -22,6 +22,8 @@ jobs:
           node-version: '22'
       - name: Run legal/data regression tests
         run: node tests/regression.test.mjs
+      - name: Run intake classifier tests
+        run: node tests/intake.test.mjs
       - name: Run deterministic engine tests
         run: node tests/engine.test.mjs
       - name: Run controlled draft tests
