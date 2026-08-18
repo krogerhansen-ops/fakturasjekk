@@ -47,6 +47,26 @@ export function createValidatedResponseInterpreter({ provider } = {}) {
   };
 }
 
+export function createDevelopmentResponseInterpreterProvider() {
+  if (process.env.NODE_ENV === 'production') throw new Error('Development response interpreter cannot run in production.');
+  return {
+    async interpret({ original_findings, response_text }) {
+      const text = response_text.toLowerCase();
+      const documentationProvided = /dokumentasjon (er )?vedlagt|vedlagt dokumentasjon/.test(text);
+      const explicitAllAnswered = /alle punkter er besvart|vi svarer på alle punktene/.test(text);
+      return {
+        items: original_findings.map(finding => ({
+          finding_code: finding.code,
+          coverage: explicitAllAnswered ? 'answered' : 'partial',
+          answer_text: response_text.slice(0, 8000),
+          documentation_required: /dokument|underlag|spesifisert/i.test(`${finding.title} ${finding.explanation}`),
+          documentation_provided: documentationProvided
+        }))
+      };
+    }
+  };
+}
+
 export function responseInterpreterInstructions() {
   return [
     'Oppgaven er kun å kartlegge om leverandørens svar omtaler hvert allerede identifiserte kontrollpunkt.',
