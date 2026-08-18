@@ -1,0 +1,17 @@
+{
+  "name": "Fakturasjekk.no",
+  "version": "0.21.0",
+  "market": "NO",
+  "audience": "consumer",
+  "mode": "external_test",
+  "price_nok": 29,
+  "price_label": "29 kr",
+  "includes": [
+    "full_invoice_check",
+    "objection_draft"
+  ],
+  "demo_free": true,
+  "full_check_free": false,
+  "production_upload_enabled": false,
+  "updated_at": "2026-08-18"
+}
