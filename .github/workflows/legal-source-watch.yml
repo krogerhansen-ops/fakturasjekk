@@ -1,0 +1,48 @@
+name: Legal source watch
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+      timezone: 'Europe/Oslo'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  source-watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check active Lovdata sources
+        id: legalcheck
+        continue-on-error: true
+        run: node scripts/legal-source-check.mjs 2>&1 | tee legal-source-check.log
+      - name: Open review issue if source check fails
+        if: steps.legalcheck.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE='Regelkilde krever kontroll'
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq 'length')
+          if [ "$EXISTING" = "0" ]; then
+            {
+              echo 'Den automatiske kildevakten har stoppet minst én aktiv regel.'
+              echo
+              echo 'Fakturasjekk skal behandle dette som fail-closed: berørt regel må kontrolleres manuelt før videre bruk.'
+              echo
+              echo '```text'
+              cat legal-source-check.log
+              echo '```'
+            } > issue-body.md
+            gh issue create --title "$TITLE" --body-file issue-body.md
+          fi
+      - name: Fail workflow when legal source requires review
+        if: steps.legalcheck.outcome == 'failure'
+        run: exit 1
