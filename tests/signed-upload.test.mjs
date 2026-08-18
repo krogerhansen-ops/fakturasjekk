@@ -12,7 +12,8 @@ const uploadPolicy = readJson('../config/upload-policy.json');
 const extractionPolicy = readJson('../config/extraction-policy.json');
 const retentionPolicy = readJson('../config/retention-policy.json');
 const caseStore = createMemoryCaseStore();
-const storage = createMemorySignedStorage({ clock: () => new Date('2026-08-18T15:00:00Z') });
+const testClock = () => new Date('2026-08-18T15:00:00Z');
+const storage = createMemorySignedStorage({ clock: testClock });
 const extractor = {
   async extract({ documents }) {
     const invoice = documents.find(d => d.role === 'invoice');
@@ -26,7 +27,7 @@ const extractor = {
     }};
   }
 };
-const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters: { caseStore, storage, extractor } });
+const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters: { caseStore, storage, extractor }, clock: testClock });
 const api = createApi({ services });
 const auth = { user: { id: 'u1' } };
 
@@ -44,6 +45,7 @@ assert.equal(registered.status, 200);
 assert.equal(registered.body.upload_targets.length, 2);
 assert.ok(registered.body.upload_targets.every(t => t.upload_url.startsWith('https://')));
 assert.equal(JSON.stringify(registered.body).includes('storage_key'), false);
+assert.equal(JSON.stringify(registered.body).includes('provider_expires_at'), false);
 assert.ok(registered.body.case.documents.every(d => d.status === 'awaiting_upload'));
 
 const blocked = await api.invoke('analyze_case', { auth, params: { case_id: caseId }, body: {} });

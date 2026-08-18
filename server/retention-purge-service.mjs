@@ -1,6 +1,13 @@
+import { removeDocumentReservations } from '../engine/case-state.mjs';
 import { purgePlan } from '../engine/retention.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
+
+function asDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error('Retention clock returned invalid date.');
+  return date;
+}
 
 function stripSourceDocuments(caseData, at) {
   return {
@@ -17,6 +24,8 @@ function stripSourceDocuments(caseData, at) {
       uploaded_at: d.uploaded_at,
       storage_key: null,
       sha256: null,
+      upload_expires_at: null,
+      provider_upload_expires_at: null,
       purged_at: at
     })),
     events: [...(caseData.events ?? []), { type: 'SOURCE_DOCUMENTS_PURGED', at, data: {} }]
@@ -33,19 +42,29 @@ function deletionLedgerPolicy(policy) {
   return { backupDays, ledgerDays };
 }
 
+function expiredUploadReservations(caseData, nowMs) {
+  return (caseData.documents ?? []).filter(document => {
+    if (!['awaiting_upload', 'upload_window_expired'].includes(document.status)) return false;
+    if (!document.provider_upload_expires_at) return false;
+    const providerExpiry = Date.parse(document.provider_upload_expires_at);
+    return Number.isFinite(providerExpiry) && providerExpiry <= nowMs;
+  });
+}
+
 export function createRetentionPurgeService({ caseStore, storage, policy, audit = null, clock = () => new Date() } = {}) {
   if (!caseStore?.listForRetention || !caseStore?.save || !caseStore?.deleteOwned) throw new Error('Case store lacks retention operations.');
-  if (!storage?.deleteCaseObjects || !storage?.recordDeletionTombstone || !storage?.purgeDeletionTombstonesBefore) {
-    throw new Error('Storage adapter requires case deletion and restore-safety tombstone operations.');
+  if (!storage?.deleteCaseObjects || !storage?.deleteReservedObject || !storage?.recordDeletionTombstone || !storage?.purgeDeletionTombstonesBefore) {
+    throw new Error('Storage adapter requires orphan cleanup, case deletion and restore-safety tombstone operations.');
   }
   const { ledgerDays } = deletionLedgerPolicy(policy);
 
   async function run() {
-    const nowDate = clock();
+    const nowDate = asDate(clock());
     const now = nowDate.toISOString();
     const candidates = await caseStore.listForRetention();
     const summary = {
       checked: candidates.length,
+      expired_upload_reservations_purged: 0,
       source_document_purges: 0,
       case_content_purges: 0,
       deletion_tombstones_recorded: 0,
@@ -56,10 +75,34 @@ export function createRetentionPurgeService({ caseStore, storage, policy, audit 
 
     for (const original of candidates) {
       try {
-        const plan = purgePlan(original, policy, { now });
-        if (!plan.actions.length) continue;
-
         let current = original;
+        const staleReservations = expiredUploadReservations(current, nowDate.getTime());
+        if (staleReservations.length) {
+          let deletedObjects = 0;
+          for (const document of staleReservations) {
+            deletedObjects += await storage.deleteReservedObject({
+              case_id: current.id,
+              owner_id: current.owner_id,
+              storage_key: document.storage_key
+            });
+          }
+          summary.deleted_objects += deletedObjects;
+          summary.expired_upload_reservations_purged += staleReservations.length;
+          current = removeDocumentReservations(current, staleReservations.map(document => document.id), {
+            clock: () => nowDate,
+            preserve_updated_at: true
+          });
+          await caseStore.save(current);
+          if (audit) await audit.record({
+            actor_id: null,
+            case_id: current.id,
+            action: 'retention.expired_upload_reservations_purged',
+            metadata: { status: 'provider_token_expired', deleted_object_count: deletedObjects }
+          });
+        }
+
+        const plan = purgePlan(current, policy, { now });
+        if (!plan.actions.length) continue;
         const deleteSources = plan.actions.some(a => a.type === 'DELETE_SOURCE_DOCUMENTS');
         const deleteCaseContent = plan.actions.some(a => a.type === 'DELETE_CASE_CONTENT');
 

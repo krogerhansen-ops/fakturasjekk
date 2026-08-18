@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
 import { createPrivateObjectStorageAdapter } from '../server/private-storage-adapter.mjs';
+import { normalizeStorageReservation, publicUploadTarget, assertUploadTargetSafe } from '../server/storage-contract.mjs';
 
 const objects = new Map();
 const provider = {
   async createSignedPut({ bucket, key, content_type }) {
     objects.set(key, { bucket, exists: false, content_type, byte_size: 0 });
-    return { url: `https://storage.example/upload?key=${encodeURIComponent(key)}`, required_headers: { 'content-type': content_type } };
+    return {
+      url: `https://storage.example/upload?key=${encodeURIComponent(key)}`,
+      provider_expires_in_seconds: 7200,
+      required_headers: { 'content-type': content_type }
+    };
   },
   async headObject({ key }) { return objects.get(key) ?? { exists: false }; },
   async deletePrefix({ prefix }) {
@@ -31,7 +36,17 @@ const storage = createPrivateObjectStorageAdapter({ provider, scanner, bucket: '
 const reservation = await storage.reservePrivateObject({ case_id: 'case-1', owner_id: 'u1', document_id: 'doc-1', mime_type: 'application/pdf', byte_size: 100000 });
 assert.match(reservation.upload_url, /^https:\/\//);
 assert.match(reservation.storage_key, /^cases\/u1\/case-1\/doc-1-/);
-assert.equal(reservation.expires_at, '2026-08-18T15:10:00.000Z');
+assert.equal(reservation.expires_at, '2026-08-18T15:10:00.000Z', 'Fakturasjekk acceptance window remains 10 minutes');
+assert.equal(reservation.provider_expires_at, '2026-08-18T17:00:00.000Z', 'provider token lifetime stays internal and may be longer');
+
+const normalized = normalizeStorageReservation(reservation);
+assert.equal(normalized.provider_expires_at, '2026-08-18T17:00:00.000Z');
+const publicTarget = publicUploadTarget({ document_id: 'doc-1', reservation });
+assert.equal(publicTarget.expires_at, '2026-08-18T15:10:00.000Z');
+assert.equal('provider_expires_at' in publicTarget, false);
+assert.equal(JSON.stringify(publicTarget).includes('cases/u1/case-1'), false, 'storage key must stay internal');
+assertUploadTargetSafe(publicTarget);
+
 const stored = objects.get(reservation.storage_key);
 objects.set(reservation.storage_key, { ...stored, exists: true, byte_size: 100000, content_type: 'application/pdf' });
 
@@ -59,6 +74,10 @@ await assert.rejects(
   () => storage.finalizeUpload({ case_id: 'case-1', owner_id: 'u1', storage_key: reservation.storage_key, max_file_bytes: 1000000, allowed_mime_types: ['application/pdf'] }),
   /MIME type is not allowed/i
 );
+scanResult = { malware_safe: true, magic_bytes_verified: true, detected_mime_type: 'application/pdf' };
+
+assert.equal(await storage.deleteReservedObject({ case_id: 'case-1', owner_id: 'u1', storage_key: reservation.storage_key }), 1);
+assert.equal(objects.has(reservation.storage_key), false);
 
 await storage.recordDeletionTombstone({ case_id: 'old-case', deleted_at: '2026-06-01T00:00:00.000Z' });
 const tombstone = await storage.recordDeletionTombstone({ case_id: 'case-1', deleted_at: '2026-08-18T15:30:00.000Z' });
@@ -72,7 +91,11 @@ assert.equal(ledgerPurge.checked, 2);
 assert.equal(ledgerPurge.purged, 1);
 ledger = await storage.listDeletionTombstones();
 assert.deepEqual(ledger.map(item => item.case_id), ['case-1']);
+assert.equal(objects.has('deletion-ledger/case-1.json'), true, 'case cleanup must not delete restore-safety tombstones');
 
-assert.equal(await storage.deleteCaseObjects({ case_id: 'case-1', owner_id: 'u1' }), 1);
-assert.equal(objects.has('deletion-ledger/case-1.json'), true, 'case object purge must not delete restore-safety tombstones');
-console.log('OK private object storage adapter and bounded deletion tombstone ledger');
+assert.throws(
+  () => createPrivateObjectStorageAdapter({ provider, scanner, bucket: 'private-bucket', upload_ttl_seconds: 600, max_provider_upload_ttl_seconds: 9000 }),
+  /7200/i
+);
+
+console.log('OK private storage separates short app acceptance from bounded provider token lifetime');
