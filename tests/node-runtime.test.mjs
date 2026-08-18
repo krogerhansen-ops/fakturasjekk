@@ -32,7 +32,10 @@ try {
   assert.equal(noAuth.status, 401);
   assert.equal(noAuth.headers.get('cache-control')?.includes('no-store'), true);
 
-  const preflight = await fetch(`${base}/v1/cases`, { method: 'OPTIONS', headers: { origin: 'https://fakturasjekk.no' } });
+  const preflight = await fetch(`${base}/v1/cases`, {
+    method: 'OPTIONS',
+    headers: { origin: 'https://fakturasjekk.no', 'access-control-request-method': 'POST' }
+  });
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://fakturasjekk.no');
 
