@@ -28,8 +28,9 @@ jobs:
       - name: Build public customer artifact
         run: |
           rm -rf _site
-          mkdir -p _site/engine _site/rules _site/data _site/config
+          mkdir -p _site/site _site/engine _site/rules _site/data _site/config
           cp site/index-launch-candidate.html _site/index.html
+          cp site/index-launch-candidate.html _site/site/index-launch-candidate.html
           cp engine/analyzer.mjs _site/engine/analyzer.mjs
           cp engine/draft.mjs _site/engine/draft.mjs
           cp rules/rules.json _site/rules/rules.json
@@ -39,6 +40,8 @@ jobs:
       - name: Verify public artifact boundaries
         run: |
           test -f _site/index.html
+          test -f _site/site/index-launch-candidate.html
+          cmp -s _site/index.html _site/site/index-launch-candidate.html
           test ! -d _site/server
           test ! -d _site/admin
           test ! -f _site/motor-test.html
