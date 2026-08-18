@@ -23,6 +23,13 @@ await api.getPaymentRequirement('case 1');
 assert.match(calls[1].url, /case%201\/payment$/);
 assert.equal('idempotency-key' in calls[1].options.headers, false);
 
+await api.confirmFacts('case 1', [{ field: 'invoice_total', value: 1000, source_document_id: 'doc-1', source_page: 1, confirmed_by_user: true }]);
+const confirmationCall = calls[2];
+assert.match(confirmationCall.url, /case%201\/facts\/confirm$/);
+assert.equal(confirmationCall.options.method, 'POST');
+assert.ok(confirmationCall.options.headers['idempotency-key']);
+assert.equal(JSON.parse(confirmationCall.options.body).items[0].confirmed_by_user, true);
+
 const target = { document_id: 'doc-1', upload_url: 'https://signed-upload.example/object?sig=x', required_headers: { 'content-type': 'application/pdf' } };
 const fakeFile = { name: 'faktura.pdf', type: 'application/pdf', size: 123, data: 'x' };
 await api.uploadSigned(target, fakeFile);
