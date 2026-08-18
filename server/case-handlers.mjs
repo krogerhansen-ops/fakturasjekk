@@ -1,8 +1,8 @@
 import { ApiError } from './api-errors.mjs';
 import { requireUser, requireCaseId, requireBodyObject, requireString } from './auth-policy.mjs';
-import { projectCase, projectAnalysisResponse, projectDraftResponse, projectSupplierResponse, assertNoPrivateFields } from './public-projection.mjs';
+import { projectCase, projectAnalysisResponse, projectDraftResponse, projectSupplierResponse, projectFullResult, assertNoPrivateFields } from './public-projection.mjs';
 
-export function createCaseHandlers({ services, idempotency = null, clock = () => new Date() } = {}) {
+export function createCaseHandlers({ services, registry = null, idempotency = null, clock = () => new Date() } = {}) {
   async function mutate(request, operation, fn) {
     if (!idempotency) return fn();
     const key = request?.headers?.['idempotency-key'] ?? request?.headers?.['Idempotency-Key'];
@@ -42,7 +42,8 @@ export function createCaseHandlers({ services, idempotency = null, clock = () =>
       const document_id = requireString(request.params?.document_id, 'invalid_document_id', 'Ugyldig dokument-ID.', { max: 128 });
       return mutate(request, `confirm_document_upload:${case_id}:${document_id}`, async () => {
         const output = await services.confirmDocumentUpload({ case_id, owner_id: user.id, document_id });
-        return { status: 200, body: safe({ uploaded: output.uploaded, document: projectCase(output.case).documents.find(d => d.id === document_id), case: projectCase(output.case) }) };
+        const publicCase = projectCase(output.case);
+        return { status: 200, body: safe({ uploaded: output.uploaded, document: publicCase.documents.find(d => d.id === document_id), case: publicCase }) };
       });
     },
 
@@ -65,7 +66,7 @@ export function createCaseHandlers({ services, idempotency = null, clock = () =>
       const user = requireUser(request);
       const case_id = requireCaseId(request.params);
       const result = await services.getFullResult({ case_id, owner_id: user.id });
-      return { status: 200, body: safe(result) };
+      return { status: 200, body: projectFullResult(result, registry) };
     },
 
     async create_draft(request) {
