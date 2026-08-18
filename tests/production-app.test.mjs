@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { createProductionApp } from '../server/production-app.mjs';
 
+const today = new Date().toISOString().slice(0, 10);
 const config = { environment: 'production', app_origin: 'https://fakturasjekk.no', payment_provider: 'provider-x' };
 const product = { version: '0.56.0', price_nok: 29, full_check_free: false, market: 'NO', audience: 'consumer', includes: ['supplier_response_follow_up'] };
-const registry = { engine_version: '0.56.0', rules: [{ id: 'R1', status: 'active', source_url: 'https://lovdata.no/lov/test', last_verified: '2026-08-18' }] };
+const registry = { engine_version: '0.56.0', rules: [{ id: 'R1', status: 'active', source_url: 'https://lovdata.no/lov/test', last_verified: today }] };
 const uploadPolicy = { max_file_bytes: 1000, allowed_mime_types: ['application/pdf'] };
-const extractionPolicy = { critical_fields: [], min_confidence: { critical: 0.95, standard: 0.85 } };
+const extractionPolicy = { critical_fields: [], min_confidence: { critical: 0.95, standard: 0.85 }, require_source_location: true };
+const extractionCatalog = { fields: { invoice_total: { type: 'number' }, invoice_number: { type: 'string' } } };
 const retentionPolicy = { modes: { temporary: { source_documents_ttl_hours: 24, analysis_ttl_days: 7 } } };
+const launchGate = { checks: [{ id: 'test-gate', required: true, status: 'complete', evidence: 'synthetic production composition test' }] };
 
 const caseStore = {
   async nextId() { return 'x-1'; },
@@ -36,21 +39,31 @@ const auditAdapter = { async write() {} };
 const rateLimiter = { check() { return { allowed: true }; } };
 
 const adapters = { caseStore, storage, extractor, responseInterpreter, authAdapter, paymentGateway, paymentEventStore, idempotencyStore, auditAdapter, rateLimiter };
-const app = createProductionApp({ config, product, registry, uploadPolicy, extractionPolicy, retentionPolicy, adapters });
+const input = { config, product, registry, uploadPolicy, extractionPolicy, extractionCatalog, retentionPolicy, launchGate, adapters };
+const app = createProductionApp(input);
 assert.equal(app.readiness.ready, true);
+assert.equal(app.launch_gate.launch_allowed, true);
 assert.equal(typeof app.handler, 'function');
 assert.equal(typeof app.api.invoke, 'function');
 
 assert.throws(
-  () => createProductionApp({ config, product, registry, uploadPolicy, extractionPolicy, retentionPolicy, adapters: { ...adapters, rateLimiter: null } }),
+  () => createProductionApp({ ...input, launchGate: null }),
+  /launch gate blocked/i
+);
+assert.throws(
+  () => createProductionApp({ ...input, launchGate: { checks: [{ id: 'blocked', required: true, status: 'todo' }] } }),
+  /launch gate blocked/i
+);
+assert.throws(
+  () => createProductionApp({ ...input, adapters: { ...adapters, rateLimiter: null } }),
   /Missing production adapter: rateLimiter/
 );
 assert.throws(
-  () => createProductionApp({ config: { ...config, environment: 'development' }, product, registry, uploadPolicy, extractionPolicy, retentionPolicy, adapters }),
+  () => createProductionApp({ ...input, config: { ...config, environment: 'development' } }),
   /validated production config/
 );
 assert.throws(
-  () => createProductionApp({ config, product: { ...product, price_nok: 0, full_check_free: true }, registry, uploadPolicy, extractionPolicy, retentionPolicy, adapters }),
+  () => createProductionApp({ ...input, product: { ...product, price_nok: 0, full_check_free: true } }),
   /Production readiness failed: product.price/
 );
 
