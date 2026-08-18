@@ -7,7 +7,6 @@ import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 import { createApi } from './api.mjs';
 import { createNodeHandler, startNodeServer } from './node-runtime.mjs';
-import { createMemoryRateLimiter } from './security-policy.mjs';
 
 function required(value, name, method = null) {
   if (!value || (method && typeof value[method] !== 'function')) throw new Error(`Missing production adapter: ${name}`);
@@ -25,6 +24,7 @@ export function createProductionApp({ config, product, registry, uploadPolicy, e
   const paymentEventStore = required(adapters.paymentEventStore, 'paymentEventStore', 'claim');
   const idempotencyStore = required(adapters.idempotencyStore, 'idempotencyStore', 'put');
   const auditAdapter = required(adapters.auditAdapter, 'auditAdapter', 'write');
+  const rateLimiter = required(adapters.rateLimiter, 'rateLimiter', 'check');
 
   const serviceAdapters = { caseStore, storage, extractor, responseInterpreter };
   const services = createBackendServices({ registry, product, uploadPolicy, extractionPolicy, retentionPolicy, adapters: serviceAdapters });
@@ -53,14 +53,7 @@ export function createProductionApp({ config, product, registry, uploadPolicy, e
     version: product.version,
     idempotency
   });
-  const handler = createNodeHandler({
-    api,
-    authAdapter,
-    allowedOrigins: [config.app_origin],
-    rateLimiter: adapters.rateLimiter ?? createMemoryRateLimiter(),
-    production: true
-  });
-
+  const handler = createNodeHandler({ api, authAdapter, allowedOrigins: [config.app_origin], rateLimiter, production: true });
   return { handler, api, services, management, readiness: readinessResult };
 }
 
