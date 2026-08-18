@@ -1,0 +1,80 @@
+name: Fakturasjekk Supabase production
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose verify for dry-run only, deploy to apply migrations and deploy safe preflight'
+        required: true
+        type: choice
+        options:
+          - verify
+          - deploy
+        default: verify
+      confirm_project_ref:
+        description: 'Type the Fakturasjekk production project ref to unlock this workflow'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_PROJECT_REF: jxmkaxwflouacuboaetg
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse any project except Fakturasjekk production
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirm_project_ref }}" != "${EXPECTED_PROJECT_REF}" ]]; then
+            echo 'Project confirmation does not match dedicated Fakturasjekk production project.' >&2
+            exit 2
+          fi
+          : "${SUPABASE_ACCESS_TOKEN:?Missing GitHub secret SUPABASE_ACCESS_TOKEN}"
+          : "${SUPABASE_DB_PASSWORD:?Missing GitHub secret SUPABASE_DB_PASSWORD}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Use reviewed Supabase CLI version
+        run: npx --yes supabase@2.111.0 --version
+
+      - name: Link only dedicated Fakturasjekk project
+        run: npx --yes supabase@2.111.0 link --project-ref "${EXPECTED_PROJECT_REF}"
+
+      - name: Show migration status
+        run: npx --yes supabase@2.111.0 migration list
+
+      - name: Dry-run database migrations
+        run: npx --yes supabase@2.111.0 db push --dry-run
+
+      - name: Apply database migrations
+        if: ${{ inputs.action == 'deploy' }}
+        run: npx --yes supabase@2.111.0 db push
+
+      - name: Deploy safe project-bound preflight only
+        if: ${{ inputs.action == 'deploy' }}
+        run: npx --yes supabase@2.111.0 functions deploy fakturasjekk-preflight --project-ref "${EXPECTED_PROJECT_REF}" --use-api
+
+      - name: Re-read migration status after deploy
+        if: ${{ inputs.action == 'deploy' }}
+        run: npx --yes supabase@2.111.0 migration list
+
+      - name: Production API remains locked
+        run: |
+          set -euo pipefail
+          test ! -d supabase/functions/fakturasjekk-api
+          grep -q 'customer_upload_enabled: false' supabase/functions/fakturasjekk-preflight/index.ts
+          grep -q 'production_api_enabled: false' supabase/functions/fakturasjekk-preflight/index.ts
+          echo 'OK: only fail-closed preflight is eligible for deployment.'
