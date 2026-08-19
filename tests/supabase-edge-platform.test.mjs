@@ -10,8 +10,11 @@ const secrets = loadSupabaseEdgeSecrets(env);
 assert.equal(secrets.supabaseUrl, SUPABASE_EDGE_PROJECT.origin);
 assert.equal(secrets.publishableKey, 'sb_publishable_test_only');
 assert.equal(secrets.secretKey, 'sb_secret_test_only');
+assert.equal(SUPABASE_EDGE_PROJECT.private_storage_bucket, 'case-documents-private');
+assert.equal(SUPABASE_EDGE_PROJECT.storage_requires_explicit_malware_scanner, true);
 
-const adapters = createSupabaseEdgePlatformAdapters({ ...secrets, fetchImpl: async () => new Response('[]', { status: 200 }) });
+const fetchStub = async () => new Response('[]', { status: 200 });
+const adapters = createSupabaseEdgePlatformAdapters({ ...secrets, fetchImpl: fetchStub });
 for (const [name, method] of [
   ['caseStore', 'getOwned'],
   ['idempotencyStore', 'put'],
@@ -23,7 +26,23 @@ for (const [name, method] of [
 ]) {
   assert.equal(typeof adapters[name]?.[method], 'function', `missing ${name}.${method}`);
 }
+assert.equal(adapters.storage, null, 'raw Storage provider must not become upload-capable app storage without malware scanner');
 assert.equal(JSON.stringify(adapters).includes('sb_secret_test_only'), false, 'secret key must not be exposed as adapter metadata');
+
+const securedAdapters = createSupabaseEdgePlatformAdapters({
+  ...secrets,
+  malwareScanner: { async scanBytes() { return { safe: true, engine: 'synthetic-av', version: '1.0' }; } },
+  fetchImpl: fetchStub
+});
+assert.equal(typeof securedAdapters.storage?.reservePrivateObject, 'function');
+assert.equal(typeof securedAdapters.storage?.finalizeUpload, 'function');
+assert.notEqual(securedAdapters.storage, securedAdapters.storageProvider, 'application storage must wrap the raw provider with scanner enforcement');
+
+assert.throws(() => createSupabaseEdgePlatformAdapters({
+  ...secrets,
+  malwareScanner: {},
+  fetchImpl: fetchStub
+}), /explicit malware scanner/i);
 
 const singular = loadSupabaseEdgeSecrets({
   SUPABASE_URL: SUPABASE_EDGE_PROJECT.origin,
@@ -39,4 +58,4 @@ assert.throws(() => loadSupabaseEdgeSecrets({ ...env, SUPABASE_SECRET_KEYS: '{}'
 assert.throws(() => loadSupabaseEdgeSecrets({ ...env, SUPABASE_SECRET_KEYS: 'not-json' }), /valid JSON/i);
 assert.throws(() => createSupabaseEdgePlatformAdapters({ ...secrets, supabaseUrl: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co' }), /dedicated Fakturasjekk/i);
 
-console.log('OK Supabase Edge platform composes server-only data, auth, storage and distributed rate-limit adapters');
+console.log('OK Supabase Edge platform exposes raw private provider but composes upload-capable storage only with explicit malware scanning');
