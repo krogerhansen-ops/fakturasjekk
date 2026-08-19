@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "project_scope": "fakturasjekk_only",
+  "project_id": null,
+  "location": "eu",
+  "vision_endpoint": "https://eu-vision.googleapis.com",
+  "vertex_endpoint": "https://aiplatform.eu.rep.googleapis.com",
+  "required_apis": [
+    "vision.googleapis.com",
+    "aiplatform.googleapis.com"
+  ],
+  "runtime_service_account_name": "fakturasjekk-ai-runtime",
+  "oauth_scope": "https://www.googleapis.com/auth/cloud-platform",
+  "auth_preference": [
+    "workload_identity_federation",
+    "service_account_key_fallback"
+  ],
+  "service_account_key_secret_name": "GOOGLE_SERVICE_ACCOUNT_JSON",
+  "minimum_runtime_roles_to_review": [
+    "roles/aiplatform.user",
+    "roles/serviceusage.serviceUsageConsumer"
+  ],
+  "gcs_required_for_v1_ocr": false,
+  "customer_data_live_enabled": false,
+  "notes": [
+    "Create a separate Google Cloud project for Fakturasjekk; never reuse another application's project or credentials.",
+    "Prefer keyless federation when a verified Supabase Edge workload-identity design is available.",
+    "The service-account JSON fallback must exist only in a server-side secret store and must never be committed or published.",
+    "IAM must be validated against the actual APIs before live; do not grant broad Owner/Editor roles to the runtime identity."
+  ]
+}
