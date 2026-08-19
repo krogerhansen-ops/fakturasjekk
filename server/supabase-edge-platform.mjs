@@ -8,10 +8,13 @@ import {
 } from './supabase-data-adapters.mjs';
 import { createSupabaseAuthAdapter } from './supabase-auth-adapter.mjs';
 import { createSupabaseStorageProvider } from './supabase-storage-provider.mjs';
+import { createPrivateObjectStorageAdapter } from './private-storage-adapter.mjs';
+import { createDocumentSecurityScanner } from './document-security-scanner.mjs';
 import { createDistributedRateLimiter } from './distributed-rate-limit.mjs';
 
 const EXPECTED_PROJECT_REF = 'jxmkaxwflouacuboaetg';
 const EXPECTED_ORIGIN = `https://${EXPECTED_PROJECT_REF}.supabase.co`;
+const EXPECTED_PRIVATE_BUCKET = 'case-documents-private';
 
 function required(value, name) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required.`);
@@ -53,6 +56,8 @@ export function createSupabaseEdgePlatformAdapters({
   supabaseUrl,
   publishableKey,
   secretKey,
+  malwareScanner = null,
+  storageClock = undefined,
   fetchImpl = globalThis.fetch
 } = {}) {
   if (new URL(required(supabaseUrl, 'supabaseUrl')).origin !== EXPECTED_ORIGIN) {
@@ -69,6 +74,22 @@ export function createSupabaseEdgePlatformAdapters({
   const authAdapter = createSupabaseAuthAdapter({ supabaseUrl, publishableKey, fetchImpl });
   const storageProvider = createSupabaseStorageProvider({ supabaseUrl, secretKey, fetchImpl });
 
+  let storage = null;
+  if (malwareScanner != null) {
+    const securityScanner = createDocumentSecurityScanner({
+      objectReader: storageProvider,
+      malwareScanner
+    });
+    storage = createPrivateObjectStorageAdapter({
+      provider: storageProvider,
+      scanner: securityScanner,
+      bucket: EXPECTED_PRIVATE_BUCKET,
+      upload_ttl_seconds: 600,
+      max_provider_upload_ttl_seconds: 7200,
+      ...(storageClock ? { clock: storageClock } : {})
+    });
+  }
+
   return {
     caseStore,
     idempotencyStore,
@@ -76,11 +97,14 @@ export function createSupabaseEdgePlatformAdapters({
     auditAdapter,
     rateLimiter,
     authAdapter,
-    storageProvider
+    storageProvider,
+    storage
   };
 }
 
 export const SUPABASE_EDGE_PROJECT = Object.freeze({
   project_ref: EXPECTED_PROJECT_REF,
-  origin: EXPECTED_ORIGIN
+  origin: EXPECTED_ORIGIN,
+  private_storage_bucket: EXPECTED_PRIVATE_BUCKET,
+  storage_requires_explicit_malware_scanner: true
 });
