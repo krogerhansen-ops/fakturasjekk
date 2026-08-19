@@ -1,0 +1,41 @@
+{
+  "version": "2026-08-19-v1",
+  "status": "draft_blocked_until_seller_identity",
+  "service_classification": "paid_service",
+  "product": {
+    "name": "Full Fakturasjekk + utkast til innsigelse",
+    "amount_minor": 2900,
+    "amount_nok": 29,
+    "currency": "NOK"
+  },
+  "seller": {
+    "ready": false,
+    "legal_name": null,
+    "organization_number": null,
+    "postal_address": null,
+    "support_email": null,
+    "privacy_email": null
+  },
+  "terms_version": "draft-2026-08-19-v1",
+  "privacy_notice_version": "draft-2026-08-19-v1",
+  "withdrawal_information_version": "draft-2026-08-19-v1",
+  "payment_button_label": "Bestill med betalingsplikt – 29 kr",
+  "requirements": {
+    "payment_obligation_acknowledged": true,
+    "immediate_service_start_requested": true,
+    "withdrawal_loss_on_full_performance_acknowledged": true,
+    "durable_confirmation_required_before_service_delivery": true,
+    "withdrawal_form_must_be_available": true
+  },
+  "customer_copy": {
+    "immediate_start": "Jeg ber uttrykkelig om at Fakturasjekk starter tjenesten før angrefristen er utløpt.",
+    "withdrawal_loss": "Jeg forstår at angreretten går tapt når Fakturasjekk har levert tjenesten fullt ut.",
+    "payment_obligation": "Jeg forstår at bestillingen koster totalt 29 kr og medfører betalingsplikt."
+  },
+  "live_payment_session_enabled": false,
+  "notes": [
+    "Seller/controller identity must be completed before live checkout.",
+    "A valid durable-medium confirmation flow must be connected before service delivery begins.",
+    "Do not describe withdrawal right as lost merely because payment was authorized or captured; the service must be fully performed under the applicable rule."
+  ]
+}
