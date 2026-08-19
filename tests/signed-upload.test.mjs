@@ -12,7 +12,9 @@ const uploadPolicy = readJson('../config/upload-policy.json');
 const extractionPolicy = readJson('../config/extraction-policy.json');
 const retentionPolicy = readJson('../config/retention-policy.json');
 const caseStore = createMemoryCaseStore();
-const testClock = () => new Date('2026-08-18T15:00:00Z');
+// Keep this synthetic flow on or after the newest rule verification date.
+// Production rule safety must continue to reject future-dated verifications.
+const testClock = () => new Date('2026-08-19T15:00:00Z');
 const storage = createMemorySignedStorage({ clock: testClock });
 const extractor = {
   async extract({ documents }) {
