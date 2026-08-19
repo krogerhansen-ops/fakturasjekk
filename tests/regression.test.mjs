@@ -19,7 +19,11 @@ for (const rule of registry.rules) {
   assert.match(rule.last_verified, /^\d{4}-\d{2}-\d{2}$/, `${rule.id}: last_verified must be YYYY-MM-DD`);
   if (rule.status === 'candidate') {
     assert.ok(Array.isArray(rule.conditions) && rule.conditions.length > 0, `${rule.id}: candidate rules must document activation conditions`);
-    assert.match(rule.notes ?? '', /ikke aktiv|ikke brukes|kandidat/i, `${rule.id}: candidate rule must state that it is not active in customer conclusions`);
+    assert.match(
+      rule.notes ?? '',
+      /ikke aktiv|ikke brukes|kandidat|holdes utenfor automatisk kundekonklusjon/i,
+      `${rule.id}: candidate rule must state that it cannot be used automatically in customer conclusions`
+    );
   }
 }
 
@@ -36,7 +40,7 @@ const scenarios = [
     agreed: 18000,
     invoiced: 27600,
     expectedDiff: 9600,
-    requiredRules: ['POF_10_SERVICE_PRICES', 'POF_12_QUOTE', 'BOF_5_1_1_SALES_DOC']
+    requiredRules: ['POF_12_QUOTE', 'BOF_5_1_1_SALES_DOC']
   },
   {
     name: 'Elektronikk – dobbeltføring + gebyr',
@@ -62,6 +66,8 @@ for (const scenario of scenarios) {
     assert.equal(rule.status, 'active', `${scenario.name}: ${ruleId} is not active`);
   }
 }
+
+assert.equal(registry.rules.find(r => r.id === 'POF_10_SERVICE_PRICES')?.status, 'candidate', '§ 10 must stay source-monitored but outside automatic demo conclusions');
 
 const estimate = 120000;
 const fifteenPercentCeiling = Math.round(estimate * 1.15);
