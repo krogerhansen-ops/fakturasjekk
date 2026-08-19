@@ -5,6 +5,7 @@ import { runDocumentChecks } from './document-checks.mjs';
 import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './evidence.mjs';
 import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
+import { resolveRulePackage, assertRulePackageCompatibility } from './rule-packages.mjs';
 
 function combineAnalysis(baseAnalysis, inkasso) {
   if (!inkasso || inkasso.status === 'not_applicable') return baseAnalysis;
@@ -49,6 +50,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
   const base = {
     engine: registry?.engine_version ?? null,
     intake: intakeResult,
+    rule_package: null,
     analysis: null,
     inkasso: null,
     document_checks: null,
@@ -67,6 +69,15 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     };
   }
 
+  const rulePackage = resolveRulePackage({ route: intakeResult.route, facts });
+  if (!rulePackage) {
+    return {
+      ...base,
+      status: 'needs_clarification',
+      draft: { allowed: false, reason: 'Saken kunne ikke knyttes sikkert til en aktiv regelpakke.' }
+    };
+  }
+
   const analysisInput = {
     ...facts,
     party_type: 'consumer',
@@ -75,15 +86,25 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
 
   const invoiceAnalysis = analyzeCase(analysisInput, registry);
   const inkasso = analyzeInkasso(collection ?? {});
+  const collectionOverlay = inkasso?.status && inkasso.status !== 'not_applicable';
   const documentChecks = runDocumentChecks(facts);
   const analysis = combineDocumentChecks(combineAnalysis(invoiceAnalysis, inkasso), documentChecks);
+  const packageSafety = assertRulePackageCompatibility({
+    analysis,
+    rulePackage,
+    collection: collectionOverlay
+  });
+  const packagedAnalysis = {
+    ...analysis,
+    rule_package: packageSafety.id
+  };
 
-  const evidence = buildEvidenceLedger({ facts, origins, analysis, user_note });
+  const evidence = buildEvidenceLedger({ facts, origins, analysis: packagedAnalysis, user_note });
   assertEvidenceSafety(evidence);
-  const assurance = assessAssurance({ analysis, evidence });
+  const assurance = assessAssurance({ analysis: packagedAnalysis, evidence });
 
   const draft = buildDraft({
-    analysis,
+    analysis: packagedAnalysis,
     registry,
     invoice_reference,
     user_note,
@@ -92,8 +113,9 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
 
   return {
     ...base,
-    status: analysis.status,
-    analysis,
+    status: packagedAnalysis.status,
+    rule_package: packageSafety,
+    analysis: packagedAnalysis,
     inkasso,
     document_checks: documentChecks,
     evidence,
