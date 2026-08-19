@@ -22,3 +22,30 @@ jobs:
           node-version: '22'
       - name: Run all Fakturasjekk tests
         run: npm test
+
+  diagnostic-per-file-timeout:
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/analysis-coverage-engine' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run each test behind OS timeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          for file in tests/*.test.mjs; do
+            count=$((count + 1))
+            echo "▶ ${file}"
+            if ! timeout --foreground --signal=KILL 30s node "${file}"; then
+              code=$?
+              echo "DIAGNOSTIC_FAIL_OR_TIMEOUT: ${file} exit=${code}" >&2
+              exit 1
+            fi
+          done
+          echo "OK diagnostic: ${count} testfiler fullført med OS-timeout."
