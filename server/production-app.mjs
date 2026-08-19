@@ -4,6 +4,7 @@ import { createAuditLogger } from './audit.mjs';
 import { createCaseManagement } from './case-management.mjs';
 import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
+import { createCheckoutConsentService } from './checkout-consent-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createApi } from './api.mjs';
@@ -23,6 +24,7 @@ export function createProductionApp({
   extractionPolicy,
   extractionCatalog,
   retentionPolicy,
+  checkoutPolicy = null,
   launchGate,
   adapters = {},
   edgeBasePath = '/functions/v1/fakturasjekk-api'
@@ -60,6 +62,7 @@ export function createProductionApp({
   const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
   const idempotency = createIdempotencyService({ store: idempotencyStore });
   const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, eventStore: paymentEventStore, audit });
+  const checkoutConsentService = checkoutPolicy ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy }) : null;
   const readinessResult = evaluateReadiness({ product, registry, adapters: serviceAdapters, paymentGateway });
   if (!readinessResult.ready) {
     const failed = readinessResult.checks.filter(c => !c.ok).map(c => c.name).join(', ');
@@ -75,6 +78,7 @@ export function createProductionApp({
     paymentGateway,
     paymentWebhookService,
     paymentProviderName: paymentGateway.provider_name ?? config.payment_provider,
+    checkoutConsentService,
     allowedReturnOrigins: [config.app_origin],
     readiness,
     version: product.version,

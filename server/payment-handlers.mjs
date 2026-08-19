@@ -1,7 +1,7 @@
 import { ApiError } from './api-errors.mjs';
 import { requireUser, requireCaseId, requireBodyObject } from './auth-policy.mjs';
 
-export function createPaymentHandlers({ services, gateway = null, idempotency = null, allowedReturnOrigins = [] } = {}) {
+export function createPaymentHandlers({ services, gateway = null, checkoutConsentService = null, idempotency = null, allowedReturnOrigins = [] } = {}) {
   async function mutate(request, operation, fn) {
     if (!idempotency) return fn();
     const key = request?.headers?.['idempotency-key'] ?? request?.headers?.['Idempotency-Key'];
@@ -17,6 +17,7 @@ export function createPaymentHandlers({ services, gateway = null, idempotency = 
 
     async create_payment_session(request) {
       if (!gateway?.createSession) throw new ApiError(503, 'payment_provider_unavailable', 'Betaling er ikke koblet til ennå.');
+      if (!checkoutConsentService?.acceptForPaymentSession) throw new ApiError(503, 'checkout_not_ready', 'Kjøpsflyten er ikke ferdig konfigurert.');
       const user = requireUser(request);
       const case_id = requireCaseId(request.params);
       const body = request.body == null ? {} : requireBodyObject(request.body);
@@ -29,8 +30,29 @@ export function createPaymentHandlers({ services, gateway = null, idempotency = 
       }
       return mutate(request, `payment_session:${case_id}`, async () => {
         const requirement = await services.getPaymentRequirement({ case_id, owner_id: user.id });
+        let accepted;
+        try {
+          accepted = await checkoutConsentService.acceptForPaymentSession({
+            case_id,
+            owner_id: user.id,
+            consent: body.checkout_consent ?? {},
+            requirement
+          });
+        } catch (error) {
+          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state'].includes(error?.code)) {
+            throw new ApiError(409, error.code, error.message);
+          }
+          throw error;
+        }
         const session = await gateway.createSession({ case_id, owner_id: user.id, requirement, return_url });
-        return { status: 201, body: session };
+        return {
+          status: 201,
+          body: {
+            ...session,
+            checkout_consent_id: accepted.checkout_consent_id,
+            agreement_confirmation_payload: accepted.agreement_confirmation_payload
+          }
+        };
       });
     }
   };

@@ -14,6 +14,7 @@ export function createApi({
   paymentGateway = null,
   paymentWebhookService = null,
   paymentProviderName = null,
+  checkoutConsentService = null,
   allowedReturnOrigins = [],
   readiness = null,
   version = null,
@@ -25,7 +26,7 @@ export function createApi({
     ...createCaseHandlers({ services, registry, idempotency, clock }),
     ...(services?.confirmFacts ? createFactConfirmationHandlers({ services, idempotency }) : {}),
     ...createSupplierResponseHandlers({ supplierResponseService, idempotency }),
-    ...createPaymentHandlers({ services, gateway: paymentGateway, idempotency, allowedReturnOrigins }),
+    ...createPaymentHandlers({ services, gateway: paymentGateway, checkoutConsentService, idempotency, allowedReturnOrigins }),
     ...(paymentWebhookService ? createPaymentWebhookHandler({ webhookService: paymentWebhookService, expectedProvider: paymentProviderName }) : {}),
     ...(management ? createManagementHandlers({ management, idempotency }) : {})
   };
