@@ -22,6 +22,35 @@
     }
   },
   {
+    "id": "vehicle-repair",
+    "name": "Bilverksted",
+    "story": "Prisoverslag på 10 000 kr, men faktura på 20 300 kr etter diagnose og flere tillegg. Testgrunnlaget mangler dokumentert varsling og godkjenning av tilleggsarbeidet.",
+    "next_step": "Be verkstedet dokumentere når prisøkningen og tilleggsarbeidet ble avklart, samt hvor det fremgår at diagnosekostnaden var opplyst på forhånd.",
+    "input": {
+      "party_type": "consumer",
+      "case_type": "handcraft_service",
+      "industry": "vehicle_repair",
+      "price_basis": "estimate",
+      "agreed_price": 10000,
+      "invoice_total": 20300,
+      "price_increase_after_start": true,
+      "customer_notified": false,
+      "additional_work_detected": true,
+      "additional_work_authorization_documented": false,
+      "additional_work_price_documented": false,
+      "preliminary_examination_fee": 1800,
+      "preliminary_fee_disclosed_beforehand": false,
+      "surcharge_documented": false,
+      "invoice_specification_sufficient": true,
+      "lines": [
+        {"description": "Diagnose og feilsøking", "quantity": 1, "unit_price": 1800},
+        {"description": "Service og arbeid", "quantity": 1, "unit_price": 4000},
+        {"description": "Bremseskiver og klosser inkl. arbeid", "quantity": 1, "unit_price": 8500},
+        {"description": "Hjullager inkl. arbeid", "quantity": 1, "unit_price": 6000}
+      ]
+    }
+  },
+  {
     "id": "moving",
     "name": "Flyttebyrå",
     "story": "Skriftlig pristilbud med prisøkning etter oppstart og manglende dokumentert varsling.",
