@@ -1,6 +1,6 @@
 # Fakturasjekk – databehandler- og overføringsregister
 
-Dato: 18.08.2026
+Dato: 19.08.2026
 Status: Levende launch-register. Leverandørvalg kan registreres før juridisk godkjenning; ekte kundedata er blokkert inntil DPA/underleverandører/overføringer er kontrollert.
 
 ## Leverandørkrav
@@ -28,10 +28,10 @@ Ingen produksjonsleverandør som behandler kundedata kan godkjennes før følgen
 | PostgreSQL | Supabase, prosjekt `fakturasjekk-prod` | databehandler forventet | `eu-north-1` (Stockholm) | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / BLOCKED FOR LIVE DATA |
 | Privat object storage | Supabase Storage, bucket `case-documents-private` | databehandler forventet | `eu-north-1` prosjektregion; faktisk lagringsarkitektur bekreftes i provider review | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / BLOCKED FOR LIVE DATA |
 | Auth | Supabase Auth | databehandler forventet for bruker-/identitetsdata | `eu-north-1` prosjektregion; faktisk behandlingsflyt bekreftes | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / BLOCKED FOR LIVE DATA |
-| OCR / maskinlesing | Google Cloud Vision, `DOCUMENT_TEXT_DETECTION` | databehandler forventet for dokumentinnhold; må bekreftes kontraktuelt | Vision location `eu` er hardt krav i kode; faktisk Google Cloud prosjekt/ressurslokasjon bekreftes live | kartlegges | nei | ikke godkjent | ukjent; support/underleverandørtilgang må kartlegges selv om OCR-endepunkt er EU | ikke vurdert | SELECTED CANDIDATE / BLOCKED FOR LIVE DATA |
-| Faktatolk etter OCR | [velges] | databehandler forventet for OCR-tekst/saksinnhold | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
-| Svarrunde 2-tolk | [velges] | databehandler forventet | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
-| Betaling | [Vipps er foretrukket kandidat] | ofte selvstendig behandlingsansvarlig for deler / vurderes konkret | [kartlegges] | [kartlegges] | nei | kontrakt | ukjent | vurderes | BLOCKED |
+| OCR / maskinlesing | Google Cloud Vision, `DOCUMENT_TEXT_DETECTION` | databehandler forventet for dokumentinnhold; må bekreftes kontraktuelt | Vision location `eu` er hardt krav i kode | kartlegges | nei | ikke godkjent | ukjent; support/underleverandørtilgang må kartlegges selv om OCR-endepunkt er EU | ikke vurdert | SELECTED / CODE READY / BLOCKED FOR LIVE DATA |
+| Faktatolk etter OCR | Google Vertex AI, `gemini-3.1-flash-lite` | databehandler forventet for OCR-tekst/saksinnhold; må bekreftes kontraktuelt | hardlåst `eu` multi-region, `aiplatform.eu.rep.googleapis.com` | kartlegges | nei | ikke godkjent | ukjent; support/underleverandørtilgang må kartlegges | ikke vurdert | SELECTED / CODE READY / BLOCKED FOR LIVE DATA |
+| Svarrunde 2-tolk | Google Vertex AI, `gemini-3.1-flash-lite` | databehandler forventet for leverandørsvar og eksisterende funn | hardlåst `eu` multi-region | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / CODE READY / BLOCKED FOR LIVE DATA |
+| Betaling | Vipps MobilePay ePayment | rolle må vurderes konkret; leverandøren kan være selvstendig behandlingsansvarlig for deler av betalingsbehandlingen | kartlegges fra avtale/providerinfo | kartlegges | nei | kontrakt/providerreview gjenstår | kartlegges | vurderes | SELECTED / CODE READY / BLOCKED FOR LIVE PAYMENT |
 | E-post/kvittering | [velges] | databehandler forventet for meldingsdata | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
 | Sikkerhetslogging | Supabase/minimal egen audit foretrekkes fremfor ekstra SaaS | databehandler hvis ekstern | EØS foretrekkes | [kartlegges] | nei | vurderes | ukjent | ikke vurdert | BLOCKED UNTIL LIVE VERIFY |
 
@@ -48,23 +48,59 @@ Dedikert Supabase-organisasjon og prosjekt er opprettet særskilt for Fakturasje
 
 Dette er et **leverandørvalg**, ikke en GDPR-godkjenning. Før ekte dokumenter behandles skal DPA, underleverandørliste, supporttilgang, behandlingssteder og eventuelle overføringer utenfor EØS vurderes og føres inn her.
 
-Supabase dokumenterer at hvert prosjekt ligger i én valgt primærregion, at `eu-north-1` er Stockholm, og at deres hosted platform har sikkerhets-/compliance-kontroller under en delt ansvarsmodell. Fakturasjekk beholder ansvaret for egen arkitektur, tilgang, schema, brukere, dataminimering, retention og tredjepartsintegrasjoner.
-
 ## Google Cloud Vision – kjent teknisk status
 
-Google Cloud Vision er valgt som OCR-kandidat fordi V1 kan bruke regional location `eu`, fordi API-et støtter `DOCUMENT_TEXT_DETECTION` for bilder og PDF, og fordi dagens prisstruktur har et gratis månedlig OCR-volum som passer tidlig pilottrafikk.
-
-Implementert kode/policy:
+Google Cloud Vision er valgt som OCR-kandidat. Implementert kode/policy:
 
 - `server/google-vision-ocr.mjs`
 - `config/ocr-policy.json`
 - `docs/GOOGLE-VISION-OCR.md`
 - hard fail dersom location ikke er `eu`
-- fler-siders PDF behandles i maks fem sider per request, men `totalPages` brukes til å sikre at hele dokumentet er behandlet
-- V1-grense maks 20 sider per dokument for å begrense kostnad og ressursbruk
-- OCR er eksplisitt separert fra juridisk motor og faktatolk
+- fler-siders PDF behandles i maks fem sider per request
+- `totalPages` og faktisk `context.pageNumber` kontrolleres fail-closed
+- V1-grense maks 20 sider per dokument og 15 MiB
+- OCR er separert fra juridisk motor og faktatolk
 
-Dette er **ikke** en GDPR-godkjenning. Før live må Google Cloud-prosjekt, IAM/OAuth, DPA, underleverandører, supporttilgang, behandlingssteder og eventuell tredjelandstilgang dokumenteres. OCR-tekst skal følge Fakturasjekks eksisterende retention og skal ikke brukes til leverandørens generelle modelltrening/sekundærformål uten en ny eksplisitt og lovlig beslutning.
+Dette er **ikke** en GDPR-godkjenning. Før live må Google Cloud-prosjekt, IAM/OAuth, DPA, underleverandører, supporttilgang, behandlingssteder og eventuell tredjelandstilgang dokumenteres.
+
+## Google Vertex AI – strukturert faktatolk og Svarrunde 2
+
+Google Vertex AI / `gemini-3.1-flash-lite` er valgt som kodeklar kandidat for de to smale språkoppgavene. Dette gjenbruker Google som leverandørfamilie etter OCR og reduserer antall eksterne aktører.
+
+Implementert:
+
+- `server/google-structured-ai-client.mjs`
+- `server/ocr-fact-interpreter.mjs`
+- `config/structured-ai-policy.json`
+- `docs/GOOGLE-STRUCTURED-AI.md`
+- EU multi-region hardlåst
+- modell allowlistet
+- response schema + JSON-output påkrevd
+- tools, grounding/ekstern nettverkstilgang og juridisk resonnering er forbudt i kontrakten
+- `owner_id`, storage key og signed URLs sendes ikke til språkmodellen
+- ingen request-/response-content logging i klienten
+- input-/output-kostnadsgrenser er fail-closed
+
+Før live kreves et eget Fakturasjekk Google Cloud-prosjekt, Vertex AI API, least-privilege IAM, faktisk EU-test, logging-/cachingkontroll, kostnadsvarsling og juridisk providerreview.
+
+## Vipps MobilePay – kjent teknisk status
+
+Vipps ePayment er valgt betalingskandidat for 29 kr-produktet.
+
+Implementert:
+
+- `server/vipps-epayment-provider.mjs`
+- `config/payment-provider.json`
+- `docs/VIPPS-EPAYMENT.md`
+- nøyaktig 2900 øre/NOK
+- server-side access token
+- idempotent create og capture
+- rå-body HMAC-verifisering av webhooks
+- `AUTHORIZED` gir aldri tilgang; serveren ber om full capture
+- bare verifisert `CAPTURED` kan bli intern `paid`
+- polling-grense finnes som fallback
+
+Live er blokkert til Fakturasjekk har eget Vipps-salgssted/ePayment, merchant credentials, webhook-registrering, endelig selgeridentitet, testmiljø-E2E og provider-/personvernreview.
 
 ## EØS-first beslutning
 
@@ -95,4 +131,7 @@ Produksjonsavtalen for OCR/KI/Svarrunde 2 skal kreve at kundedokumenter og saksi
 - Supabase – shared responsibility: https://supabase.com/docs/guides/deployment/shared-responsibility-model
 - Google Cloud Vision – pricing: https://cloud.google.com/vision/pricing
 - Google Cloud Vision – regionalization: https://cloud.google.com/vision/docs/ocr#regionalization
-- Google Cloud Vision – AnnotateFileRequest: https://docs.cloud.google.com/vision/docs/reference/rest/v1/AnnotateFileRequest
+- Google Gemini 3.1 Flash-Lite: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-flash-lite
+- Google multi-region endpoints: https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations
+- Google structured output: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/control-generated-output
+- Vipps ePayment: https://developer.vippsmobilepay.com/docs/APIs/epayment-api/

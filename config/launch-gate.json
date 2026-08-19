@@ -1,5 +1,5 @@
 {
-  "version": "0.69.0",
+  "version": "0.72.0",
   "launch_mode": "blocked_until_all_required_complete",
   "checks": [
     { "id": "TECH_DEDICATED_SUPABASE_PROJECT", "category": "technical", "required": true, "status": "complete", "evidence": "Dedicated Free-plan organization Fakturasjekk and project fakturasjekk-prod were created in eu-north-1; project ref jxmkaxwflouacuboaetg is recorded in config/supabase-target.json. Karriere is not shared or used." },
@@ -10,6 +10,9 @@
     { "id": "TECH_PRIVACY_DELETE_RESTORE_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "Case deletion purges content-bearing records, keeps only minimal tombstones, writes a bounded private deletion ledger before purge and re-applies deletion after restore. Regression tests cover manual and retention-driven deletion." },
     { "id": "TECH_FREE_BACKUP_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "scripts/backup-supabase-free.sh streams pg_dump directly into age encryption, caps ordinary backup rotation at 35 days and excludes short-lived source-document Storage from standard database backup." },
     { "id": "TECH_SUPABASE_MANUAL_DEPLOY_WORKFLOW", "category": "technical", "required": true, "status": "complete", "evidence": ".github/workflows/supabase-production.yml is workflow_dispatch-only, pinned to reviewed Supabase CLI v2.111.0, hard-locked to project jxmkaxwflouacuboaetg, always dry-runs migrations first and can deploy only the fail-closed preflight function. CI run 284 passed after explicit workflow hygiene allowlisting." },
+    { "id": "TECH_GOOGLE_VISION_OCR_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "server/google-vision-ocr.mjs, config/ocr-policy.json and regression tests implement EU-only Vision OCR, 15 MiB/20-page caps, total-page and page-number completeness checks, and strict separation from legal reasoning. OCR PR #13 passed CI run 288 before merge." },
+    { "id": "TECH_VIPPS_EP_PAYMENT_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "server/vipps-epayment-provider.mjs and payment webhook flow implement fixed 29 NOK create, HMAC verification, idempotent capture and CAPTURED-only unlock. Vipps PR #14 passed CI run 290 before merge." },
+    { "id": "TECH_GOOGLE_STRUCTURED_AI_CODE", "category": "technical", "required": true, "status": "complete", "evidence": "server/google-structured-ai-client.mjs and server/ocr-fact-interpreter.mjs implement model-allowlisted EU multi-region structured output for OCR facts and Svarrunde 2, with no tools/grounding/legal reasoning, no owner/storage identifiers, bounded input/output and double validation. Initial branch CI run 292 passed before full synthetic E2E was added." },
 
     { "id": "TECH_SUPABASE_SCHEMA_VERIFIED", "category": "technical", "required": true, "status": "todo", "evidence": "Three reviewed Supabase migrations plus scripts/verify-supabase-live.sql are ready; live read-back remains required before this gate closes." },
     { "id": "TECH_SUPABASE_SECURITY_ADVISOR", "category": "technical", "required": true, "status": "todo", "evidence": "Run Supabase Security Advisor against fakturasjekk-prod and resolve launch-relevant findings after stable live access/deploy." },
@@ -18,9 +21,9 @@
     { "id": "TECH_PRIVATE_OBJECT_STORAGE", "category": "technical", "required": true, "status": "in_progress", "evidence": "Private bucket schema, ownership controls, short acceptance window, malware/magic-byte contract and orphan cleanup are implemented; concrete live Supabase signed-upload/provider flow and bucket access read-back remain required." },
     { "id": "TECH_AUTH_PROVIDER", "category": "technical", "required": true, "status": "in_progress", "evidence": "Supabase Auth is selected; production project/issuer lock and minimal server verification adapter are implemented. Live Auth signup/session/JWT verification remains required." },
     { "id": "TECH_DISTRIBUTED_RATE_LIMIT", "category": "technical", "required": true, "status": "in_progress", "evidence": "Canonical rate-limit schema, atomic service_role-only Supabase RPC and distributed limiter adapter are implemented and regression-tested; live migration/concurrency verification remains." },
-    { "id": "TECH_DOCUMENT_EXTRACTOR", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_RESPONSE_INTERPRETER", "category": "technical", "required": true, "status": "todo", "evidence": null },
-    { "id": "TECH_PAYMENT_PROVIDER_WEBHOOK", "category": "technical", "required": true, "status": "todo", "evidence": null },
+    { "id": "TECH_DOCUMENT_EXTRACTOR", "category": "technical", "required": true, "status": "in_progress", "evidence": "Google Vision EU OCR plus Gemini 3.1 Flash-Lite EU structured fact interpretation are implemented behind canonical extraction validation. Live Google Cloud project/IAM, EU synthetic provider request, provider/privacy review and production storage-reader E2E remain." },
+    { "id": "TECH_RESPONSE_INTERPRETER", "category": "technical", "required": true, "status": "in_progress", "evidence": "Svarrunde 2 has a strict finding-code/coverage contract and the same EU structured AI client; client input cannot submit internal structure. Live provider request and synthetic quality benchmark remain before this gate closes." },
+    { "id": "TECH_PAYMENT_PROVIDER_WEBHOOK", "category": "technical", "required": true, "status": "in_progress", "evidence": "Vipps ePayment provider code verifies raw-body HMAC, fixed MSN/reference/events and performs idempotent 29 NOK capture after AUTHORIZED; only CAPTURED unlocks. Fakturasjekk Vipps merchant credentials, registered webhook, polling reconciliation and test-environment E2E remain." },
     { "id": "TECH_BACKUP_RETENTION_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "Encrypted Free-plan backup and restore-safety code/runbook exist; launch still requires an actual isolated backup/restore test against the production stack." },
     { "id": "TECH_DELETE_END_TO_END_TEST", "category": "technical", "required": true, "status": "todo", "evidence": "Privacy-first delete/restore code is regression-tested; launch still requires a real database + object-storage + restore E2E with synthetic data." },
     { "id": "TECH_ASVS_L2_BASELINE", "category": "technical", "required": true, "status": "complete", "evidence": "docs/SECURITY-ASVS-L2-BASELINE.md plus hardened server/security-policy.mjs and automated hardening tests." },
@@ -34,9 +37,9 @@
     { "id": "LEGAL_ARTICLE9_FAIL_CLOSED", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md and config/privacy-security-policy.json block normal V1 analysis of special-category data and require separate review where necessary." },
     { "id": "LEGAL_ROPA", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/ROPA.md contains processing activities, purposes, categories, bases, retention and security measures; controller/provider fields must be completed before live." },
     { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Required privacy-notice contents are specified; controller identity, actual processors/transfers and contact details remain." },
-    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase is selected for database/auth/storage in Stockholm and recorded in docs/PROCESSORS-AND-TRANSFERS.md; DPA/subprocessor/support/transfer documentation still requires approval before live." },
+    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase, Google Vision/Vertex AI and Vipps are recorded as selected candidates in docs/PROCESSORS-AND-TRANSFERS.md. DPA/subprocessor/support/transfer documentation still requires approval before live." },
     { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines required DPA/subprocessor controls; actual contracts depend on selected providers." },
-    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "Supabase project region is eu-north-1/Stockholm. Subprocessor/support/transfer paths and remaining OCR/AI/payment/email providers still require documented review before live." },
+    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "Supabase is eu-north-1 and Google processing clients are hard-bound to eu endpoints, but corporate support/subprocessor/access paths for Supabase, Google and Vipps still require documented transfer review before live." },
     { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json defines 24h/7d/90d, 35-day backup cap and 45-day restore-safety deletion ledger. Final approval requires live provider/E2E validation and DPIA sign-off." },
     { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Operational workflow drafted; final controller/privacy contact and production end-to-end exercise remain." },
     { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/NO-TRACKING-AND-INCIDENT-RESPONSE.md contains containment, risk assessment, 72-hour decision flow, evidence handling and post-incident actions; named responsible persons remain." },
@@ -52,9 +55,9 @@
     { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "docs/LEGAL-REVIEW-2026-08-18.md – active V1 rules manually re-verified against Lovdata on 2026-08-18." },
     { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "Lov 2026-05-22-19 remains 'Kongen bestemmer'; current 1988 law remains runtime-active. See docs/LEGAL-REVIEW-2026-08-18.md." },
 
-    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions Fakturasjekk quality gate run 284 completed successfully after the manual Supabase production workflow and explicit hygiene review were added; preceding upload/privacy/Edge packages also passed before merge." },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "Latest merged provider packages passed GitHub Actions; Vipps PR #14 passed run 290, and the structured AI branch passed run 292 before its full synthetic E2E test was added. This branch must be green again before merge." },
     { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
-    { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; regression tests cover deterministic engine behavior." }
+    { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; tests/full-synthetic-e2e.test.mjs adds a complete synthetic private-upload -> OCR/facts -> deterministic rules -> captured 29 NOK -> draft -> supplier-response -> follow-up journey." }
   ],
   "official_reference_pages": [
     "https://lovdata.no/nav/lov/2022-06-17-56/kap3",
@@ -69,6 +72,12 @@
     "https://supabase.com/docs/guides/security",
     "https://supabase.com/docs/guides/deployment/shared-responsibility-model",
     "https://supabase.com/docs/guides/functions",
-    "https://supabase.com/docs/guides/platform/backups"
+    "https://supabase.com/docs/guides/platform/backups",
+    "https://cloud.google.com/vision/pricing",
+    "https://cloud.google.com/vision/docs/ocr#regionalization",
+    "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-flash-lite",
+    "https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations",
+    "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/control-generated-output",
+    "https://developer.vippsmobilepay.com/docs/APIs/epayment-api/"
   ]
 }

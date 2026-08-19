@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "provider_target": "google_vertex_ai",
+  "location": "eu",
+  "endpoint_origin": "https://aiplatform.eu.rep.googleapis.com",
+  "default_model": "gemini-3.1-flash-lite",
+  "allowed_models": ["gemini-3.1-flash-lite"],
+  "tasks": [
+    "fakturasjekk_ocr_fact_extraction",
+    "fakturasjekk_supplier_response_coverage"
+  ],
+  "generation": {
+    "temperature": 0,
+    "candidate_count": 1,
+    "max_output_tokens": 4096,
+    "response_mime_type": "application/json",
+    "response_schema_required": true
+  },
+  "input_limits": {
+    "client_json_chars": 120000,
+    "ocr_text_chars": 100000,
+    "supplier_response_chars": 20000,
+    "truncate_on_limit": false,
+    "fail_closed_on_limit": true
+  },
+  "security": {
+    "customer_input_untrusted": true,
+    "obey_embedded_instructions": false,
+    "tools_enabled": false,
+    "external_network_or_grounding_enabled": false,
+    "legal_reasoning_allowed": false,
+    "owner_id_sent_to_model": false,
+    "storage_keys_sent_to_model": false,
+    "request_response_content_logging": false,
+    "numeric_usage_metadata_only": true
+  },
+  "provider_status": "selected_candidate_blocked_for_live_data",
+  "live_requirements": [
+    "separate Fakturasjekk Google Cloud project",
+    "Vertex AI API enabled",
+    "server-side OAuth/IAM configured with least privilege",
+    "EU multi-region synthetic request verified",
+    "DPA/subprocessors/support/transfer review approved",
+    "request-response logging and caching controls reviewed",
+    "budget alert configured",
+    "synthetic end-to-end quality benchmark passed"
+  ]
+}
