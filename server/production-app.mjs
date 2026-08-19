@@ -1,4 +1,6 @@
 import { createBackendServices } from './services.mjs';
+import { createFulfillmentGatedServices } from './fulfillment-gate.mjs';
+import { createAgreementConfirmationService } from './agreement-confirmation-service.mjs';
 import { createIdempotencyService } from './idempotency.mjs';
 import { createAuditLogger } from './audit.mjs';
 import { createCaseManagement } from './case-management.mjs';
@@ -46,9 +48,13 @@ export function createProductionApp({
   const idempotencyStore = required(adapters.idempotencyStore, 'idempotencyStore', 'put');
   const auditAdapter = required(adapters.auditAdapter, 'auditAdapter', 'write');
   const rateLimiter = required(adapters.rateLimiter, 'rateLimiter', 'check');
+  const durableRequired = checkoutPolicy?.requirements?.durable_confirmation_required_before_service_delivery === true;
+  const agreementConfirmationProvider = durableRequired
+    ? required(adapters.agreementConfirmationProvider, 'agreementConfirmationProvider', 'sendAgreementConfirmation')
+    : adapters.agreementConfirmationProvider ?? null;
 
   const serviceAdapters = { caseStore, storage, extractor, responseInterpreter };
-  const services = createBackendServices({
+  const baseServices = createBackendServices({
     registry,
     product,
     uploadPolicy,
@@ -57,12 +63,25 @@ export function createProductionApp({
     retentionPolicy,
     adapters: serviceAdapters
   });
+  const services = checkoutPolicy
+    ? createFulfillmentGatedServices({ services: baseServices, caseStore, checkoutPolicy })
+    : baseServices;
   const audit = createAuditLogger({ adapter: auditAdapter });
   const management = createCaseManagement({ caseStore, storage, audit });
   const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
   const idempotency = createIdempotencyService({ store: idempotencyStore });
-  const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, eventStore: paymentEventStore, audit });
   const checkoutConsentService = checkoutPolicy ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy }) : null;
+  const agreementConfirmationService = agreementConfirmationProvider && checkoutPolicy
+    ? createAgreementConfirmationService({ caseStore, provider: agreementConfirmationProvider, checkoutPolicy })
+    : null;
+  const paymentWebhookService = createPaymentWebhookService({
+    caseStore,
+    services,
+    gateway: paymentGateway,
+    eventStore: paymentEventStore,
+    agreementConfirmationService,
+    audit
+  });
   const readinessResult = evaluateReadiness({ product, registry, adapters: serviceAdapters, paymentGateway });
   if (!readinessResult.ready) {
     const failed = readinessResult.checks.filter(c => !c.ok).map(c => c.name).join(', ');
@@ -79,6 +98,8 @@ export function createProductionApp({
     paymentWebhookService,
     paymentProviderName: paymentGateway.provider_name ?? config.payment_provider,
     checkoutConsentService,
+    agreementConfirmationService,
+    agreementConfirmationProviderName: agreementConfirmationProvider?.name ?? 'brevo',
     allowedReturnOrigins: [config.app_origin],
     readiness,
     version: product.version,
