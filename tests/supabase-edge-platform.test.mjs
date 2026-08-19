@@ -18,7 +18,8 @@ for (const [name, method] of [
   ['paymentEventStore', 'claim'],
   ['auditAdapter', 'write'],
   ['rateLimiter', 'check'],
-  ['authAdapter', 'verifyBearer']
+  ['authAdapter', 'verifyBearer'],
+  ['storageProvider', 'createSignedPut']
 ]) {
   assert.equal(typeof adapters[name]?.[method], 'function', `missing ${name}.${method}`);
 }
@@ -38,4 +39,4 @@ assert.throws(() => loadSupabaseEdgeSecrets({ ...env, SUPABASE_SECRET_KEYS: '{}'
 assert.throws(() => loadSupabaseEdgeSecrets({ ...env, SUPABASE_SECRET_KEYS: 'not-json' }), /valid JSON/i);
 assert.throws(() => createSupabaseEdgePlatformAdapters({ ...secrets, supabaseUrl: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co' }), /dedicated Fakturasjekk/i);
 
-console.log('OK Supabase Edge platform composes server-only data, auth and distributed rate-limit adapters');
+console.log('OK Supabase Edge platform composes server-only data, auth, storage and distributed rate-limit adapters');
