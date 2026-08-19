@@ -104,7 +104,7 @@ function projectCompanyCheck(check) {
   const registry = check.registry ? {
     organization_number: check.registry.organization_number,
     name: check.registry.name,
-    organization_form: check.registry.organization_form,
+    organization_form: check.registry.organization_form?.description ?? null,
     registered_in_vat: check.registry.registered_in_vat,
     registered_in_business_register: check.registry.registered_in_business_register,
     bankrupt: check.registry.bankrupt,
@@ -112,7 +112,7 @@ function projectCompanyCheck(check) {
     under_forced_liquidation_or_dissolution: check.registry.under_forced_liquidation_or_dissolution,
     deleted_date: check.registry.deleted_date,
     registration_date: check.registry.registration_date,
-    business_code: check.registry.business_code,
+    business_activity: check.registry.business_code?.description ?? null,
     business_address: check.registry.business_address
   } : null;
   return {
