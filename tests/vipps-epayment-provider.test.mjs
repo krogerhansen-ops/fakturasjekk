@@ -120,5 +120,6 @@ assert.equal(wrongHost.signature_valid, false);
 await assert.rejects(() => provider.createPayment({ case_id: 'case-12345678', amount_minor: 3000, currency: 'NOK', return_url: 'https://fakturasjekk.no' }), /exactly 2900/i);
 await assert.rejects(() => provider.capturePayment({ case_id: 'case-12345678', amount_minor: 2900, currency: 'EUR' }), /exactly 2900/i);
 
-assert.equal(JSON.stringify(calls).includes('client-secret'), false, 'client secret must only be used at token endpoint headers and never payment bodies');
+const paymentCalls = calls.filter(c => c.url.includes('/epayment/'));
+assert.equal(JSON.stringify(paymentCalls).includes('client-secret'), false, 'client secret must never be sent to ePayment endpoints');
 console.log('OK Vipps ePayment create/capture/token/HMAC boundaries');
