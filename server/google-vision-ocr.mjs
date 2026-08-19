@@ -18,6 +18,12 @@ function pageText(imageResponse) {
   return String(imageResponse?.fullTextAnnotation?.text ?? '').trim();
 }
 
+function pageNumber(imageResponse) {
+  const value = Number(imageResponse?.context?.pageNumber ?? imageResponse?.context?.page_number);
+  if (!Number.isInteger(value) || value < 1) throw new Error('Google Vision PDF OCR response is missing a valid page number.');
+  return value;
+}
+
 function chunkPages(start, end, size = 5) {
   const chunks = [];
   for (let first = start; first <= end; first += size) {
@@ -25,6 +31,23 @@ function chunkPages(start, end, size = 5) {
     chunks.push(Array.from({ length: last - first + 1 }, (_, i) => first + i));
   }
   return chunks;
+}
+
+function verifiedPageBatch(file, expectedPages, expectedTotalPages = null) {
+  const totalPages = Number(file?.totalPages ?? file?.total_pages);
+  if (!Number.isInteger(totalPages) || totalPages < 1) throw new Error('Google Vision PDF OCR did not return a valid total page count.');
+  if (expectedTotalPages != null && totalPages !== expectedTotalPages) throw new Error('Google Vision PDF OCR returned inconsistent total page count.');
+
+  const responses = Array.isArray(file?.responses) ? file.responses : [];
+  if (responses.length !== expectedPages.length) throw new Error('Google Vision PDF OCR returned incomplete page batch.');
+
+  const pages = responses.map(response => ({ page: pageNumber(response), text: pageText(response) }));
+  const actualNumbers = pages.map(item => item.page);
+  if (new Set(actualNumbers).size !== actualNumbers.length) throw new Error('Google Vision PDF OCR returned duplicate page numbers.');
+  if (actualNumbers.some((value, index) => value !== expectedPages[index])) {
+    throw new Error('Google Vision PDF OCR returned unexpected page numbers.');
+  }
+  return { totalPages, pages };
 }
 
 export function createGoogleVisionOcrClient({
@@ -118,36 +141,42 @@ export function createGoogleVisionOcrClient({
   }
 
   async function ocrPdf(document, bytes) {
-    // Empty pages means Google returns the first five pages and also totalPages.
+    // Google documents that an empty pages list annotates the first five pages. The
+    // underlying AnnotateFileResponse schema also exposes total_pages. We verify
+    // response context.pageNumber so completeness never depends on array position alone.
     const first = await annotatePdf(bytes);
-    const totalPages = Number(first.totalPages ?? first.total_pages);
-    if (!Number.isInteger(totalPages) || totalPages < 1) throw new Error('Google Vision PDF OCR did not return a valid total page count.');
-    if (totalPages > maxPagesPerDocument) {
-      const error = new Error(`PDF has ${totalPages} pages; OCR cap is ${maxPagesPerDocument}.`);
+    const rawTotalPages = Number(first.totalPages ?? first.total_pages);
+    if (!Number.isInteger(rawTotalPages) || rawTotalPages < 1) throw new Error('Google Vision PDF OCR did not return a valid total page count.');
+    if (rawTotalPages > maxPagesPerDocument) {
+      const error = new Error(`PDF has ${rawTotalPages} pages; OCR cap is ${maxPagesPerDocument}.`);
       error.code = 'ocr_page_limit_exceeded';
-      error.total_pages = totalPages;
+      error.total_pages = rawTotalPages;
       throw error;
     }
 
-    const output = [];
-    const firstResponses = Array.isArray(first.responses) ? first.responses : [];
-    firstResponses.forEach((response, index) => output.push({ page: index + 1, text: pageText(response) }));
+    const firstExpected = Array.from({ length: Math.min(rawTotalPages, 5) }, (_, i) => i + 1);
+    const firstBatch = verifiedPageBatch(first, firstExpected, rawTotalPages);
+    const output = [...firstBatch.pages];
 
-    if (totalPages > 5) {
-      for (const pages of chunkPages(6, totalPages, 5)) {
+    if (rawTotalPages > 5) {
+      for (const pages of chunkPages(6, rawTotalPages, 5)) {
         const batch = await annotatePdf(bytes, pages);
-        const responses = Array.isArray(batch.responses) ? batch.responses : [];
-        if (responses.length !== pages.length) throw new Error('Google Vision PDF OCR returned incomplete page batch.');
-        responses.forEach((response, index) => output.push({ page: pages[index], text: pageText(response) }));
+        const verified = verifiedPageBatch(batch, pages, rawTotalPages);
+        output.push(...verified.pages);
       }
     }
 
-    if (output.length !== totalPages) throw new Error('Google Vision PDF OCR returned incomplete document text.');
+    output.sort((a, b) => a.page - b.page);
+    const expectedAll = Array.from({ length: rawTotalPages }, (_, i) => i + 1);
+    if (output.length !== rawTotalPages || output.some((item, index) => item.page !== expectedAll[index])) {
+      throw new Error('Google Vision PDF OCR returned incomplete document text.');
+    }
+
     return {
       document_id: document.id,
       role: document.role,
       mime_type: document.mime_type,
-      total_pages: totalPages,
+      total_pages: rawTotalPages,
       pages: output,
       provider: 'google_cloud_vision',
       provider_location: location
