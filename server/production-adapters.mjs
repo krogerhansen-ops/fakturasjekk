@@ -3,6 +3,7 @@ import { createPostgresAtomicCounterStore } from './postgres-rate-limit.mjs';
 import { createDistributedRateLimiter } from './distributed-rate-limit.mjs';
 import { createPrivateObjectStorageAdapter } from './private-storage-adapter.mjs';
 import { createJwtAuthAdapter } from './jwt-auth-contract.mjs';
+import { createBrregClient } from './brreg-client.mjs';
 
 export function createCoreProductionAdapters({
   config,
@@ -12,7 +13,8 @@ export function createCoreProductionAdapters({
   jwtVerifier,
   extractor,
   responseInterpreter,
-  paymentGateway
+  paymentGateway,
+  fetchImpl = globalThis.fetch
 } = {}) {
   if (config?.environment !== 'production') throw new Error('Validated production config is required.');
   if (!db?.query) throw new Error('Production PostgreSQL connection is required.');
@@ -28,6 +30,7 @@ export function createCoreProductionAdapters({
   const rateLimiter = createDistributedRateLimiter({ counterStore });
   const storage = createPrivateObjectStorageAdapter({ provider: storageProvider, scanner: storageScanner, bucket: config.private_storage_bucket });
   const authAdapter = createJwtAuthAdapter({ verifier: jwtVerifier, issuer: config.auth_issuer, audience: config.auth_audience });
+  const companyRegistry = createBrregClient({ fetchImpl });
 
   return {
     caseStore,
@@ -35,6 +38,7 @@ export function createCoreProductionAdapters({
     extractor,
     responseInterpreter,
     authAdapter,
+    companyRegistry,
     paymentGateway,
     paymentEventStore,
     idempotencyStore,
