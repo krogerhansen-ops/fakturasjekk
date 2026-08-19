@@ -5,7 +5,7 @@ import { PRODUCTION_SUPABASE_TARGET } from '../server/production-config.mjs';
 
 const target = JSON.parse(fs.readFileSync(new URL('../config/supabase-target.json', import.meta.url), 'utf8'));
 const product = JSON.parse(fs.readFileSync(new URL('../config/product.json', import.meta.url), 'utf8'));
-const migration = fs.readFileSync(new URL('../supabase/migrations/20260818231500_fakturasjekk_core.sql', import.meta.url), 'utf8').toLowerCase();
+const migration = fs.readFileSync(new URL('../supabase/migrations/20260819085453_fakturasjekk_core.sql', import.meta.url), 'utf8').toLowerCase();
 const envExample = fs.readFileSync(new URL('../.env.example', import.meta.url), 'utf8');
 const launchGate = JSON.parse(fs.readFileSync(new URL('../config/launch-gate.json', import.meta.url), 'utf8'));
 
@@ -29,8 +29,8 @@ const dedicatedGate = launchGate.checks.find(check => check.id === 'TECH_DEDICAT
 const schemaGate = launchGate.checks.find(check => check.id === 'TECH_SUPABASE_SCHEMA_VERIFIED');
 const advisorGate = launchGate.checks.find(check => check.id === 'TECH_SUPABASE_SECURITY_ADVISOR');
 assert.equal(dedicatedGate?.status, 'complete');
-assert.notEqual(schemaGate?.status, 'complete', 'schema must not be marked complete without live read-back verification');
-assert.notEqual(advisorGate?.status, 'complete', 'Security Advisor must not be marked complete before a real project scan');
+assert.notEqual(schemaGate?.status, 'complete', 'schema gate changes only after live read-back evidence is committed');
+assert.notEqual(advisorGate?.status, 'complete', 'advisor gate changes only after live scan evidence is committed');
 
 for (const table of ['cases','case_events','documents','analyses','payments','payment_event_claims','drafts','supplier_responses','followups','idempotency_keys','audit_log','rate_limit_windows']) {
   assert.ok(migration.includes(`alter table public.${table} enable row level security`), `RLS missing for ${table}`);
