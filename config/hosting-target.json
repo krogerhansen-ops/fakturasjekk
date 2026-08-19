@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "demo": {
+    "provider": "github_pages",
+    "purpose": "synthetic_demo_only",
+    "commercial_transactions_allowed": false,
+    "customer_documents_allowed": false,
+    "payments_allowed": false,
+    "url": "https://krogerhansen-ops.github.io/fakturasjekk/"
+  },
+  "production_frontend": {
+    "provider": "cloudflare_pages",
+    "plan": "free",
+    "fixed_monthly_cost_nok": 0,
+    "static_assets_only": true,
+    "pages_functions_required": false,
+    "custom_domain_required": true,
+    "deployed": false
+  },
+  "production_backend": {
+    "provider": "supabase",
+    "project_ref": "jxmkaxwflouacuboaetg",
+    "region": "eu-north-1",
+    "customer_api_enabled": false,
+    "customer_upload_enabled": false
+  },
+  "policy_sources": {
+    "github_pages_terms": "https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features",
+    "cloudflare_pages_pricing": "https://developers.cloudflare.com/pages/functions/pricing/",
+    "cloudflare_custom_domains": "https://developers.cloudflare.com/pages/configuration/custom-domains/"
+  }
+}
