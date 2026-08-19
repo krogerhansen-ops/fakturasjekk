@@ -1,5 +1,6 @@
 name: Fakturasjekk live rate-limit verification
 
+# Production verification only: synthetic key, project-locked connection, mandatory cleanup.
 on:
   push:
     branches: [verify/rate-limit-concurrency]
