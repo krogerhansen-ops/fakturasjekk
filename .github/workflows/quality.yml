@@ -23,6 +23,7 @@ jobs:
       - name: Run all Fakturasjekk tests
         run: npm test
 
+  # Temporary production proof: only runs for the dedicated verification PR branch.
   production-rate-limit-concurrency-proof:
     if: ${{ github.event_name == 'pull_request' && github.head_ref == 'verify/rate-limit-concurrency' }}
     runs-on: ubuntu-24.04
