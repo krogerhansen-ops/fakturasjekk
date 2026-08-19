@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const canonical = fs.readFileSync(new URL('../server/db/migrations/0002_rate_limit_windows.sql', import.meta.url), 'utf8').toLowerCase();
-const supabase = fs.readFileSync(new URL('../supabase/migrations/20260818235500_atomic_server_rpcs.sql', import.meta.url), 'utf8').toLowerCase();
+const supabase = fs.readFileSync(new URL('../supabase/migrations/20260819085607_atomic_server_rpcs_safe.sql', import.meta.url), 'utf8').toLowerCase();
 const postgresAdapter = fs.readFileSync(new URL('../server/postgres-rate-limit.mjs', import.meta.url), 'utf8').toLowerCase();
 
 for (const column of ['key text primary key', 'count integer', 'reset_at timestamptz', 'updated_at timestamptz']) {
@@ -11,6 +11,7 @@ for (const column of ['key text primary key', 'count integer', 'reset_at timesta
 }
 assert.match(postgresAdapter, /insert into rate_limit_windows \(key, count, reset_at, updated_at\)/);
 assert.equal(supabase.includes('window_start_ms'), false, 'old incompatible Supabase rate-limit schema must not survive');
+assert.equal(supabase.includes('drop table'), false, 'pre-launch realignment must be non-destructive');
 assert.match(supabase, /fakturasjekk_increment_rate_limit_window/);
 assert.match(supabase, /fakturasjekk_claim_payment_event/);
 assert.match(supabase, /security invoker/);
