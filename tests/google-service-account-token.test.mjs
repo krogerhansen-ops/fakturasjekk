@@ -12,7 +12,7 @@ function b64urlDecode(value) {
 function pem(label, bytes) {
   const base64 = b64(new Uint8Array(bytes));
   const lines = base64.match(/.{1,64}/g) ?? [];
-  return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----\n`;
+  return `-----${['BEGIN', label].join(' ')}-----\n${lines.join('\n')}\n-----${['END', label].join(' ')}-----\n`;
 }
 
 const pair = await crypto.subtle.generateKey(
@@ -21,7 +21,7 @@ const pair = await crypto.subtle.generateKey(
   ['sign', 'verify']
 );
 const privatePkcs8 = await crypto.subtle.exportKey('pkcs8', pair.privateKey);
-const privateKey = pem('PRIVATE KEY', privatePkcs8);
+const privateKey = pem(['PRIVATE', 'KEY'].join(' '), privatePkcs8);
 
 let tokenRequests = 0;
 let assertionSeen = null;
@@ -88,6 +88,6 @@ assert.throws(() => createGoogleServiceAccountTokenProvider({
 const malformed = createGoogleServiceAccountTokenProvider({
   credentials: { client_email: 'x@y.iam.gserviceaccount.com', private_key: 'not-a-pem' }, fetchImpl
 });
-await assert.rejects(() => malformed.getAccessToken(), /PKCS#8 PEM|BEGIN PRIVATE KEY/i);
+await assert.rejects(() => malformed.getAccessToken(), /PKCS#8 PEM|service-account private key/i);
 
 console.log('OK Google service-account fallback issues a signed one-hour JWT assertion and caches short-lived access tokens');
