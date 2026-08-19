@@ -32,11 +32,7 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
     throw error;
   }
 
-  const requiredTrue = [
-    'payment_obligation_acknowledged',
-    'immediate_service_start_requested',
-    'withdrawal_loss_on_full_performance_acknowledged'
-  ];
+  const requiredTrue = ['payment_obligation_acknowledged','immediate_service_start_requested','withdrawal_loss_on_full_performance_acknowledged'];
   const missing = requiredTrue.filter(key => consent?.[key] !== true);
   if (missing.length) {
     const error = new Error('Required checkout acknowledgements are missing.');
@@ -62,10 +58,7 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
 
   return {
     valid: true,
-    checkout_policy_version: expectedVersions.checkout_policy_version,
-    terms_version: expectedVersions.terms_version,
-    privacy_notice_version: expectedVersions.privacy_notice_version,
-    withdrawal_information_version: expectedVersions.withdrawal_information_version,
+    ...expectedVersions,
     product_name: policy.product.name,
     amount_minor: Number(policy.product.amount_minor),
     currency: policy.product.currency,
@@ -76,10 +69,13 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
   };
 }
 
-export function durableConfirmationSnapshot({ policy, consent_record, case_id, created_at } = {}) {
-  if (!consent_record?.valid) throw new Error('Validated checkout consent is required for durable confirmation.');
+// This is the immutable content payload that must later be delivered on a genuine
+// durable medium. Returning/storing this object alone does not satisfy that delivery requirement.
+export function agreementConfirmationPayload({ policy, consent_record, case_id, created_at } = {}) {
+  if (!consent_record?.valid) throw new Error('Validated checkout consent is required for agreement confirmation payload.');
   return {
     version: 1,
+    durable_medium_delivered: false,
     case_id,
     created_at,
     seller: {
