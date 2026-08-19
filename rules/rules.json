@@ -1,9 +1,48 @@
 {
-  "engine_version": "0.28.0",
+  "engine_version": "0.29.0",
   "jurisdiction": "NO",
   "audience": "consumer",
   "last_full_review": "2026-08-18",
   "rules": [
+    {
+      "id": "HTJL_7_DUTY_TO_ADVISE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 7",
+      "title": "Plikt til å frarå og kontakte ved betydelig prisøkning",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A77",
+      "expected_phrase": "prisen vil bli betydelig høyere enn forbrukeren måtte vente",
+      "last_verified": "2026-08-19",
+      "status": "active",
+      "scope": ["consumer", "handcraft_service", "repair", "price_increase", "duty_to_advise"],
+      "conditions": ["Dokumentert prisforventning eller prisøkning må foreligge.", "Manglende kontakt/varsling må være dokumentert eller uttrykkelig uavklart.", "Bestemmelsen gir ikke en automatisk prosentgrense."],
+      "notes": "Relevant ved blant annet bilverksted og andre reparasjoner når prisen underveis blir betydelig høyere enn kunden måtte vente. Brukes som kontrollspor, ikke som automatisk grunnlag for prisavslag."
+    },
+    {
+      "id": "HTJL_8_FAILURE_TO_ADVISE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 8",
+      "title": "Konsekvenser ved unnlatt fraråding",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A78",
+      "expected_phrase": "kan tjenesteyteren ikke kreve betaling i videre utstrekning",
+      "last_verified": "2026-08-19",
+      "status": "candidate",
+      "scope": ["consumer", "handcraft_service", "repair", "failure_to_advise"],
+      "conditions": ["Vilkårene i § 7 må først være oppfylt.", "Det må vurderes hva forbrukeren ellers ville gjort.", "Rimelighetsbegrensningen i annet ledd må vurderes."],
+      "notes": "Forberedt, men ikke aktiv i automatisk kundekonklusjon. Krever en kontrafaktisk og konkret vurdering som Fakturasjekk ikke skal gjette."
+    },
+    {
+      "id": "HTJL_9_ADDITIONAL_WORK",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 9",
+      "title": "Tilleggsarbeid",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A79",
+      "expected_phrase": "skal tjenesteyteren kontakte forbrukeren",
+      "last_verified": "2026-08-19",
+      "status": "active",
+      "scope": ["consumer", "handcraft_service", "repair", "additional_work"],
+      "conditions": ["Arbeidet må ligge utenfor det opprinnelige oppdraget.", "Kontakt med forbrukeren er hovedregelen.", "Lovens unntak ved manglende kontakt og nødvendig skadebegrensning må vurderes før sikker konklusjon."],
+      "notes": "Brukes sammen med § 33 ved fakturert tilleggsarbeid. Manglende dokumentasjon på avtale er ikke alene bevis for at tillegget ikke kan kreves."
+    },
     {
       "id": "HTJL_32_PRICE_ESTIMATE",
       "law": "håndverkertjenesteloven",
@@ -27,6 +66,19 @@
       "status": "active",
       "scope": ["consumer", "handcraft_service", "surcharge"],
       "notes": "Må vurderes mot vilkårene for tilleggsarbeid og uforutsette forhold."
+    },
+    {
+      "id": "HTJL_34_PRELIMINARY_EXAMINATION",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 34",
+      "title": "Forundersøkelse og feilsøking",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A734",
+      "expected_phrase": "bare betale for arbeidet dersom det er opplyst eller tatt forbehold om det på forhånd",
+      "last_verified": "2026-08-19",
+      "status": "active",
+      "scope": ["consumer", "handcraft_service", "repair", "diagnostics", "preliminary_examination"],
+      "conditions": ["Posten må gjelde forberedende undersøkelse eller tilsvarende arbeid for å avklare om tjenesten skal bestilles.", "Betalingsplikt må være opplyst eller tatt forbehold om på forhånd."],
+      "notes": "Særlig relevant for diagnose/feilsøking på bilverksted, elektriker og andre reparasjonstjenester."
     },
     {
       "id": "HTJL_36_INVOICE",
@@ -53,6 +105,19 @@
       "notes": "Gebyr for utstedelse og sending av regning krever at dette klart følger av avtalen."
     },
     {
+      "id": "MFL_11_UNAGREED_PAYMENT",
+      "law": "markedsføringsloven",
+      "section": "§ 11",
+      "title": "Betalingskrav uten avtale og tillegg utover hovedytelsen",
+      "source_url": "https://lovdata.no/lov/2009-01-09-2/%C2%A711",
+      "expected_phrase": "å kreve betaling for varer, tjenester eller andre ytelser uten etter avtale",
+      "last_verified": "2026-08-19",
+      "status": "active",
+      "scope": ["consumer", "goods", "service", "unagreed_payment", "additional_payment"],
+      "conditions": ["Det må være dokumentert at det kreves betaling for en ytelse eller et tillegg.", "Fakturasjekk må skille mellom manglende dokumentasjon og dokumentert fravær av avtale.", "Tilleggsbetaling utover hovedytelsen har egne krav til uttrykkelig samtykke."],
+      "notes": "Brukes bare når dokumentgrunnlaget støtter et konkret spørsmål om uavtalt betaling. Skal ikke aktiveres bare fordi et tillegg finnes på fakturaen."
+    },
+    {
       "id": "POF_10_SERVICE_PRICES",
       "law": "prisopplysningsforskriften",
       "section": "§ 10",
@@ -77,6 +142,19 @@
       "notes": "Relevant ved skriftlig pristilbud og nye forhold som øker prisen etter oppstart."
     },
     {
+      "id": "POF_13_ITEMIZED_INVOICE",
+      "law": "prisopplysningsforskriften",
+      "section": "§ 13",
+      "title": "Spesifisert regning",
+      "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A713",
+      "expected_phrase": "skal gi forbrukeren spesifisert regning",
+      "last_verified": "2026-08-19",
+      "status": "active",
+      "scope": ["consumer", "service", "invoice", "itemization"],
+      "conditions": ["Gjelder tjenester, med særregler/unntak i bestemmelsen.", "Ved håndverkertjeneste til forhåndsavtalt pris må kravet om spesifisert regning vurderes sammen med håndverkertjenesteloven § 36."],
+      "notes": "Regningen skal være utfyllende nok til at forbrukeren kan kontrollere mottatte varer/tjenester og beregnede priser."
+    },
+    {
       "id": "BOF_5_1_1_SALES_DOC",
       "law": "bokføringsforskriften",
       "section": "§ 5-1-1",
@@ -87,6 +165,19 @@
       "status": "active",
       "scope": ["invoice", "formal_requirements"],
       "notes": "Formelle fakturamangler skal ikke automatisk presenteres som at hovedkravet bortfaller."
+    },
+    {
+      "id": "BOF_5_1_2_PARTIES",
+      "law": "bokføringsforskriften",
+      "section": "§ 5-1-2",
+      "title": "Angivelse av kjøper og selger",
+      "source_url": "https://lovdata.no/forskrift/2004-12-01-1558/%C2%A75-1-2",
+      "expected_phrase": "skal minst omfatte selgers navn og organisasjonsnummer",
+      "last_verified": "2026-08-19",
+      "status": "active",
+      "scope": ["invoice", "seller_identity", "organization_number", "vat_marker"],
+      "conditions": ["Registeropplysninger må holdes adskilt fra dokumentopplysninger.", "MVA-angivelse må vurderes mot faktisk registreringsstatus når offentlig registeroppslag er tilgjengelig."],
+      "notes": "Brukes til formell kontroll av selgers navn, organisasjonsnummer og relevant MVA-angivelse. Avvik presenteres som register-/dokumentavvik, ikke automatisk som ugyldig hovedkrav."
     },
     {
       "id": "INK_8_GOOD_PRACTICE",
