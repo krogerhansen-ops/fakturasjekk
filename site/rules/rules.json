@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.29.0",
+  "engine_version": "0.30.0",
   "jurisdiction": "NO",
   "audience": "consumer",
   "last_full_review": "2026-08-18",
@@ -124,10 +124,11 @@
       "title": "Opplysningspliktens innhold",
       "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A710",
       "expected_phrase": "opplyse om de fullstendige prisene",
-      "last_verified": "2026-08-18",
-      "status": "active",
+      "last_verified": "2026-08-19",
+      "status": "candidate",
       "scope": ["consumer", "service", "price_information"],
-      "notes": "Brukes som prisopplysningsspor, ikke alene som bevis for at et kontraktskrav er ugyldig."
+      "conditions": ["Automatisk aktivering krever et deterministisk, dokumentbasert faktum om manglende eller motstridende prisinformasjon.", "Fravær av et opplastet prisdokument skal ikke alene behandles som bevis for brudd på opplysningsplikten."],
+      "notes": "Kildeverifisert og forberedt, men holdes utenfor automatisk kundekonklusjon inntil Fakturasjekk har en sikker sammenligningssti for hva som faktisk ble opplyst før avtale."
     },
     {
       "id": "POF_12_QUOTE",
@@ -225,7 +226,7 @@
       "last_verified": "2026-08-18",
       "status": "active",
       "scope": ["consumer", "debt_collection", "costs", "dispute"],
-      "notes": "Inndrivingskostnader kan falle bort ved rimelig begrunnede innsigelser eller brudd på god inkassoskikk; dette er ikke det samme som at hovedkravet faller bort."
+      "notes": "Inndrivingskostnader kan falle bort ved rimelig begrunnede innsigelser eller brudd på god inkassoskikk; dette er ikke det samme som at hovedkravet bortfaller."
     }
   ]
 }
