@@ -25,10 +25,11 @@ function itemFor(key, prefix) {
 async function fetchMock(url, options = {}) {
   const parsed = new URL(url);
   const method = String(options.method || 'GET').toUpperCase();
-  requests.push({ url, method, headers: new Headers(options.headers || {}), body: options.body });
+  const headers = new Headers(options.headers || {});
+  requests.push({ url, method, headers, body: options.body });
   assert.equal(parsed.origin, origin);
-  assert.equal(new Headers(options.headers || {}).get('authorization'), `Bearer ${secret}`);
-  assert.equal(new Headers(options.headers || {}).get('apikey'), secret);
+  assert.equal(headers.get('authorization'), null, 'modern sb_secret key must never be sent as Bearer JWT');
+  assert.equal(headers.get('apikey'), secret);
 
   const storagePath = parsed.pathname.replace('/storage/v1', '');
   const signedPrefix = `/object/upload/sign/${bucket}/`;
@@ -152,4 +153,4 @@ assert.equal(reserved.provider_expires_at, '2026-08-19T14:00:00.000Z', 'provider
 const serializedRequests = JSON.stringify(requests.map(r => ({ url: r.url, method: r.method })));
 assert.equal(serializedRequests.includes(secret), false, 'secret must never be embedded in provider URLs or serialized request metadata');
 
-console.log('OK Supabase private Storage provider is project-bound, signed, private, scanner-readable, deletion-verifying and capped by Fakturasjekk acceptance time.');
+console.log('OK Supabase private Storage provider uses modern secret as apikey-only, stays project-bound, scanner-readable and deletion-verifying.');
