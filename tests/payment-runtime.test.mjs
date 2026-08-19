@@ -22,8 +22,9 @@ const checkoutConsentService = {
     assert.equal(consent.withdrawal_loss_on_full_performance_acknowledged, true);
     return {
       checkout_consent_id: 'checkout-1',
-      confirmation: {
+      agreement_confirmation_payload: {
         version: 1,
+        durable_medium_delivered: false,
         case_id,
         product: { name: 'Full Fakturasjekk + utkast til innsigelse', amount_nok: 29, currency: 'NOK' },
         acknowledgements: { payment_obligation: true, immediate_service_start: true, withdrawal_loss_on_full_performance: true }
@@ -85,7 +86,8 @@ try {
   const checkoutBody = await checkout.json();
   assert.equal(checkoutBody.checkout_url, 'https://pay.example/checkout');
   assert.equal(checkoutBody.checkout_consent_id, 'checkout-1');
-  assert.equal(checkoutBody.agreement_confirmation.product.amount_nok, 29);
+  assert.equal(checkoutBody.agreement_confirmation_payload.product.amount_nok, 29);
+  assert.equal(checkoutBody.agreement_confirmation_payload.durable_medium_delivered, false);
 
   const raw = '{"signature":"abc","amount_minor":2900,"note":"spacing stays"}';
   const webhook = await fetch(`${base}/v1/webhooks/payment/dev-pay`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: raw });
@@ -96,4 +98,4 @@ try {
   await new Promise(resolve => server.close(resolve));
 }
 
-console.log('OK payment runtime requires checkout consent before creating provider session');
+console.log('OK payment runtime requires checkout consent and does not confuse confirmation payload with durable-medium delivery');
