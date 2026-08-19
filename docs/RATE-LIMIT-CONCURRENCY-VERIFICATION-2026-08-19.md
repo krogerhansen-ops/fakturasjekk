@@ -19,6 +19,10 @@ Den godkjente GitHub-workflowen på `main` skal bevise:
 
 Launch-gaten `TECH_DISTRIBUTED_RATE_LIMIT` endres først når både denne live-jobben og ordinær quality gate er grønne og loggene er kontrollert.
 
+## Trigger
+
+PR-en er synkronisert på nytt etter at verifikasjons-workflowen var ferdig merget og quality-verifisert på `main`. Dette sikrer at live-jobben ikke er avhengig av workflow-registrering på samme tidspunkt som første PR-event.
+
 ## Resultat
 
 Fylles etter verifisert GitHub Actions-run.
