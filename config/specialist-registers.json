@@ -1,0 +1,36 @@
+{
+  "version": "0.1.0",
+  "policy": {
+    "default_max_age_hours": 48,
+    "require_official_authority": true,
+    "require_source_url": true,
+    "require_fetched_at": true,
+    "ambiguous_match_is_not_verified": true,
+    "missing_record_is_not_negative_proof": true,
+    "stale_record_is_not_usable": true
+  },
+  "registers": {
+    "dsb_elvirksomhet": {
+      "status": "prepared_not_live",
+      "authority": "Direktoratet for samfunnssikkerhet og beredskap",
+      "customer_label": "DSB – Elvirksomhetsregisteret",
+      "landing_url": "https://elvirksomhetsregisteret.dsb.no/",
+      "official_export_available": true,
+      "machine_source_verified": false,
+      "max_age_hours": 48,
+      "applicable_industries": ["electrical"],
+      "notes": "DSB tilbyr søk og full Excel-eksport, men Fakturasjekk aktiverer ikke automatisk oppslag før en stabil offisiell maskinkilde er verifisert."
+    },
+    "vegvesen_workshop": {
+      "status": "prepared_not_live",
+      "authority": "Statens vegvesen",
+      "customer_label": "Statens vegvesen – Verkstedregisteret",
+      "landing_url": "https://www.vegvesen.no/kjoretoy/eie-og-vedlikeholde/finn-godkjent-verksted/",
+      "dataset_url": "https://dataut.vegvesen.no/dataset/godkjente-verksteder",
+      "machine_source_verified": false,
+      "max_age_hours": 48,
+      "applicable_industries": ["vehicle_repair"],
+      "notes": "Den offentlige tjenesten oppdateres daglig og tilbyr CSV, men den tidligere dokumenterte direkte CSV-URL-en er ikke lenger gyldig. Automatisk oppslag forblir stengt til nåværende offisiell maskinkilde er verifisert."
+    }
+  }
+}
