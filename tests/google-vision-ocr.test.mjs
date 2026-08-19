@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { createGoogleVisionOcrClient, createOcrBackedStructuredExtractor } from '../server/google-vision-ocr.mjs';
 
+const pageResponse = (page, text) => ({ context: { pageNumber: page }, fullTextAnnotation: { text } });
+
 const calls = [];
 let fileCall = 0;
 const fetchImpl = async (url, options) => {
@@ -11,7 +13,7 @@ const fetchImpl = async (url, options) => {
       return new Response(JSON.stringify({
         responses: [{
           totalPages: 7,
-          responses: Array.from({ length: 5 }, (_, i) => ({ fullTextAnnotation: { text: `PDF page ${i + 1}` } }))
+          responses: Array.from({ length: 5 }, (_, i) => pageResponse(i + 1, `PDF page ${i + 1}`))
         }]
       }), { status: 200, headers: { 'content-type': 'application/json' } });
     }
@@ -19,8 +21,8 @@ const fetchImpl = async (url, options) => {
       responses: [{
         totalPages: 7,
         responses: [
-          { fullTextAnnotation: { text: 'PDF page 6' } },
-          { fullTextAnnotation: { text: 'PDF page 7' } }
+          pageResponse(6, 'PDF page 6'),
+          pageResponse(7, 'PDF page 7')
         ]
       }]
     }), { status: 200, headers: { 'content-type': 'application/json' } });
@@ -59,7 +61,7 @@ const firstFileCall = calls[0];
 assert.match(firstFileCall.url, /^https:\/\/eu-vision\.googleapis\.com\/v1\/projects\/fakturasjekk-ocr-test\/locations\/eu\/files:annotate$/);
 assert.equal(firstFileCall.options.headers.authorization, 'Bearer oauth-token-test');
 assert.equal(firstFileCall.options.cache, 'no-store');
-assert.equal('pages' in firstFileCall.body.requests[0], false, 'first call should let Vision return first 5 pages plus totalPages');
+assert.equal('pages' in firstFileCall.body.requests[0], false, 'first call should let Vision annotate its documented first-five default');
 assert.equal(firstFileCall.body.requests[0].features[0].type, 'DOCUMENT_TEXT_DETECTION');
 assert.equal(firstFileCall.body.requests[0].inputConfig.mimeType, 'application/pdf');
 
@@ -79,7 +81,7 @@ const capped = createGoogleVisionOcrClient({
   fetchImpl: async () => {
     capFetches += 1;
     return new Response(JSON.stringify({
-      responses: [{ totalPages: 21, responses: Array.from({ length: 5 }, (_, i) => ({ fullTextAnnotation: { text: `page ${i + 1}` } })) }]
+      responses: [{ totalPages: 21, responses: Array.from({ length: 5 }, (_, i) => pageResponse(i + 1, `page ${i + 1}`)) }]
     }), { status: 200 });
   },
   maxPagesPerDocument: 20
@@ -89,6 +91,39 @@ await assert.rejects(
   error => error?.code === 'ocr_page_limit_exceeded' && error.total_pages === 21
 );
 assert.equal(capFetches, 1, 'page-cap must fail after first totalPages response without sending more document batches');
+
+const wrongPageContext = createGoogleVisionOcrClient({
+  projectId: 'fakturasjekk-ocr-test',
+  accessTokenProvider: tokenProvider,
+  readDocumentBytes: reader,
+  fetchImpl: async () => new Response(JSON.stringify({
+    responses: [{ totalPages: 2, responses: [pageResponse(1, 'one'), pageResponse(7, 'wrong page')] }]
+  }), { status: 200 }),
+  maxPagesPerDocument: 20
+});
+await assert.rejects(
+  () => wrongPageContext.ocrDocument({ id: 'wrong-pages', role: 'invoice', mime_type: 'application/pdf' }),
+  /unexpected page numbers/i
+);
+
+const inconsistentTotal = createGoogleVisionOcrClient({
+  projectId: 'fakturasjekk-ocr-test',
+  accessTokenProvider: tokenProvider,
+  readDocumentBytes: reader,
+  fetchImpl: (() => {
+    let n = 0;
+    return async () => {
+      n += 1;
+      if (n === 1) return new Response(JSON.stringify({ responses: [{ totalPages: 6, responses: [1,2,3,4,5].map(p => pageResponse(p, `p${p}`)) }] }), { status: 200 });
+      return new Response(JSON.stringify({ responses: [{ totalPages: 7, responses: [pageResponse(6, 'p6')] }] }), { status: 200 });
+    };
+  })(),
+  maxPagesPerDocument: 20
+});
+await assert.rejects(
+  () => inconsistentTotal.ocrDocument({ id: 'inconsistent', role: 'invoice', mime_type: 'application/pdf' }),
+  /inconsistent total page count/i
+);
 
 let interpreterInput = null;
 const extractor = createOcrBackedStructuredExtractor({
@@ -112,4 +147,4 @@ assert.equal(JSON.stringify(interpreterInput).includes('oauth-token-test'), fals
 assert.throws(() => createGoogleVisionOcrClient({ projectId: 'x', accessTokenProvider: tokenProvider, readDocumentBytes: reader, location: 'us' }), /EU location/i);
 assert.throws(() => createGoogleVisionOcrClient({ projectId: 'x', accessTokenProvider: tokenProvider, readDocumentBytes: reader, maxPagesPerDocument: 51 }), /between 1 and 50/i);
 
-console.log('OK Google Vision OCR is EU-bound, complete across page batches and separated from fact interpretation');
+console.log('OK Google Vision OCR is EU-bound, verifies total pages/page identity and stays separated from fact interpretation');
