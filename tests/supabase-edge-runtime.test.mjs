@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 const fetchRuntime = fs.readFileSync(new URL('../server/fetch-runtime.mjs', import.meta.url), 'utf8');
 const authAdapter = fs.readFileSync(new URL('../server/supabase-auth-adapter.mjs', import.meta.url), 'utf8');
-const serverGrantMigration = fs.readFileSync(new URL('../supabase/migrations/20260818234500_service_role_boundary.sql', import.meta.url), 'utf8').toLowerCase();
+const serverGrantMigration = fs.readFileSync(new URL('../supabase/migrations/20260819085501_service_role_boundary.sql', import.meta.url), 'utf8').toLowerCase();
 const liveVerify = fs.readFileSync(new URL('../scripts/verify-supabase-live.sql', import.meta.url), 'utf8').toLowerCase();
 const deployScript = fs.readFileSync(new URL('../scripts/deploy-supabase-preflight.sh', import.meta.url), 'utf8');
 
@@ -23,7 +23,9 @@ assert.equal(authAdapter.includes('SUPABASE_SECRET_KEY'), false);
 
 for (const marker of [
   'alter default privileges for role postgres in schema public',
-  'revoke select, insert, update, delete on tables from anon, authenticated, service_role',
+  'revoke all on tables from anon, authenticated, service_role',
+  'revoke all on table',
+  'from service_role',
   'grant select, insert, update, delete on table',
   'to service_role',
   'from anon, authenticated'
@@ -38,6 +40,8 @@ assert.match(liveVerify, /relrowsecurity/);
 assert.match(liveVerify, /has_table_privilege\('anon'/);
 assert.match(liveVerify, /has_table_privilege\('authenticated'/);
 assert.match(liveVerify, /has_table_privilege\('service_role'/);
+assert.match(liveVerify, /service_role has privilege beyond required crud/);
+assert.match(liveVerify, /has_function_privilege/);
 assert.match(liveVerify, /case-documents-private/);
 assert.match(liveVerify, /storage\.objects/);
 
