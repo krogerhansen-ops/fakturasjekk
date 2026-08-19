@@ -2,6 +2,7 @@ import { createCase, transitionCase, addDocument, markDocumentUploaded, expireDo
 import { validateUploadSet } from '../engine/document-policy.mjs';
 import { validateExtraction } from '../engine/extraction-policy.mjs';
 import { runCase } from '../engine/case-service.mjs';
+import { checkSellerCompany, companyCheckFacts } from '../engine/company-check.mjs';
 import { paymentRequirement, validatePaymentConfirmation, shouldUnlockFullResult } from '../engine/payment-gate.mjs';
 import { reviewSupplierResponse, buildFollowUpDraft } from '../engine/followup.mjs';
 import { computeRetention, purgePlan } from '../engine/retention.mjs';
@@ -43,6 +44,7 @@ export function createBackendServices({
   const store = requireAdapter(adapters, 'caseStore');
   const storage = requireAdapter(adapters, 'storage');
   const extractor = requireAdapter(adapters, 'extractor');
+  const companyRegistry = adapters.companyRegistry ?? null;
 
   function assertLegalRegistryUsable() {
     const safety = evaluateRuleSafety(registry, { now: ruleSafetyNow(clock) });
@@ -168,8 +170,21 @@ export function createBackendServices({
       return { status: 'needs_confirmation', extraction, case: caseData };
     }
 
-    const facts = merged.facts;
-    const origins = merged.origins;
+    let facts = merged.facts;
+    let origins = merged.origins;
+    let companyCheck = null;
+    if (companyRegistry?.lookupByOrganizationNumber && companyRegistry?.searchByExactName) {
+      companyCheck = await checkSellerCompany({
+        client: companyRegistry,
+        seller_name: facts.seller_name ?? null,
+        seller_org_number: facts.seller_org_number ?? null,
+        seller_mva_marker_present: facts.seller_mva_marker_present ?? null
+      });
+      const enrichment = companyCheckFacts(companyCheck);
+      facts = { ...facts, ...enrichment.facts };
+      origins = { ...origins, ...enrichment.origins };
+    }
+
     const intake = {
       buyer_type: caseData.intake_request?.buyer_type,
       subject: caseData.intake_request?.subject,
@@ -177,6 +192,7 @@ export function createBackendServices({
     };
 
     const result = runCase({ intake, facts, origins, collection, registry, user_note, draft_mode: 'request' });
+    if (companyCheck) result.company_check = companyCheck;
     const analysisId = await store.nextId('analysis');
     caseData = addAnalysis({ ...caseData, pending_fact_confirmation: null }, {
       id: analysisId,
@@ -195,6 +211,7 @@ export function createBackendServices({
         status: result.status,
         finding_count: result.analysis?.findings?.length ?? 0,
         requires_clarification: (result.analysis?.questions?.length ?? 0) > 0,
+        company_check_status: companyCheck?.status ?? 'not_checked',
         price_nok: product.price_nok
       },
       extraction,
