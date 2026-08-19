@@ -27,7 +27,7 @@ function updateConsent(caseData, consentId, patch, event) {
 
 export function isAgreementConfirmationDelivered(caseData, checkoutPolicy) {
   if (!checkoutPolicy) return true;
-  if (checkoutPolicy.require_durable_confirmation_before_paid_fulfillment !== true) return true;
+  if (checkoutPolicy.requirements?.durable_confirmation_required_before_service_delivery !== true) return true;
   const consent = latestCheckoutConsent(caseData);
   if (!consent) return false;
   if (consent.checkout_policy_version !== checkoutPolicy.version) return false;
@@ -112,9 +112,7 @@ export function createAgreementConfirmationService({
 
     const at = nowIso(clock);
     if (verified.event === 'delivered') {
-      if (consent.durable_medium_status === 'delivered') {
-        return { accepted: true, delivered: true, duplicate: true };
-      }
+      if (consent.durable_medium_status === 'delivered') return { accepted: true, delivered: true, duplicate: true };
       caseData = updateConsent(caseData, consent.id, {
         durable_medium_status: 'delivered',
         durable_medium_delivered_at: at,
