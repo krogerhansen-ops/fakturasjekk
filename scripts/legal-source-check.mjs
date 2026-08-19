@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
 const transitions = JSON.parse(fs.readFileSync(new URL('../rules/transitions.json', import.meta.url), 'utf8'));
+const monitoredRules = registry.rules.filter(r => ['active', 'candidate'].includes(r.status));
 
 function normalizeHtml(html) {
   return html
@@ -21,7 +22,7 @@ function normalizeHtml(html) {
 async function fetchNormalized(url) {
   const response = await fetch(url, {
     redirect: 'follow',
-    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.28 (+https://fakturasjekk.no)' },
+    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.29 (+https://fakturasjekk.no)' },
     signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -30,17 +31,17 @@ async function fetchNormalized(url) {
 
 const failures = [];
 
-for (const rule of registry.rules.filter(r => r.status === 'active')) {
+for (const rule of monitoredRules) {
   try {
     const text = await fetchNormalized(rule.source_url);
     const expected = rule.expected_phrase.toLowerCase().replace(/\s+/g, ' ').trim();
     if (!text.includes(expected)) {
-      failures.push(`${rule.id}: kontrollfrasen finnes ikke lenger i kilden: "${rule.expected_phrase}"`);
+      failures.push(`${rule.id} (${rule.status}): kontrollfrasen finnes ikke lenger i kilden: "${rule.expected_phrase}"`);
     } else {
-      console.log(`OK ${rule.id} · ${rule.law} ${rule.section}`);
+      console.log(`OK ${rule.id} · ${rule.status} · ${rule.law} ${rule.section}`);
     }
   } catch (error) {
-    failures.push(`${rule.id}: kildekontroll feilet: ${error.message}`);
+    failures.push(`${rule.id} (${rule.status}): kildekontroll feilet: ${error.message}`);
   }
 }
 
@@ -62,9 +63,11 @@ for (const transition of transitions.transitions ?? []) {
 }
 
 if (failures.length) {
-  console.error('\nFAIL-CLOSED: Minst én aktiv rettskilde eller lovovergang må kontrolleres manuelt før berørte regler kan anses som ferske.');
+  console.error('\nFAIL-CLOSED: Minst én overvåket rettskilde eller lovovergang må kontrolleres manuelt før berørte regler kan anses som ferske.');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`\nOK: ${registry.rules.filter(r => r.status === 'active').length} aktive regler og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
+const activeCount = registry.rules.filter(r => r.status === 'active').length;
+const candidateCount = registry.rules.filter(r => r.status === 'candidate').length;
+console.log(`\nOK: ${activeCount} aktive regler, ${candidateCount} kandidatregel/-regler og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
