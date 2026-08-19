@@ -39,7 +39,7 @@ export function createPaymentHandlers({ services, gateway = null, checkoutConsen
             requirement
           });
         } catch (error) {
-          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state'].includes(error?.code)) {
+          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state','checkout_delivery_email_invalid'].includes(error?.code)) {
             throw new ApiError(409, error.code, error.message);
           }
           throw error;
