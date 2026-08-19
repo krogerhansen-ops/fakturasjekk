@@ -10,6 +10,27 @@ const services = {
     return { case_id, amount_minor: 2900, amount_nok: 29, currency: 'NOK', description: 'Full fakturasjekk + utkast til innsigelse' };
   }
 };
+let consentCalls = 0;
+const checkoutConsentService = {
+  async acceptForPaymentSession({ case_id, owner_id, consent, requirement }) {
+    consentCalls += 1;
+    assert.equal(case_id, 'case-1');
+    assert.equal(owner_id, 'u1');
+    assert.equal(requirement.amount_minor, 2900);
+    assert.equal(consent.payment_obligation_acknowledged, true);
+    assert.equal(consent.immediate_service_start_requested, true);
+    assert.equal(consent.withdrawal_loss_on_full_performance_acknowledged, true);
+    return {
+      checkout_consent_id: 'checkout-1',
+      confirmation: {
+        version: 1,
+        case_id,
+        product: { name: 'Full Fakturasjekk + utkast til innsigelse', amount_nok: 29, currency: 'NOK' },
+        acknowledgements: { payment_obligation: true, immediate_service_start: true, withdrawal_loss_on_full_performance: true }
+      }
+    };
+  }
+};
 let sessionCalls = 0;
 const paymentGateway = {
   async createSession({ case_id, owner_id, requirement }) {
@@ -32,6 +53,7 @@ const api = createApi({
   paymentGateway,
   paymentWebhookService,
   paymentProviderName: 'dev-pay',
+  checkoutConsentService,
   allowedReturnOrigins: ['https://fakturasjekk.no']
 });
 const authAdapter = createDevelopmentAuthAdapter({ users: { token12345: { id: 'u1' } } });
@@ -43,15 +65,27 @@ try {
   const unauth = await fetch(`${base}/v1/cases/case-1/payment/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   assert.equal(unauth.status, 401);
   assert.equal(sessionCalls, 0);
+  assert.equal(consentCalls, 0);
 
   const checkout = await fetch(`${base}/v1/cases/case-1/payment/session`, {
     method: 'POST',
     headers: { authorization: 'Bearer token12345', 'content-type': 'application/json', origin: 'https://fakturasjekk.no' },
-    body: JSON.stringify({ return_url: 'https://fakturasjekk.no/min-sak' })
+    body: JSON.stringify({
+      return_url: 'https://fakturasjekk.no/min-sak',
+      checkout_consent: {
+        payment_obligation_acknowledged: true,
+        immediate_service_start_requested: true,
+        withdrawal_loss_on_full_performance_acknowledged: true
+      }
+    })
   });
   assert.equal(checkout.status, 201);
   assert.equal(sessionCalls, 1);
-  assert.equal((await checkout.json()).checkout_url, 'https://pay.example/checkout');
+  assert.equal(consentCalls, 1);
+  const checkoutBody = await checkout.json();
+  assert.equal(checkoutBody.checkout_url, 'https://pay.example/checkout');
+  assert.equal(checkoutBody.checkout_consent_id, 'checkout-1');
+  assert.equal(checkoutBody.agreement_confirmation.product.amount_nok, 29);
 
   const raw = '{"signature":"abc","amount_minor":2900,"note":"spacing stays"}';
   const webhook = await fetch(`${base}/v1/webhooks/payment/dev-pay`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: raw });
@@ -62,4 +96,4 @@ try {
   await new Promise(resolve => server.close(resolve));
 }
 
-console.log('OK payment runtime boundary');
+console.log('OK payment runtime requires checkout consent before creating provider session');
