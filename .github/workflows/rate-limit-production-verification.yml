@@ -18,11 +18,7 @@ env:
 
 jobs:
   concurrency:
-    if: >-
-      ${{
-        (github.event_name == 'pull_request' && startsWith(github.head_ref, 'verify/rate-limit-live-')) ||
-        (github.event_name == 'workflow_dispatch' && inputs.confirm_project_ref == 'jxmkaxwflouacuboaetg')
-      }}
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'verify/rate-limit-live-')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -33,6 +29,16 @@ jobs:
       PGSSLMODE: require
       PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
+      - name: Refuse wrong manual project confirmation
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirm_project_ref }}" != "${EXPECTED_PROJECT_REF}" ]]; then
+            echo 'Project confirmation does not match dedicated Fakturasjekk production project.' >&2
+            exit 2
+          fi
+
       - name: Require dedicated project secret
         shell: bash
         run: |
