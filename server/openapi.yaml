@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Fakturasjekk API
-  version: 0.50.0
+  version: 0.73.0
   description: API for Fakturasjekk.no. Full fakturasjekk + innsigelsesutkast costs NOK 29. Payment access is granted only after a server-verified provider webhook.
 servers:
   - url: https://api.fakturasjekk.no
@@ -153,25 +153,29 @@ paths:
                   currency: { type: string, const: NOK }
   /v1/cases/{case_id}/payment/session:
     post:
-      summary: Opprett checkout hos betalingsleverandør
-      description: Klienten kan starte betaling, men kan aldri bekrefte betalingsstatus selv.
+      summary: Registrer checkout-samtykke og opprett checkout hos betalingsleverandør
+      description: Serveren krever versjonsbundet, uttrykkelig betalings-/oppstarts-/angrerettsamtykke før provider-session opprettes. Klienten kan aldri bekrefte betalingsstatus selv.
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [checkout_consent]
+              additionalProperties: false
               properties:
                 return_url: { type: string, format: uri }
+                checkout_consent: { $ref: '#/components/schemas/CheckoutConsent' }
       responses:
         '201':
-          description: Checkout opprettet
+          description: Samtykke registrert og checkout opprettet. agreement_confirmation_payload er ikke i seg selv dokumentasjon på levering på varig medium.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PaymentSession' }
+        '409': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
   /v1/webhooks/payment/{provider}:
     post:
@@ -300,13 +304,49 @@ components:
         source_document_id: { type: string, maxLength: 128 }
         source_page: { type: integer, minimum: 1, maximum: 10000 }
         confirmed_by_user: { type: boolean, const: true }
+    CheckoutConsent:
+      type: object
+      additionalProperties: false
+      required:
+        - checkout_policy_version
+        - terms_version
+        - privacy_notice_version
+        - withdrawal_information_version
+        - payment_obligation_acknowledged
+        - immediate_service_start_requested
+        - withdrawal_loss_on_full_performance_acknowledged
+      properties:
+        checkout_policy_version: { type: string, maxLength: 100 }
+        terms_version: { type: string, maxLength: 100 }
+        privacy_notice_version: { type: string, maxLength: 100 }
+        withdrawal_information_version: { type: string, maxLength: 100 }
+        payment_obligation_acknowledged: { type: boolean, const: true }
+        immediate_service_start_requested: { type: boolean, const: true }
+        withdrawal_loss_on_full_performance_acknowledged: { type: boolean, const: true }
+    AgreementConfirmationPayload:
+      type: object
+      required: [version, durable_medium_delivered, case_id, seller, product, versions, acknowledgements, payment_button_label]
+      properties:
+        version: { type: integer, const: 1 }
+        durable_medium_delivered: { type: boolean, const: false }
+        case_id: { type: string }
+        seller: { type: object, additionalProperties: true }
+        product: { type: object, additionalProperties: true }
+        versions: { type: object, additionalProperties: { type: string } }
+        acknowledgements: { type: object, additionalProperties: { type: boolean } }
+        payment_button_label: { type: string }
+        withdrawal_notice: { type: [string, 'null'] }
+        immediate_start_request: { type: [string, 'null'] }
+        payment_obligation_notice: { type: [string, 'null'] }
     PaymentSession:
       type: object
-      required: [provider, checkout_url]
+      required: [provider, checkout_url, checkout_consent_id, agreement_confirmation_payload]
       properties:
         provider: { type: string }
         checkout_url: { type: string, format: uri }
         expires_at: { type: [string, 'null'], format: date-time }
+        checkout_consent_id: { type: string }
+        agreement_confirmation_payload: { $ref: '#/components/schemas/AgreementConfirmationPayload' }
     ErrorResponse:
       type: object
       required: [error]
