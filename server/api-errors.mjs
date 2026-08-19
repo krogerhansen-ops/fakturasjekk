@@ -29,6 +29,7 @@ export function apiErrorResponse(error, requestId = null) {
 export function mapServiceError(error) {
   const message = String(error?.message ?? '');
   if (error?.code === 'legal_review_required' || /legal rule registry requires review/i.test(message)) return new ApiError(503, 'legal_review_required', 'Regelgrunnlaget må kontrolleres før saken kan analyseres eller vises.');
+  if (error?.code === 'agreement_confirmation_not_delivered') return new ApiError(409, 'agreement_confirmation_not_delivered', 'Kjøpsbekreftelsen må være levert før fullresultatet kan åpnes.');
   if (/no fact confirmation is currently required/i.test(message)) return new ApiError(409, 'fact_confirmation_not_required', 'Saken har ingen åpne felt som skal bekreftes nå.');
   if (/not found|does not exist|owner|owned|access|forbidden/i.test(message)) return new ApiError(404, 'case_not_found', 'Saken finnes ikke.');
   if (/locked until verified 29 NOK payment/i.test(message)) return new ApiError(402, 'payment_required', 'Fullresultatet krever verifisert betaling på 29 kr.');
