@@ -138,13 +138,13 @@ export function projectFullResult(result, registry) {
   };
   assertNoPrivateFields(projected);
   const text = JSON.stringify(projected);
-  if (/HTJL_|FKJL_|POF_|BOF_|INK_|ESTIMATE_ABOVE_|HANDCRAFT_INVOICE_FEE|GOODS_INVOICE_FEE/.test(text)) throw new Error('Internal rule/finding code leaked to customer result.');
+  if (/HTJL_|FKJL_|MFL_|POF_|BOF_|INK_|ESTIMATE_ABOVE_|HANDCRAFT_INVOICE_FEE|GOODS_INVOICE_FEE/.test(text)) throw new Error('Internal rule/finding code leaked to customer result.');
   return projected;
 }
 
 export function assertNoPrivateFields(value) {
   const text = JSON.stringify(value ?? {});
-  const forbidden = ['storage_key', 'provider_reference', 'structured_response', 'raw_text', 'finding_code'];
+  const forbidden = ['storage_key', 'provider_reference', 'structured_response', 'raw_text', 'finding_code', 'rule_package'];
   for (const key of forbidden) {
     if (text.includes(`\"${key}\"`)) throw new Error(`Private field leaked: ${key}`);
   }
