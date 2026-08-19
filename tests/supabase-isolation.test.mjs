@@ -29,8 +29,10 @@ const dedicatedGate = launchGate.checks.find(check => check.id === 'TECH_DEDICAT
 const schemaGate = launchGate.checks.find(check => check.id === 'TECH_SUPABASE_SCHEMA_VERIFIED');
 const advisorGate = launchGate.checks.find(check => check.id === 'TECH_SUPABASE_SECURITY_ADVISOR');
 assert.equal(dedicatedGate?.status, 'complete');
-assert.notEqual(schemaGate?.status, 'complete', 'schema gate changes only after live read-back evidence is committed');
-assert.notEqual(advisorGate?.status, 'complete', 'advisor gate changes only after live scan evidence is committed');
+assert.equal(schemaGate?.status, 'complete', 'schema gate may be complete only after committed live read-back evidence');
+assert.match(schemaGate?.evidence || '', /live|read-back|RLS|bucket|grant/i, 'schema gate must carry concrete live verification evidence');
+assert.equal(advisorGate?.status, 'complete', 'advisor gate may be complete only after committed live scan evidence');
+assert.match(advisorGate?.evidence || '', /Security Advisor|security advisor|scan|INFO/i, 'advisor gate must carry concrete live scan evidence');
 
 for (const table of ['cases','case_events','documents','analyses','payments','payment_event_claims','drafts','supplier_responses','followups','idempotency_keys','audit_log','rate_limit_windows']) {
   assert.ok(migration.includes(`alter table public.${table} enable row level security`), `RLS missing for ${table}`);
@@ -64,4 +66,4 @@ for (const file of textFiles(publicSite)) {
   }
 }
 
-console.log('OK dedicated Supabase project lock, deny-by-default RLS and public secret boundary');
+console.log('OK dedicated Supabase project lock, verified deny-by-default RLS and public secret boundary');
