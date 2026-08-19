@@ -1,4 +1,11 @@
-export function createPaymentWebhookService({ caseStore, services, gateway, eventStore, audit = null } = {}) {
+export function createPaymentWebhookService({
+  caseStore,
+  services,
+  gateway,
+  eventStore,
+  agreementConfirmationService = null,
+  audit = null
+} = {}) {
   if (!caseStore?.getForSystem) throw new Error('Case store requires getForSystem for payment webhooks.');
   if (!services?.confirmPayment) throw new Error('Backend services require confirmPayment.');
   if (!gateway?.verifyEvent) throw new Error('Payment gateway requires verifyEvent.');
@@ -33,8 +40,6 @@ export function createPaymentWebhookService({ caseStore, services, gateway, even
 
     if (claim.status === 'conflict') {
       await record({ confirmation, action: 'payment.webhook_replay_conflict', outcome: 'rejected', metadata: { status: 'provider_reference_conflict' } });
-      // The webhook is authentic but cannot mutate any case. Acknowledge it so the
-      // provider does not retry the same permanent conflict for days.
       return { accepted: true, paid: false, duplicate: false, conflict: true };
     }
 
@@ -45,19 +50,36 @@ export function createPaymentWebhookService({ caseStore, services, gateway, even
         await record({ confirmation, action: 'payment.authorization', outcome: 'rejected', metadata: { reason: 'amount_or_currency_mismatch' } });
         return { accepted: true, paid: false, duplicate, capture_requested: false };
       }
-      // Capture is provider-idempotent. We intentionally repeat this call on a
-      // duplicate authenticated webhook so a transient failure after event claim can recover.
       const capture = await gateway.captureAuthorized({ confirmation });
       await record({ confirmation, action: 'payment.capture_requested', outcome: capture?.captured ? 'success' : 'rejected', metadata: { duplicate } });
       return { accepted: true, paid: false, duplicate, capture_requested: capture?.captured === true };
     }
 
     if (confirmation.status === 'paid' && confirmation.operation_success === true) {
-      // confirmPayment is idempotent by provider reference. Reprocessing a signed
-      // duplicate is deliberate so a transient database failure can recover.
       const result = await services.confirmPayment({ case_id: confirmation.case_id, owner_id: caseData.owner_id, confirmation });
-      await record({ confirmation, outcome: result.paid ? 'success' : 'rejected', metadata: { duplicate } });
-      return { accepted: true, paid: result.paid === true, duplicate };
+      let durableConfirmation = null;
+      if (result.paid === true && agreementConfirmationService?.sendForPaidCase) {
+        // This side effect is deliberately part of the webhook success path. If the
+        // provider call fails, the payment webhook is not acknowledged so a signed
+        // retry can recover. sendForPaidCase is itself idempotent at case/provider level.
+        durableConfirmation = await agreementConfirmationService.sendForPaidCase({ case_id: confirmation.case_id });
+      }
+      await record({
+        confirmation,
+        outcome: result.paid ? 'success' : 'rejected',
+        metadata: {
+          duplicate,
+          agreement_confirmation_sent: durableConfirmation?.sent === true,
+          agreement_confirmation_delivered: durableConfirmation?.delivered === true
+        }
+      });
+      return {
+        accepted: true,
+        paid: result.paid === true,
+        duplicate,
+        agreement_confirmation_sent: durableConfirmation?.sent === true,
+        agreement_confirmation_delivered: durableConfirmation?.delivered === true
+      };
     }
 
     await record({ confirmation, outcome: 'acknowledged', metadata: { duplicate, reason: 'non_payable_event' } });
