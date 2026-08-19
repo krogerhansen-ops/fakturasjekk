@@ -31,12 +31,29 @@ function requestForFinding(finding) {
       return 'Jeg ber om en forklaring på hvorfor de identiske linjene er ført flere ganger, og om korrigering dersom dette er en dobbeltføring.';
     case 'ESTIMATE_ABOVE_15_CONTROL':
       return 'Jeg ber om en spesifisert redegjørelse for hvilke tilleggsarbeider eller andre forhold som forklarer prisøkningen, og dokumentasjon på grunnlaget for eventuelle pristillegg.';
+    case 'HANDCRAFT_PRICE_INCREASE_NO_NOTICE':
+      return 'Jeg ber om dokumentasjon på når prisøkningen ble kjent, når jeg ble kontaktet om den, og hvilket prisgrunnlag som gjaldt før arbeidet fortsatte.';
+    case 'ADDITIONAL_WORK_NO_DOCUMENTED_AUTHORIZATION':
+    case 'ADDITIONAL_WORK_AUTHORIZATION_UNCLEAR':
+      return 'Jeg ber om dokumentasjon på når og hvordan tilleggsarbeidet ble avklart, eksempelvis arbeidsordre, SMS, e-post eller annet avtalegrunnlag.';
+    case 'ADDITIONAL_WORK_PRICE_BASIS_MISSING':
+      return 'Jeg ber om spesifikasjon av prisgrunnlaget for tilleggsarbeidet, herunder arbeid, materialer og eventuelle tillegg.';
+    case 'PRELIMINARY_FEE_NOT_DISCLOSED':
+    case 'PRELIMINARY_FEE_DISCLOSURE_UNCLEAR':
+      return 'Jeg ber om dokumentasjon på hvor og når det ble opplyst at diagnose/forundersøkelse ville medføre betalingsplikt.';
     case 'HANDCRAFT_INVOICE_FEE':
       return 'Jeg ber om at gebyret forklares særskilt og fjernes dersom det ikke kan kreves etter reglene som gjelder for tjenesten.';
     case 'GOODS_INVOICE_FEE':
       return 'Jeg ber om dokumentasjon på hvor i avtalen fakturagebyret klart er avtalt. Hvis dette ikke kan dokumenteres, ber jeg om at gebyret fjernes.';
+    case 'ADDITIONAL_PAYMENT_CONTRADICTS_AGREEMENT':
+    case 'ADDITIONAL_PAYMENT_AGREEMENT_NOT_FOUND':
+      return 'Jeg ber om dokumentasjon på avtalegrunnlaget og mitt uttrykkelige samtykke til den separate tilleggsbetalingen. Dersom dette ikke kan dokumenteres, ber jeg om at posten vurderes på nytt.';
     case 'SERVICE_QUOTE_PRICE_INCREASE':
       return 'Jeg ber om dokumentasjon på når og hvordan prisøkningen ble varslet, hva økningen gjelder, og hvordan beløpet er beregnet.';
+    case 'SERVICE_INVOICE_NOT_ITEMIZED':
+      return 'Jeg ber om en spesifisert regning som gjør det mulig å kontrollere hvilke varer og tjenester som er levert og hvilke priser som er beregnet.';
+    case 'SELLER_IDENTITY_FORMAL_MISMATCH':
+      return 'Jeg ber om at opplysningene om fakturautsteder kontrolleres og at fakturaen korrigeres dersom navn, organisasjonsnummer eller MVA-angivelse er feil.';
     case 'FORMAL_INVOICE_FIELDS':
       return 'Jeg ber om at de manglende eller uklare fakturaopplysningene rettes eller presiseres. Dette er et eget kontrollpunkt og innebærer ikke i seg selv at hovedkravet bortfaller.';
     default:
@@ -96,7 +113,7 @@ export function buildDraft({ analysis, registry, invoice_reference = '', user_no
 
   const text = lines.join('\n');
 
-  if (/\b(?:HTJL|FKJL|POF|BOF|INK)_[A-Z0-9_]+\b/.test(text)) {
+  if (/\b(?:HTJL|FKJL|MFL|POF|BOF|INK)_[A-Z0-9_]+\b/.test(text)) {
     throw new Error('Internal rule id leaked into customer draft');
   }
 

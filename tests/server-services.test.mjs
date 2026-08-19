@@ -12,7 +12,9 @@ const retentionPolicy = JSON.parse(fs.readFileSync(new URL('../config/retention-
 const db = new Map();
 let seq = 0;
 let time = 0;
-const clock = () => `2026-08-18T14:${String(time++).padStart(2, '0')}:00.000Z`;
+// Keep the synthetic service clock on or after the newest rule verification date.
+// The runtime must continue to reject rules whose verification date is in the future.
+const clock = () => `2026-08-19T14:${String(time++).padStart(2, '0')}:00.000Z`;
 
 const caseStore = {
   async nextId(prefix) { return `${prefix}-${++seq}`; },
@@ -93,7 +95,7 @@ const payment = await services.confirmPayment({
     provider: 'mock-pay',
     provider_reference: 'pay-001',
     verified_server_side: true,
-    paid_at: '2026-08-18T15:00:00.000Z'
+    paid_at: '2026-08-19T15:00:00.000Z'
   }
 });
 assert.equal(payment.paid, true);
@@ -102,7 +104,7 @@ assert.equal(payment.case.state, 'paid');
 const full = await services.getFullResult({ case_id: c.id, owner_id: owner });
 assert.equal(full.status, 'attention');
 assert.equal(full.draft.allowed, true);
-assert.equal(/HTJL_|FKJL_|POF_|BOF_|INK_/.test(full.draft.text), false);
+assert.equal(/HTJL_|FKJL_|MFL_|POF_|BOF_|INK_/.test(full.draft.text), false);
 
 const savedDraft = await services.saveGeneratedDraft({ case_id: c.id, owner_id: owner });
 assert.equal(savedDraft.case.state, 'draft_ready');
@@ -127,7 +129,7 @@ assert.equal(response.review.status, 'follow_up_recommended');
 assert.equal(response.follow_up.allowed, true);
 assert.equal(response.case.state, 'follow_up_ready');
 
-const retention = await services.retentionStatus({ case_id: c.id, owner_id: owner, now: '2026-08-19T20:00:00.000Z' });
+const retention = await services.retentionStatus({ case_id: c.id, owner_id: owner, now: '2026-08-20T20:00:00.000Z' });
 assert.ok(retention.retention.source_documents_delete_at);
 
 await assert.rejects(() => services.getFullResult({ case_id: c.id, owner_id: 'wrong-user' }), /Forbidden/);
