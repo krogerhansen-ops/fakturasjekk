@@ -23,6 +23,15 @@ jobs:
           node-version: '22'
       - name: Run all Fakturasjekk tests
         run: npm test
+      - name: Actionlint live verification workflow
+        if: startsWith(github.head_ref, 'verify/rate-limit-live-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GOBIN="$RUNNER_TEMP/bin"
+          mkdir -p "$GOBIN"
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$GOBIN/actionlint" .github/workflows/rate-limit-production-verification.yml
       - name: Diagnose registered live verification workflow
         if: startsWith(github.head_ref, 'verify/rate-limit-live-')
         env:
