@@ -7,6 +7,7 @@ import {
   createSupabaseAtomicCounterStore
 } from './supabase-data-adapters.mjs';
 import { createSupabaseAuthAdapter } from './supabase-auth-adapter.mjs';
+import { createSupabaseStorageProvider } from './supabase-storage-provider.mjs';
 import { createDistributedRateLimiter } from './distributed-rate-limit.mjs';
 
 const EXPECTED_PROJECT_REF = 'jxmkaxwflouacuboaetg';
@@ -66,6 +67,7 @@ export function createSupabaseEdgePlatformAdapters({
   const counterStore = createSupabaseAtomicCounterStore({ rest });
   const rateLimiter = createDistributedRateLimiter({ counterStore });
   const authAdapter = createSupabaseAuthAdapter({ supabaseUrl, publishableKey, fetchImpl });
+  const storageProvider = createSupabaseStorageProvider({ supabaseUrl, secretKey, fetchImpl });
 
   return {
     caseStore,
@@ -73,7 +75,8 @@ export function createSupabaseEdgePlatformAdapters({
     paymentEventStore,
     auditAdapter,
     rateLimiter,
-    authAdapter
+    authAdapter,
+    storageProvider
   };
 }
 
