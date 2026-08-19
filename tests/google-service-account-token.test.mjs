@@ -85,8 +85,9 @@ assert.throws(() => createGoogleServiceAccountTokenProvider({
   fetchImpl
 }), /official OAuth token endpoint/i);
 
-assert.throws(() => createGoogleServiceAccountTokenProvider({
+const malformed = createGoogleServiceAccountTokenProvider({
   credentials: { client_email: 'x@y.iam.gserviceaccount.com', private_key: 'not-a-pem' }, fetchImpl
-}), /PKCS#8 PEM|BEGIN PRIVATE KEY/i);
+});
+await assert.rejects(() => malformed.getAccessToken(), /PKCS#8 PEM|BEGIN PRIVATE KEY/i);
 
 console.log('OK Google service-account fallback issues a signed one-hour JWT assertion and caches short-lived access tokens');
