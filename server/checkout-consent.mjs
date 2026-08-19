@@ -3,6 +3,16 @@ function requireString(value, name) {
   return value.trim();
 }
 
+function normalizeDeliveryEmail(value) {
+  const email = requireString(value, 'Agreement confirmation email').toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const error = new Error('Agreement confirmation email is invalid.');
+    error.code = 'checkout_delivery_email_invalid';
+    throw error;
+  }
+  return email;
+}
+
 export function checkoutReadiness(policy = {}) {
   const seller = policy.seller ?? {};
   const missingSeller = ['legal_name','postal_address','support_email','privacy_email'].filter(key => !seller[key]);
@@ -32,6 +42,7 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
     throw error;
   }
 
+  const delivery_email = normalizeDeliveryEmail(consent?.delivery_email);
   const requiredTrue = ['payment_obligation_acknowledged','immediate_service_start_requested','withdrawal_loss_on_full_performance_acknowledged'];
   const missing = requiredTrue.filter(key => consent?.[key] !== true);
   if (missing.length) {
@@ -59,6 +70,7 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
   return {
     valid: true,
     ...expectedVersions,
+    delivery_email,
     product_name: policy.product.name,
     amount_minor: Number(policy.product.amount_minor),
     currency: policy.product.currency,
