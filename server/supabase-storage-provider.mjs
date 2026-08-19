@@ -41,11 +41,11 @@ function encodeBucket(bucket) {
 }
 
 function providerHeaders(secretKey, extra = {}) {
-  return {
-    authorization: `Bearer ${secretKey}`,
-    apikey: secretKey,
-    ...extra
-  };
+  const headers = { apikey: secretKey, ...extra };
+  // New sb_secret_* keys are API keys, not JWTs, and must not be sent as Bearer tokens.
+  // Legacy service_role JWTs are retained only as a backwards-compatible fallback.
+  if (/^eyJ/i.test(secretKey)) headers.authorization = `Bearer ${secretKey}`;
+  return headers;
 }
 
 async function readJson(response, label) {
