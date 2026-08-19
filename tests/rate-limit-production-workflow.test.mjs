@@ -18,6 +18,8 @@ assert.match(workflow, /test "\$unique_pids" = '12'/);
 assert.match(workflow, /test "\$final_count" = '12'/);
 assert.match(workflow, /delete from public\.rate_limit_windows/);
 assert.match(workflow, /fakturasjekk:launch:concurrency:/);
+assert.match(workflow, /sql="with sync as/);
+assert.equal(workflow.includes("<<'SQL'"), false, 'Production verification workflow must avoid YAML-breaking shell heredocs.');
 
 for (const forbidden of [
   /service_role/i,
@@ -34,4 +36,4 @@ for (const forbidden of [
   assert.equal(forbidden.test(workflow), false, `Forbidden production-verification capability matched: ${forbidden}`);
 }
 
-console.log('OK production rate-limit verification workflow is project-bound, synthetic and non-DDL.');
+console.log('OK production rate-limit verification workflow is project-bound, synthetic, non-DDL and heredoc-free.');
