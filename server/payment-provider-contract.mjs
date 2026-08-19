@@ -36,9 +36,12 @@ export function createPaymentProviderGateway({ provider, product, allowed_provid
     if (!verified?.case_id || !verified?.provider_reference) throw new ApiError(400, 'invalid_payment_event', 'Betalingshendelsen mangler nødvendig saksreferanse.');
     return {
       case_id: verified.case_id,
+      payment_reference: verified.payment_reference ?? null,
       amount_minor: Number(verified.amount_minor),
       currency: verified.currency,
       status: verified.status,
+      event_name: verified.event_name ?? null,
+      operation_success: verified.operation_success !== false,
       provider: provider.name,
       provider_reference: verified.provider_reference,
       verified_server_side: true,
@@ -46,7 +49,28 @@ export function createPaymentProviderGateway({ provider, product, allowed_provid
     };
   }
 
-  return { provider_name: provider.name, createSession, verifyEvent };
+  async function captureAuthorized({ confirmation }) {
+    if (!provider?.capturePayment) throw new Error('Payment provider does not support server-side capture.');
+    if (confirmation?.status !== 'authorized' || confirmation?.operation_success !== true) {
+      throw new Error('Only a successful authorized payment can be captured.');
+    }
+    if (Number(confirmation.amount_minor) !== 2900 || confirmation.currency !== 'NOK') {
+      throw new Error('Authorized payment does not match the 29 NOK product.');
+    }
+    return provider.capturePayment({
+      case_id: confirmation.case_id,
+      payment_reference: confirmation.payment_reference,
+      amount_minor: 2900,
+      currency: 'NOK'
+    });
+  }
+
+  async function pollPayment({ case_id }) {
+    if (!provider?.getPayment) throw new Error('Payment provider does not support payment polling.');
+    return provider.getPayment({ case_id });
+  }
+
+  return { provider_name: provider.name, createSession, verifyEvent, captureAuthorized, pollPayment };
 }
 
 export function createDevelopmentPaymentProvider({ name = 'dev-pay' } = {}) {
@@ -65,10 +89,13 @@ export function createDevelopmentPaymentProvider({ name = 'dev-pay' } = {}) {
       return {
         signature_valid: event?.signature === 'dev-valid-signature',
         case_id: event?.case_id,
+        payment_reference: event?.payment_reference ?? null,
         provider_reference: event?.provider_reference,
         amount_minor: event?.amount_minor,
         currency: event?.currency,
         status: event?.status,
+        event_name: event?.event_name ?? null,
+        operation_success: event?.operation_success !== false,
         paid_at: event?.paid_at
       };
     }

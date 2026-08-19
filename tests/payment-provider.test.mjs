@@ -51,12 +51,12 @@ assert.equal(confirmCalls, 1);
 const duplicate = await webhookService.process({ headers: {}, raw_body: JSON.stringify(event) });
 assert.equal(duplicate.accepted, true);
 assert.equal(duplicate.duplicate, true);
-assert.equal(confirmCalls, 1, 'same provider event must not confirm payment twice');
+assert.equal(confirmCalls, 2, 'signed duplicate is reprocessed through idempotent confirmation so transient post-claim failures can recover');
 
-await assert.rejects(
-  () => webhookService.process({ headers: {}, raw_body: JSON.stringify({ ...event, case_id: 'case-2' }) }),
-  error => error?.code === 'payment_reference_conflict'
-);
-assert.equal(confirmCalls, 1);
+const conflict = await webhookService.process({ headers: {}, raw_body: JSON.stringify({ ...event, case_id: 'case-2' }) });
+assert.equal(conflict.accepted, true, 'authentic permanent conflicts are acknowledged to prevent provider retry storms');
+assert.equal(conflict.paid, false);
+assert.equal(conflict.conflict, true);
+assert.equal(confirmCalls, 2, 'conflicted event must not mutate the other case');
 
-console.log('OK secure payment provider boundary');
+console.log('OK secure retry-safe payment provider boundary');

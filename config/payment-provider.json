@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "provider_target": "vipps_epayment",
+  "provider_name": "vipps",
+  "currency": "NOK",
+  "amount_minor": 2900,
+  "amount_nok": 29,
+  "payment_method": "WALLET",
+  "user_flow": "WEB_REDIRECT",
+  "payment_reference_prefix": "fsk-",
+  "server_verified_only": true,
+  "authorization_unlocks_result": false,
+  "capture_after_authorization": true,
+  "full_capture_required_before_unlock": true,
+  "captured_amount_required_minor": 2900,
+  "capture_idempotent": true,
+  "create_idempotent": true,
+  "webhook": {
+    "raw_body_required": true,
+    "hmac_sha256_required": true,
+    "content_sha256_required": true,
+    "merchant_serial_number_must_match": true,
+    "acknowledge_valid_nonpayable_events": true,
+    "polling_fallback_required_before_live": true
+  },
+  "accepted_event_names": [
+    "CREATED",
+    "AUTHORIZED",
+    "CAPTURED",
+    "CANCELLED",
+    "REFUNDED",
+    "ABORTED",
+    "EXPIRED",
+    "TERMINATED"
+  ],
+  "event_that_grants_access": "CAPTURED",
+  "credentials_browser_visible": false
+}
