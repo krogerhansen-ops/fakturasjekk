@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const migration = fs.readFileSync(new URL('../supabase/migrations/20260819202000_cross_reference_owner_integrity.sql', import.meta.url), 'utf8');
+const migration = fs.readFileSync(new URL('../supabase/migrations/20260819201018_cross_reference_owner_integrity.sql', import.meta.url), 'utf8');
 
 for (const unique of [
   ['analyses', 'analyses_id_case_owner_key'],
@@ -17,7 +17,6 @@ const relations = [
     constraint: 'drafts_analysis_case_owner_fkey',
     local: 'analysis_id',
     target: 'analyses',
-    targetKey: 'analysis_id',
     index: 'idx_drafts_analysis_case_owner'
   },
   {
@@ -25,7 +24,6 @@ const relations = [
     constraint: 'supplier_responses_document_case_owner_fkey',
     local: 'document_id',
     target: 'documents',
-    targetKey: 'document_id',
     index: 'idx_supplier_responses_document_case_owner'
   },
   {
@@ -33,7 +31,6 @@ const relations = [
     constraint: 'followups_supplier_response_case_owner_fkey',
     local: 'supplier_response_id',
     target: 'supplier_responses',
-    targetKey: 'supplier_response_id',
     index: 'idx_followups_supplier_response_case_owner'
   }
 ];
