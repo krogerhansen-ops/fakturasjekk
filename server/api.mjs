@@ -2,6 +2,7 @@ import { apiErrorResponse, mapServiceError, ApiError } from './api-errors.mjs';
 import { createCaseHandlers } from './case-handlers.mjs';
 import { createFactConfirmationHandlers } from './fact-confirmation-handlers.mjs';
 import { createPaymentHandlers, createPaymentWebhookHandler } from './payment-handlers.mjs';
+import { createAgreementConfirmationHandlers } from './agreement-confirmation-handlers.mjs';
 import { createManagementHandlers } from './management-handlers.mjs';
 import { createSystemHandlers } from './system-handlers.mjs';
 import { createSupplierResponseHandlers } from './supplier-response-handlers.mjs';
@@ -15,6 +16,8 @@ export function createApi({
   paymentWebhookService = null,
   paymentProviderName = null,
   checkoutConsentService = null,
+  agreementConfirmationService = null,
+  agreementConfirmationProviderName = 'brevo',
   allowedReturnOrigins = [],
   readiness = null,
   version = null,
@@ -28,6 +31,7 @@ export function createApi({
     ...createSupplierResponseHandlers({ supplierResponseService, idempotency }),
     ...createPaymentHandlers({ services, gateway: paymentGateway, checkoutConsentService, idempotency, allowedReturnOrigins }),
     ...(paymentWebhookService ? createPaymentWebhookHandler({ webhookService: paymentWebhookService, expectedProvider: paymentProviderName }) : {}),
+    ...(agreementConfirmationService ? createAgreementConfirmationHandlers({ service: agreementConfirmationService, expectedProvider: agreementConfirmationProviderName }) : {}),
     ...(management ? createManagementHandlers({ management, idempotency }) : {})
   };
 
