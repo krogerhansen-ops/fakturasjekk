@@ -1,5 +1,5 @@
 {
-  "version": "0.65.0",
+  "version": "0.66.0",
   "fields": {
     "invoice_number": { "type": "string", "critical": true, "roles": ["invoice"] },
     "invoice_total": { "type": "number", "critical": true, "roles": ["invoice"] },
@@ -22,7 +22,13 @@
     "invoice_fee_agreed": { "type": "boolean", "critical": false, "roles": ["quote", "agreement", "order_confirmation"] },
     "surcharge_documented": { "type": "boolean", "critical": false, "roles": ["agreement", "quote", "correspondence", "other"] },
     "price_increase_after_start": { "type": "boolean", "critical": false, "roles": ["correspondence", "invoice", "quote"] },
-    "customer_notified": { "type": "boolean", "critical": false, "roles": ["correspondence", "quote", "agreement"] },
+    "customer_notified": { "type": "boolean", "critical": false, "roles": ["correspondence", "quote", "agreement"], "instruction": "Varsling må fremgå eksplisitt av kilden; ikke bruk faktura alene som bevis på at kunden ble varslet." },
+    "additional_work_detected": { "type": "boolean", "critical": false, "roles": ["invoice", "agreement", "quote", "correspondence", "other"], "positive_only": true, "instruction": "Returner bare true når kilden eksplisitt identifiserer tilleggsarbeid, ekstraarbeid, endringsarbeid eller tilsvarende. Utelat feltet ved usikkerhet." },
+    "additional_work_amount": { "type": "number", "critical": true, "roles": ["invoice"], "instruction": "Beløp som eksplisitt gjelder identifisert tilleggs-/endringsarbeid på fakturaen. Utelat dersom beløpet ikke kan skilles sikkert fra hovedarbeidet." },
+    "additional_work_authorization_documented": { "type": "boolean", "critical": false, "roles": ["agreement", "order_confirmation", "correspondence", "other"], "positive_only": true, "instruction": "Returner bare true når kilden uttrykkelig dokumenterer at det konkrete tilleggsarbeidet ble avklart/godkjent. Fravær av dokumentasjon er ikke false." },
+    "additional_work_price_documented": { "type": "boolean", "critical": false, "roles": ["agreement", "order_confirmation", "correspondence", "other"], "positive_only": true, "instruction": "Returner bare true når pris eller prisgrunnlag for det konkrete tilleggsarbeidet er dokumentert i kilden. Fravær av dokumentasjon er ikke false." },
+    "preliminary_examination_fee": { "type": "number", "critical": true, "roles": ["invoice"], "instruction": "Beløp som eksplisitt gjelder diagnose, feilsøking, forundersøkelse eller tilsvarende forberedende undersøkelse." },
+    "preliminary_fee_disclosed_beforehand": { "type": "boolean", "critical": false, "roles": ["quote", "agreement", "order_confirmation", "correspondence", "other"], "positive_only": true, "instruction": "Returner bare true når kilden uttrykkelig viser at betalingsplikt for diagnose/forundersøkelse ble opplyst eller tatt forbehold om før arbeidet. Fravær er ikke false." },
     "missing_formal_fields": { "type": "string_array", "critical": false, "roles": ["invoice"], "legacy": true }
   },
   "line_item_shape": {
@@ -38,7 +44,9 @@
     "Keep invoice lines and agreement/quote lines in separate fields.",
     "Unknown or ambiguous values must be omitted, not guessed.",
     "Every returned field must include source document and page.",
+    "A field may only use a document role explicitly allowlisted for that field.",
     "Boolean values require explicit support in the source; absence of evidence is not automatically false.",
+    "Positive-only boolean fields may only be returned as true; otherwise they must be omitted.",
     "Legacy fields remain temporarily allowlisted only for backwards-compatible synthetic tests and must not replace invoice_lines/agreement_lines in new production extraction."
   ]
 }

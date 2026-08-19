@@ -1,10 +1,12 @@
 {
-  "version": "0.31.0",
+  "version": "0.32.0",
   "critical_fields": [
     "invoice_total",
     "agreed_price",
     "invoice_fee",
-    "invoice_number"
+    "invoice_number",
+    "additional_work_amount",
+    "preliminary_examination_fee"
   ],
   "min_confidence": {
     "critical": 0.95,
@@ -17,6 +19,7 @@
     "Every extracted value must retain its document source.",
     "Critical values below confidence threshold require user confirmation or a second extraction pass.",
     "Missing values must remain missing; the extraction layer must not infer a value merely to complete the schema.",
-    "User-confirmed values remain user-confirmed evidence unless the document source is independently verified."
+    "User-confirmed values remain user-confirmed evidence unless the document source is independently verified.",
+    "Legal-triggering amount fields such as additional-work and preliminary-examination amounts use the critical confidence threshold."
   ]
 }
