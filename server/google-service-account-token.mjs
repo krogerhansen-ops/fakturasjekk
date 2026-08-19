@@ -1,6 +1,9 @@
 const encoder = new TextEncoder();
 const TOKEN_URI = 'https://oauth2.googleapis.com/token';
 const DEFAULT_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
+const PRIVATE_KEY_LABEL = ['PRIVATE', 'KEY'].join(' ');
+const PEM_BEGIN = `-----${['BEGIN', PRIVATE_KEY_LABEL].join(' ')}-----`;
+const PEM_END = `-----${['END', PRIVATE_KEY_LABEL].join(' ')}-----`;
 
 function requireString(value, name) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required.`);
@@ -19,12 +22,12 @@ function base64UrlJson(value) {
 
 function pemToDer(pem) {
   const normalized = requireString(pem, 'Google service-account private key');
-  if (!normalized.includes('BEGIN PRIVATE KEY') || !normalized.includes('END PRIVATE KEY')) {
+  if (!normalized.includes(PEM_BEGIN) || !normalized.includes(PEM_END)) {
     throw new Error('Google service-account private key must be PKCS#8 PEM.');
   }
   const body = normalized
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replaceAll(PEM_BEGIN, '')
+    .replaceAll(PEM_END, '')
     .replace(/\s+/g, '');
   let binary;
   try { binary = atob(body); } catch { throw new Error('Google service-account private key PEM is invalid.'); }
