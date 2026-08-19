@@ -1,4 +1,4 @@
-import { normalizeCompanyName, normalizeOrganizationNumber } from '../server/brreg-client.mjs';
+import { normalizeCompanyName, normalizeOrganizationNumber } from './company-normalization.mjs';
 
 function bool(value) {
   return value === true ? true : value === false ? false : null;
@@ -71,8 +71,6 @@ export function compareSellerToRegistry({
     } else if (marker === true && entity.registered_in_vat === true) {
       result.comparison.vat_marker = 'matches';
     } else {
-      // A false/absent marker is not automatically treated as a legal mismatch here.
-      // Absence must be established by a deterministic complete-document check before it can drive a finding.
       result.comparison.vat_marker = 'not_compared';
     }
   }
@@ -87,7 +85,7 @@ export function compareSellerToRegistry({
 }
 
 export async function checkSellerCompany({ client, seller_name = null, seller_org_number = null, seller_mva_marker_present = null } = {}) {
-  if (!client?.lookupByOrganizationNumber || !client?.searchByExactName) throw new Error('Company check requires Brreg-compatible client.');
+  if (!client?.lookupByOrganizationNumber || !client?.searchByExactName) throw new Error('Company check requires registry-compatible client.');
 
   let lookup;
   try {
@@ -99,7 +97,7 @@ export async function checkSellerCompany({ client, seller_name = null, seller_or
       return compareSellerToRegistry({ seller_name, seller_org_number, seller_mva_marker_present, lookup: { status: 'not_checked', entity: null } });
     }
   } catch (error) {
-    lookup = { status: 'unavailable', entity: null, purge_cache: false, error_code: error?.code ?? 'brreg_unavailable' };
+    lookup = { status: 'unavailable', entity: null, purge_cache: false, error_code: error?.code ?? 'registry_unavailable' };
   }
 
   return compareSellerToRegistry({ seller_name, seller_org_number, seller_mva_marker_present, lookup });
