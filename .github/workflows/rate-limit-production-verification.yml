@@ -68,6 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           key="fakturasjekk:launch:concurrency:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}"
+          sql="with sync as (select pg_backend_pid() as pid, clock_timestamp() as started, pg_sleep(3)) select sync.pid, extract(epoch from sync.started), extract(epoch from clock_timestamp()), r.count from sync cross join lateral public.fakturasjekk_increment_rate_limit_window(:'key', 300000) r;"
           cleanup() {
             psql -X -v ON_ERROR_STOP=1 -v key="$key" -c "delete from public.rate_limit_windows where key = :'key';" >/dev/null || true
           }
@@ -78,17 +79,7 @@ jobs:
 
           for i in $(seq 1 12); do
             (
-              psql -X -A -t -F '|' -v ON_ERROR_STOP=1 -v key="$key" <<'SQL' > "/tmp/fakturasjekk-rate-limit/$i.out"
-with sync as (
-  select pg_backend_pid() as pid, clock_timestamp() as started, pg_sleep(3)
-)
-select sync.pid,
-       to_char(sync.started, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-       to_char(clock_timestamp(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-       r.count
-from sync
-cross join lateral public.fakturasjekk_increment_rate_limit_window(:'key', 300000) r;
-SQL
+              psql -X -A -t -F '|' -v ON_ERROR_STOP=1 -v key="$key" -c "$sql" > "/tmp/fakturasjekk-rate-limit/$i.out"
             ) &
           done
           wait
