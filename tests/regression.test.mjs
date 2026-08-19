@@ -15,8 +15,12 @@ for (const rule of registry.rules) {
   assert.match(rule.source_url, /^https:\/\/lovdata\.no\//, `${rule.id}: source must be Lovdata`);
   assert.ok(rule.section, `${rule.id}: section missing`);
   assert.ok(rule.expected_phrase?.length >= 12, `${rule.id}: expected phrase too short`);
-  assert.ok(['active', 'review_required', 'disabled'].includes(rule.status), `${rule.id}: invalid status`);
+  assert.ok(['active', 'candidate', 'review_required', 'disabled'].includes(rule.status), `${rule.id}: invalid status`);
   assert.match(rule.last_verified, /^\d{4}-\d{2}-\d{2}$/, `${rule.id}: last_verified must be YYYY-MM-DD`);
+  if (rule.status === 'candidate') {
+    assert.ok(Array.isArray(rule.conditions) && rule.conditions.length > 0, `${rule.id}: candidate rules must document activation conditions`);
+    assert.match(rule.notes ?? '', /ikke aktiv|ikke brukes|kandidat/i, `${rule.id}: candidate rule must state that it is not active in customer conclusions`);
+  }
 }
 
 const scenarios = [
