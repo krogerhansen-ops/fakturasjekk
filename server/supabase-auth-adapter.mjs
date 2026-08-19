@@ -2,6 +2,7 @@ const EXPECTED_PROJECT_REF = 'jxmkaxwflouacuboaetg';
 const EXPECTED_ORIGIN = `https://${EXPECTED_PROJECT_REF}.supabase.co`;
 const MAX_BEARER_BYTES = 8192;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const encoder = new TextEncoder();
 
 function normalizedOrigin(value, name) {
   let url;
@@ -22,7 +23,7 @@ function validPublishableKey(value) {
 function normalizedBearer(value) {
   if (typeof value !== 'string') return null;
   const token = value.trim();
-  if (!token || Buffer.byteLength(token, 'utf8') > MAX_BEARER_BYTES) return null;
+  if (!token || encoder.encode(token).byteLength > MAX_BEARER_BYTES) return null;
   if (/\s/.test(token)) return null;
   return token;
 }
