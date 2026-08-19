@@ -18,10 +18,27 @@ function validValue(value, definition) {
   }
 }
 
-export function validateExtractorEnvelope(extraction = {}, catalog = {}) {
+function documentRoleMap(documents = []) {
+  return new Map((documents ?? [])
+    .filter(document => document?.id && document?.role)
+    .map(document => [String(document.id), String(document.role)]));
+}
+
+function fieldSpec(name, definition = {}) {
+  const parts = [`${name}: ${definition.type}`];
+  if (Array.isArray(definition.values)) parts.push(`verdier=${definition.values.join('|')}`);
+  if (Array.isArray(definition.roles)) parts.push(`kilderoller=${definition.roles.join('|')}`);
+  if (definition.positive_only === true) parts.push('kun true; utelat hvis true ikke er eksplisitt dokumentert');
+  if (definition.instruction) parts.push(definition.instruction);
+  return `- ${parts.join('; ')}`;
+}
+
+export function validateExtractorEnvelope(extraction = {}, catalog = {}, { documents = [] } = {}) {
   const allowed = catalog.fields ?? {};
   const fields = {};
   const contract_errors = [];
+  const rolesByDocument = documentRoleMap(documents);
+  const enforceDocumentRoles = rolesByDocument.size > 0;
 
   if (!extraction.fields || typeof extraction.fields !== 'object' || Array.isArray(extraction.fields)) {
     return { valid: false, fields: {}, contract_errors: ['Extractor-respons mangler fields-objekt.'] };
@@ -41,9 +58,24 @@ export function validateExtractorEnvelope(extraction = {}, catalog = {}) {
       contract_errors.push(`Extractor-felt ${name} har ugyldig verdi/type.`);
       continue;
     }
+    if (definition.positive_only === true && item.value !== true) {
+      contract_errors.push(`Extractor-felt ${name} er positive-only og kan bare returneres som true.`);
+      continue;
+    }
     if (!item.source_document_id || item.source_page == null) {
       contract_errors.push(`Extractor-felt ${name} mangler dokument-/sidekilde.`);
       continue;
+    }
+    if (enforceDocumentRoles) {
+      const sourceRole = rolesByDocument.get(String(item.source_document_id));
+      if (!sourceRole) {
+        contract_errors.push(`Extractor-felt ${name} peker på ukjent kildedokument.`);
+        continue;
+      }
+      if (Array.isArray(definition.roles) && definition.roles.length && !definition.roles.includes(sourceRole)) {
+        contract_errors.push(`Extractor-felt ${name} kan ikke dokumenteres fra dokumentrollen ${sourceRole}.`);
+        continue;
+      }
     }
     fields[name] = {
       value: item.value,
@@ -62,21 +94,24 @@ export function createValidatedExtractor({ provider, catalog } = {}) {
   return {
     async extract(input) {
       const raw = await provider.extract(input);
-      const checked = validateExtractorEnvelope(raw, catalog);
+      const checked = validateExtractorEnvelope(raw, catalog, { documents: input?.documents ?? [] });
       return { fields: checked.fields, contract_errors: checked.contract_errors };
     }
   };
 }
 
 export function extractorInstructions(catalog = {}) {
-  const fieldNames = Object.keys(catalog.fields ?? {}).join(', ');
+  const specs = Object.entries(catalog.fields ?? {}).map(([name, definition]) => fieldSpec(name, definition));
   return [
     'Returner kun strukturert dokumentfakta. Ikke gjør juridiske vurderinger.',
-    `Tillatte felt: ${fieldNames}.`,
+    'Tillatte felt og kildebegrensninger:',
+    ...specs,
     'Ikke returner felt som ikke står i katalogen.',
     'Ikke gjett manglende eller tvetydige verdier; utelat dem.',
+    'Bruk bare en kildedokumentrolle som er tillatt for det konkrete feltet.',
     'Hvert felt må ha confidence mellom 0 og 1, source_document_id og source_page.',
     'Boolean-felt kan bare settes når kilden eksplisitt støtter true/false; fravær av tekst er ikke automatisk false.',
+    'Positive-only boolean-felt returneres bare som true når dette er eksplisitt dokumentert; ellers utelates feltet.',
     'Beløp returneres som tall uten valutasymbol eller tusenskilletegn.',
     'Datoer returneres som YYYY-MM-DD når datoen kan leses sikkert.',
     'Ingen lovnavn, paragrafer, rettslige konklusjoner eller råd skal genereres i extractor-laget.'
