@@ -22,7 +22,8 @@ assert.match(workflow, /test ! -d _site\/admin/);
 
 assert.match(page, /Launch Candidate/);
 assert.match(page, /29 kr/);
-assert.match(page, /Denne offentlige RC-siden tar ikke imot ekte dokumenter/);
+assert.match(page, /Denne offentlige demosiden tar ikke imot ekte dokumenter/);
+assert.match(page, /private produksjonsflyten er ferdig kontrollert og åpnet/);
 assert.equal(/type=["']file["']/i.test(page), false, 'Public launch candidate must not present a real file input while production upload is disabled');
 assert.equal(page.includes('/admin/rules'), false);
 assert.equal(page.includes('motor-test.html'), false);
