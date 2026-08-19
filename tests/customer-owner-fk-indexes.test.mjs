@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const migration = fs.readFileSync(new URL('../supabase/migrations/20260819201000_customer_owner_fk_indexes.sql', import.meta.url), 'utf8');
+const migration = fs.readFileSync(new URL('../supabase/migrations/20260819200458_customer_owner_fk_indexes.sql', import.meta.url), 'utf8');
 
 for (const table of ['case_events','documents','analyses','payments','drafts','supplier_responses','followups']) {
   assert.match(
