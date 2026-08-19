@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "provider_target": "google_cloud_vision",
+  "location_required": "eu",
+  "feature": "DOCUMENT_TEXT_DETECTION",
+  "max_pages_per_document": 20,
+  "max_document_bytes": 15728640,
+  "supported_mime_types": [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ],
+  "pdf_pages_per_request": 5,
+  "require_total_page_count": true,
+  "incomplete_document_fails_closed": true,
+  "ocr_must_not_generate_legal_rules": true,
+  "ocr_must_not_generate_legal_conclusions": true,
+  "raw_ocr_text_is_not_user_visible_by_default": true,
+  "cost_controls": {
+    "page_cap_per_document": 20,
+    "no_async_gcs_pipeline_in_v1": true,
+    "no_ocr_retry_loop_without_bounded_attempts": true
+  }
+}
