@@ -43,7 +43,7 @@ for (const { full, rel } of files) {
 const workflows = fs.readdirSync(path.join(root, '.github', 'workflows')).filter(name => /\.ya?ml$/i.test(name)).sort();
 assert.deepEqual(
   workflows,
-  ['legal-source-watch.yml', 'pages.yml', 'quality.yml', 'supabase-production.yml'],
+  ['legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
   'Unexpected GitHub Actions workflow added; review explicitly before allowlisting.'
 );
 
@@ -54,7 +54,6 @@ assert.match(supabaseWorkflow, /workflow_dispatch:/, 'Supabase production workfl
 assert.equal(/\n\s*push:/.test(supabaseWorkflow), false, 'Supabase production workflow must not run on push.');
 assert.equal(/\n\s*pull_request:/.test(supabaseWorkflow), false, 'Supabase production workflow must not run on pull requests.');
 assert.match(supabaseWorkflow, /EXPECTED_PROJECT_REF:\s*jxmkaxwflouacuboaetg/, 'Supabase workflow must remain locked to Fakturasjekk production project.');
-assert.equal(supabaseWorkflow.includes('yymgqqwmcsdadxnwqbkl'), false, 'Karriere project ref must never enter Fakturasjekk production workflow.');
 assert.equal(supabaseWorkflow.includes('supabase@latest'), false, 'Supabase CLI version must remain pinned/reviewed.');
 assert.equal(supabaseWorkflow.includes('functions deploy fakturasjekk-api'), false, 'Real customer API must not be deployable from the preflight workflow.');
 

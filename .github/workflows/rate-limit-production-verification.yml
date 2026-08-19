@@ -1,0 +1,111 @@
+name: Fakturasjekk live rate-limit verification
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      confirm_project_ref:
+        description: 'Type the dedicated Fakturasjekk production project ref'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_PROJECT_REF: jxmkaxwflouacuboaetg
+
+jobs:
+  concurrency:
+    if: >-
+      ${{
+        (github.event_name == 'pull_request' && startsWith(github.head_ref, 'verify/rate-limit-live-')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.confirm_project_ref == 'jxmkaxwflouacuboaetg')
+      }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PGHOST: db.jxmkaxwflouacuboaetg.supabase.co
+      PGPORT: '5432'
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGSSLMODE: require
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Require dedicated project secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${PGPASSWORD:?Missing SUPABASE_DB_PASSWORD}"
+
+      - name: Ensure PostgreSQL client exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+
+      - name: Verify encrypted production connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity="$(psql -X -A -t -v ON_ERROR_STOP=1 -c "select current_database() || ':' || current_user || ':' || inet_server_port();")"
+          test -n "$identity"
+          echo 'OK: encrypted connection to dedicated production Postgres established.'
+
+      - name: Run 12 independent concurrent increments
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="fakturasjekk:launch:concurrency:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            psql -X -v ON_ERROR_STOP=1 -v key="$key" -c "delete from public.rate_limit_windows where key = :'key';" >/dev/null || true
+          }
+          trap cleanup EXIT
+
+          psql -X -v ON_ERROR_STOP=1 -v key="$key" -c "delete from public.rate_limit_windows where key = :'key';" >/dev/null
+          mkdir -p /tmp/fakturasjekk-rate-limit
+
+          for i in $(seq 1 12); do
+            (
+              psql -X -A -t -F '|' -v ON_ERROR_STOP=1 -v key="$key" <<'SQL' > "/tmp/fakturasjekk-rate-limit/$i.out"
+with sync as (
+  select pg_backend_pid() as pid, clock_timestamp() as started, pg_sleep(3)
+)
+select sync.pid,
+       to_char(sync.started, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+       to_char(clock_timestamp(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+       r.count
+from sync
+cross join lateral public.fakturasjekk_increment_rate_limit_window(:'key', 300000) r;
+SQL
+            ) &
+          done
+          wait
+
+          cat /tmp/fakturasjekk-rate-limit/*.out | sort -t'|' -k4,4n
+          rows="$(cat /tmp/fakturasjekk-rate-limit/*.out | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')"
+          unique_pids="$(cut -d'|' -f1 /tmp/fakturasjekk-rate-limit/*.out | sed '/^[[:space:]]*$/d' | sort -u | wc -l | tr -d ' ')"
+          max_count="$(cut -d'|' -f4 /tmp/fakturasjekk-rate-limit/*.out | sed '/^[[:space:]]*$/d' | sort -n | tail -1)"
+          final_count="$(psql -X -A -t -v ON_ERROR_STOP=1 -v key="$key" -c "select count from public.rate_limit_windows where key = :'key';" | tr -d '[:space:]')"
+
+          test "$rows" = '12'
+          test "$unique_pids" = '12'
+          test "$max_count" = '12'
+          test "$final_count" = '12'
+          echo 'OK: 12 unique concurrent PostgreSQL backends produced exactly 12 atomic increments.'
+
+      - name: Verify synthetic row cleanup
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="fakturasjekk:launch:concurrency:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}"
+          psql -X -v ON_ERROR_STOP=1 -v key="$key" -c "delete from public.rate_limit_windows where key = :'key';" >/dev/null || true
+          remaining="$(psql -X -A -t -v ON_ERROR_STOP=1 -v key="$key" -c "select count(*) from public.rate_limit_windows where key = :'key';" | tr -d '[:space:]')"
+          test "$remaining" = '0'
+          echo 'OK: synthetic rate-limit row removed.'
