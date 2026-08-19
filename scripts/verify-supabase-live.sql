@@ -44,10 +44,32 @@ BEGIN
       RAISE EXCEPTION 'authenticated has direct privilege on public.%', table_name;
     END IF;
 
-    IF NOT has_table_privilege('service_role', format('public.%I', table_name), 'SELECT') THEN
-      RAISE EXCEPTION 'service_role lacks expected server-side access on public.%', table_name;
+    IF NOT has_table_privilege('service_role', format('public.%I', table_name), 'SELECT')
+       OR NOT has_table_privilege('service_role', format('public.%I', table_name), 'INSERT')
+       OR NOT has_table_privilege('service_role', format('public.%I', table_name), 'UPDATE')
+       OR NOT has_table_privilege('service_role', format('public.%I', table_name), 'DELETE') THEN
+      RAISE EXCEPTION 'service_role lacks required CRUD access on public.%', table_name;
+    END IF;
+
+    IF has_table_privilege('service_role', format('public.%I', table_name), 'TRUNCATE')
+       OR has_table_privilege('service_role', format('public.%I', table_name), 'REFERENCES')
+       OR has_table_privilege('service_role', format('public.%I', table_name), 'TRIGGER') THEN
+      RAISE EXCEPTION 'service_role has privilege beyond required CRUD on public.%', table_name;
     END IF;
   END LOOP;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.role_table_grants
+    WHERE table_schema = 'public'
+      AND table_name = 'rate_limit_windows_prelaunch_legacy'
+      AND grantee IN ('anon','authenticated','service_role')
+  ) THEN
+    RAISE EXCEPTION 'Pre-launch legacy rate-limit table must have no app-role privileges.';
+  END IF;
 END $$;
 
 DO $$
@@ -92,6 +114,37 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+DECLARE
+  fn text;
+  server_functions text[] := ARRAY[
+    'fakturasjekk_increment_rate_limit_window(text,bigint)',
+    'fakturasjekk_claim_payment_event(text,text,text)'
+  ];
+BEGIN
+  FOREACH fn IN ARRAY server_functions LOOP
+    IF NOT has_function_privilege('service_role', fn, 'EXECUTE') THEN
+      RAISE EXCEPTION 'service_role lacks EXECUTE on %', fn;
+    END IF;
+    IF has_function_privilege('anon', fn, 'EXECUTE')
+       OR has_function_privilege('authenticated', fn, 'EXECUTE')
+       OR has_function_privilege('public', fn, 'EXECUTE') THEN
+      RAISE EXCEPTION 'Browser/public role can execute server-only function %', fn;
+    END IF;
+  END LOOP;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN ('fakturasjekk_increment_rate_limit_window','fakturasjekk_claim_payment_event')
+      AND p.prosecdef = true
+  ) THEN
+    RAISE EXCEPTION 'Fakturasjekk server RPC must remain SECURITY INVOKER.';
+  END IF;
+END $$;
+
 SELECT
   'OK' AS status,
-  'Fakturasjekk Supabase schema/RLS/grants/private bucket boundary verified' AS check_result;
+  'Fakturasjekk Supabase schema/RLS/least-privilege grants/private bucket/RPC boundary verified' AS check_result;
