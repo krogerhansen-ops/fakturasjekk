@@ -1,7 +1,7 @@
 # Fakturasjekk – kanonisk prosjektstatus
 
 Dato: 19.08.2026
-Statusgrunnlag: GitHub `main`, tidligere produktbeslutninger og verifisert produksjonsmiljø.
+Statusgrunnlag: GitHub `main`, eksplisitte produktbeslutninger og verifisert produksjonsmiljø.
 
 Dette dokumentet er arbeidsfasit for videre utvikling av Fakturasjekk. Ved konflikt mellom eldre notater og dette dokumentet skal nyere eksplisitte beslutninger og verifisert kode/status ha forrang.
 
@@ -95,7 +95,7 @@ Checkout-koden er fail-closed og krever versjonerte samtykker for:
 - uttrykkelig ønske om umiddelbar oppstart
 - informasjon om tap av angrerett når tjenesten er fullt levert etter relevante vilkår
 
-Live checkout er fortsatt blokkert fordi selgeridentitet, varig bekreftelseskanal og faktisk betalingsleverandør ikke er ferdigstilt.
+Live checkout er fortsatt blokkert fordi selgeridentitet, varig bekreftelseskanal og faktisk betalingsleverandør ikke er ferdigstilt end-to-end.
 
 ## 8. Kundeopplevelse og design
 
@@ -131,7 +131,9 @@ Repoet inneholder allerede:
 - retention/purge
 - Svarrunde 2
 - API-kontrakt, auth-/CORS-/rate-limit-/audit-grenser
-- PostgreSQL-referanseskjema og adapterkontrakter
+- PostgreSQL-referanseskjema og Supabase-adaptere
+- Google Vision OCR og strukturert KI-adapter bak valideringskontraktene
+- Vipps ePayment-adapter og server-verifisert betalingsgrense
 - automatiske tester og juridisk kildevakt i GitHub Actions
 
 ## 10. Produksjonsmiljø – verifisert 19.08.2026
@@ -145,29 +147,37 @@ Dedikert Supabase-produksjonsprosjekt:
 
 Verifisert status:
 
-- ingen Fakturasjekk-tabeller er deployet ennå
-- ingen Supabase security-advisor-varsler ble returnert ved kontroll
+- Fakturasjekk-databaseskjema er deployet
+- RLS er aktiv på alle apptabeller
+- `anon` og `authenticated` har ingen direkte apptabelltilgang
+- `service_role` er strammet til nødvendig CRUD på kontrollerte apptabeller; unødvendige `TRUNCATE`, `REFERENCES` og `TRIGGER`-privilegier er fjernet
+- server-RPC-er for atomisk rate limiting og betalingshendelses-claim er `SECURITY INVOKER` og kun kjørbare av serverrollen
+- privat bucket `case-documents-private` er opprettet med `public=false`, 15 MiB-grense og MIME-allowlist for PDF/JPEG/PNG/WebP
+- ingen browser-policy for `storage.objects` er opprettet
 - Edge Function `fakturasjekk-preflight` versjon 1 er deployet og ACTIVE
 - preflight er hardbundet til riktig project ref
 - `customer_upload_enabled=false`
 - `production_api_enabled=false`
+- Security Advisor viser kun INFO om RLS uten policies; dette er forventet i server-only/deny-by-default-modellen
+- Performance Advisor sine manglende FK-indekser er rettet; gjenværende «unused index»-INFO vurderes først etter reell trafikk
+- migreringsfilene i repoet er synkronisert mot de faktiske live migreringsversjonene
 
-Dette er tilsiktet. Produksjonsmiljøet skal forbli fail-closed til nødvendige produksjonskoblinger og sikkerhetstester er fullført.
+Produksjonsmiljøet skal fortsatt forbli fail-closed til de resterende end-to-end-portene er fullført.
 
 ## 11. Det som fortsatt blokkerer ekte kunder
 
-Før ekte kundeopplasting/betaling kan åpnes må minst følgende ferdigstilles og verifiseres end-to-end:
+Databaseskjemaet er ikke lenger en launch-blokker i seg selv. Før ekte kundeopplasting/betaling kan åpnes må minst følgende ferdigstilles og verifiseres end-to-end:
 
-1. produksjonsdatabaseskjema/migrering og databaseadapter
-2. privat object storage med riktig tilgangskontroll og filverifisering
-3. produksjonsauth
-4. faktisk OCR/dokumenttolk bak valideringskontrakten
-5. faktisk Svarrunde 2-tolk
-6. betalingsleverandør + ekte webhook-signaturverifisering
-7. juridisk selger/behandlingsansvarlig og kontaktopplysninger
-8. ferdige kjøpsvilkår, personvernerklæring og angrerett/ordrebekreftelse på varig medium
-9. gjennomført personvern-/DPIA-/databehandler-/overføringsvurdering for de faktiske leverandørene
-10. end-to-end go-live-test med syntetisk dokument og testbetaling
+1. live Supabase Auth signup/session/JWT-verifikasjon og kunde-eierskap gjennom hele API-flyten
+2. privat signed-upload/storage-flyt med faktisk filverifisering, malware/magic-byte-grense og purge
+3. faktisk OCR/dokumenttolk med produksjons-IAM/provider-tilgang og syntetisk end-to-end-test
+4. faktisk Svarrunde 2-tolk med produksjonsprovider og kvalitetstest
+5. Vipps test-/produksjonskobling, webhook-registrering, signaturverifisering og betalingsreconciliation
+6. juridisk selger/behandlingsansvarlig og kontaktopplysninger
+7. ferdige kjøpsvilkår, personvernerklæring og angrerett/ordrebekreftelse på varig medium
+8. ferdigstilt DPIA/databehandler-/underleverandør-/overføringsvurdering for faktiske leverandører
+9. backup/restore- og full slettingstest på live stack med syntetiske data
+10. komplett go-live-test med syntetisk dokument og testbetaling
 
 Ingen av disse portene skal omgås for å lansere raskere.
 
@@ -178,13 +188,14 @@ Prioritet for videre arbeid:
 1. holde demo/UI skarp og V0.16-forankret
 2. utvide syntetiske høyrisiko-/høyvanskelighets-saker og negative tester
 3. verifisere/brede ut aktive regelspor uten å redusere fail-closed-kravene
-4. ferdigstille Supabase database/storage/auth på en sikker måte
-5. koble dokumenttolk
-6. koble betaling
-7. ferdigstille kunde-/personvern-/kjøpsdokumenter med faktisk virksomhetsidentitet
-8. end-to-end sikkerhetstest
-9. ekstern test
-10. første betalende 29 kr-kunde
+4. fullføre live Auth + privat storage/opplasting
+5. koble og end-to-end-teste dokumenttolk
+6. koble og end-to-end-teste Vipps
+7. fullføre Svarrunde 2-providerflyten
+8. ferdigstille kunde-/personvern-/kjøpsdokumenter med faktisk virksomhetsidentitet
+9. backup/restore/sletting + samlet sikkerhetstest
+10. ekstern test
+11. første betalende 29 kr-kunde
 
 ## 13. Ikke-forhandlingsbare prinsipper
 
