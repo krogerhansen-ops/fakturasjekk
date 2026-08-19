@@ -17,6 +17,7 @@ const checkoutConsentService = {
     assert.equal(case_id, 'case-1');
     assert.equal(owner_id, 'u1');
     assert.equal(requirement.amount_minor, 2900);
+    assert.equal(consent.delivery_email, 'kunde@example.test');
     assert.equal(consent.payment_obligation_acknowledged, true);
     assert.equal(consent.immediate_service_start_requested, true);
     assert.equal(consent.withdrawal_loss_on_full_performance_acknowledged, true);
@@ -74,6 +75,7 @@ try {
     body: JSON.stringify({
       return_url: 'https://fakturasjekk.no/min-sak',
       checkout_consent: {
+        delivery_email: 'kunde@example.test',
         payment_obligation_acknowledged: true,
         immediate_service_start_requested: true,
         withdrawal_loss_on_full_performance_acknowledged: true
@@ -98,4 +100,4 @@ try {
   await new Promise(resolve => server.close(resolve));
 }
 
-console.log('OK payment runtime requires checkout consent and does not confuse confirmation payload with durable-medium delivery');
+console.log('OK payment runtime requires checkout consent + delivery email and does not confuse confirmation payload with durable-medium delivery');
