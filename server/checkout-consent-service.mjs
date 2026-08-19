@@ -26,6 +26,7 @@ export function createCheckoutConsentService({ caseStore, policy, clock = () => 
       id,
       ...validated,
       accepted_at,
+      durable_medium_idempotency_key: crypto.randomUUID(),
       durable_medium_provider: null,
       durable_medium_message_id: null,
       durable_medium_status: 'not_sent',
