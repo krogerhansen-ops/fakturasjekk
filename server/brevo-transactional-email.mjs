@@ -1,5 +1,6 @@
 const encoder = new TextEncoder();
 const API_ORIGIN = 'https://api.brevo.com';
+const SECONDARY_WEBHOOK_HEADER = 'x-fakturasjekk-brevo-secret';
 
 function requireString(value, name) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required.`);
@@ -8,6 +9,10 @@ function requireString(value, name) {
 
 function validEmail(value) {
   return typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function validUuid(value) {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function escapeHtml(value) {
@@ -23,6 +28,15 @@ function normalizeMessageId(value) {
   return String(value ?? '').trim().replace(/^<|>$/g, '');
 }
 
+function headerValue(headers, name) {
+  if (headers instanceof Headers) return headers.get(name);
+  const target = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers ?? {})) {
+    if (String(key).toLowerCase() === target) return String(value);
+  }
+  return null;
+}
+
 function constantTimeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const aa = encoder.encode(a);
@@ -31,12 +45,6 @@ function constantTimeEqual(a, b) {
   const max = Math.max(aa.length, bb.length, 1);
   for (let i = 0; i < max; i += 1) diff |= (aa[i % Math.max(aa.length, 1)] ?? 0) ^ (bb[i % Math.max(bb.length, 1)] ?? 0);
   return diff === 0;
-}
-
-async function deterministicIdempotencyKey(caseId, checkoutConsentId) {
-  const source = `${caseId}\n${checkoutConsentId}\nagreement-confirmation-v1`;
-  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(source));
-  return [...new Uint8Array(digest)].slice(0, 16).map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function customTrackingHeader(caseId, checkoutConsentId) {
@@ -63,6 +71,18 @@ function confirmationContent(payload) {
   const versions = payload.versions ?? {};
   const acknowledgements = payload.acknowledgements ?? {};
   const org = seller.organization_number ? `\nOrganisasjonsnummer: ${seller.organization_number}` : '';
+  const withdrawalForm = [
+    'Standard angreskjema',
+    `Til: ${seller.legal_name}, ${seller.postal_address}, ${seller.support_email}`,
+    'Jeg meddeler herved at jeg ønsker å gå fra min avtale om følgende tjeneste:',
+    `${product.name}`,
+    `Saksreferanse: ${payload.case_id}`,
+    `Avtaledato: ${payload.created_at}`,
+    'Forbrukerens navn: ____________________',
+    'Forbrukerens adresse: ____________________',
+    'Dato: ____________________',
+    'Signatur (bare hvis skjemaet sendes på papir): ____________________'
+  ];
   const text = [
     'Kjøpsbekreftelse – Fakturasjekk',
     '',
@@ -89,10 +109,12 @@ function confirmationContent(payload) {
     `Personvernversjon: ${versions.privacy_notice ?? ''}`,
     `Angrerettinformasjon: ${versions.withdrawal_information ?? ''}`,
     '',
+    ...withdrawalForm,
+    '',
     'Ta vare på denne e-posten. Den er kjøpsbekreftelsen for denne bestillingen.'
   ].filter(line => line !== '').join('\n');
 
-  const html = `<!doctype html><html><body><main style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;line-height:1.5"><h1>Kjøpsbekreftelse – Fakturasjekk</h1><p><strong>Selger:</strong> ${escapeHtml(seller.legal_name)}<br><strong>Adresse:</strong> ${escapeHtml(seller.postal_address)}${seller.organization_number ? `<br><strong>Organisasjonsnummer:</strong> ${escapeHtml(seller.organization_number)}` : ''}<br><strong>Kontakt:</strong> ${escapeHtml(seller.support_email)}</p><hr><p><strong>Tjeneste:</strong> ${escapeHtml(product.name)}<br><strong>Total pris:</strong> 29 kr ${escapeHtml(product.currency)}<br><strong>Saksreferanse:</strong> ${escapeHtml(payload.case_id)}<br><strong>Avtaletidspunkt:</strong> ${escapeHtml(payload.created_at)}</p><h2>Dine registrerte valg</h2><ul><li>Betalingsplikt: Ja</li><li>Uttrykkelig oppstart før angrefristen er utløpt: Ja</li><li>Erkjennelse av bortfall ved full levering: Ja</li></ul><p>${escapeHtml(payload.immediate_start_request ?? '')}</p><p>${escapeHtml(payload.withdrawal_notice ?? '')}</p><p>${escapeHtml(payload.payment_obligation_notice ?? '')}</p><hr><p><strong>Vilkårsversjon:</strong> ${escapeHtml(versions.terms ?? '')}<br><strong>Personvernversjon:</strong> ${escapeHtml(versions.privacy_notice ?? '')}<br><strong>Angrerettinformasjon:</strong> ${escapeHtml(versions.withdrawal_information ?? '')}</p><p><strong>Ta vare på denne e-posten.</strong> Den er kjøpsbekreftelsen for denne bestillingen.</p></main></body></html>`;
+  const html = `<!doctype html><html><body><main style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;line-height:1.5"><h1>Kjøpsbekreftelse – Fakturasjekk</h1><p><strong>Selger:</strong> ${escapeHtml(seller.legal_name)}<br><strong>Adresse:</strong> ${escapeHtml(seller.postal_address)}${seller.organization_number ? `<br><strong>Organisasjonsnummer:</strong> ${escapeHtml(seller.organization_number)}` : ''}<br><strong>Kontakt:</strong> ${escapeHtml(seller.support_email)}</p><hr><p><strong>Tjeneste:</strong> ${escapeHtml(product.name)}<br><strong>Total pris:</strong> 29 kr ${escapeHtml(product.currency)}<br><strong>Saksreferanse:</strong> ${escapeHtml(payload.case_id)}<br><strong>Avtaletidspunkt:</strong> ${escapeHtml(payload.created_at)}</p><h2>Dine registrerte valg</h2><ul><li>Betalingsplikt: Ja</li><li>Uttrykkelig oppstart før angrefristen er utløpt: Ja</li><li>Erkjennelse av bortfall ved full levering: Ja</li></ul><p>${escapeHtml(payload.immediate_start_request ?? '')}</p><p>${escapeHtml(payload.withdrawal_notice ?? '')}</p><p>${escapeHtml(payload.payment_obligation_notice ?? '')}</p><hr><p><strong>Vilkårsversjon:</strong> ${escapeHtml(versions.terms ?? '')}<br><strong>Personvernversjon:</strong> ${escapeHtml(versions.privacy_notice ?? '')}<br><strong>Angrerettinformasjon:</strong> ${escapeHtml(versions.withdrawal_information ?? '')}</p><h2>Standard angreskjema</h2><p>Til: ${escapeHtml(seller.legal_name)}, ${escapeHtml(seller.postal_address)}, ${escapeHtml(seller.support_email)}</p><p>Jeg meddeler herved at jeg ønsker å gå fra min avtale om følgende tjeneste: ${escapeHtml(product.name)}.</p><p>Saksreferanse: ${escapeHtml(payload.case_id)}<br>Avtaledato: ${escapeHtml(payload.created_at)}</p><p>Forbrukerens navn: ____________________<br>Forbrukerens adresse: ____________________<br>Dato: ____________________<br>Signatur (bare hvis skjemaet sendes på papir): ____________________</p><p><strong>Ta vare på denne e-posten.</strong> Den er kjøpsbekreftelsen for denne bestillingen.</p></main></body></html>`;
   return { text, html };
 }
 
@@ -102,6 +124,7 @@ export function createBrevoTransactionalEmailProvider({
   senderName = 'Fakturasjekk',
   replyToEmail = null,
   webhookBearerToken,
+  webhookSecondarySecret,
   fetchImpl = globalThis.fetch,
   timeoutMs = 10000
 } = {}) {
@@ -112,24 +135,25 @@ export function createBrevoTransactionalEmailProvider({
   const reply_email = replyToEmail ? requireString(replyToEmail, 'Brevo reply-to email').toLowerCase() : sender_email;
   if (!validEmail(reply_email)) throw new Error('Brevo reply-to email is invalid.');
   const webhook_token = requireString(webhookBearerToken, 'Brevo webhook bearer token');
-  if (webhook_token.length < 24) throw new Error('Brevo webhook bearer token is too short.');
+  const webhook_secondary = requireString(webhookSecondarySecret, 'Brevo webhook secondary secret');
+  if (webhook_token.length < 24 || webhook_secondary.length < 24) throw new Error('Brevo webhook secrets must be at least 24 characters.');
   if (typeof fetchImpl !== 'function') throw new Error('Brevo provider requires fetch.');
 
-  async function sendAgreementConfirmation({ case_id, checkout_consent_id, delivery_email, delivery_name = null, agreement_confirmation_payload }) {
+  async function sendAgreementConfirmation({ case_id, checkout_consent_id, delivery_email, delivery_name = null, idempotency_key, agreement_confirmation_payload }) {
     if (!validEmail(delivery_email)) throw new Error('Agreement confirmation delivery email is invalid.');
+    if (!validUuid(idempotency_key)) throw new Error('Agreement confirmation idempotency key must be a UUID.');
     const recipient = delivery_email.toLowerCase();
     const { text, html } = confirmationContent(agreement_confirmation_payload);
-    const idempotencyKey = await deterministicIdempotencyKey(case_id, checkout_consent_id);
     const tracking = customTrackingHeader(case_id, checkout_consent_id);
     const body = {
       sender: { email: sender_email, name: sender_name },
-      to: [{ email: recipient, ...(delivery_name ? { name: String(delivery_name).slice(0, 120) } : {}) }],
+      to: [{ email: recipient, contactPixelTrackingConsent: false, ...(delivery_name ? { name: String(delivery_name).slice(0, 120) } : {}) }],
       replyTo: { email: reply_email, name: sender_name },
       subject: 'Kjøpsbekreftelse – Fakturasjekk 29 kr',
       textContent: text,
       htmlContent: html,
       headers: {
-        'Idempotency-Key': idempotencyKey,
+        'Idempotency-Key': idempotency_key,
         'X-Mailin-custom': tracking
       },
       tags: ['fakturasjekk-confirmation']
@@ -150,14 +174,19 @@ export function createBrevoTransactionalEmailProvider({
         cache: 'no-store'
       });
     } catch (error) {
-      throw new Error(`Brevo confirmation send failed: ${String(error?.message ?? 'network error')}`);
+      const wrapped = new Error(`Brevo confirmation send failed: ${String(error?.message ?? 'network error')}`);
+      wrapped.code = 'brevo_send_outcome_unknown';
+      throw wrapped;
     }
     const raw = await response.text();
     let payload;
     try { payload = raw ? JSON.parse(raw) : {}; } catch { throw new Error('Brevo confirmation endpoint returned invalid JSON.'); }
     if (response.status !== 201) {
       const message = payload?.message ?? payload?.code ?? `HTTP ${response.status}`;
-      throw new Error(`Brevo confirmation send failed: ${String(message).slice(0, 200)}`);
+      const error = new Error(`Brevo confirmation send failed: ${String(message).slice(0, 200)}`);
+      error.code = 'brevo_send_rejected';
+      error.status = response.status;
+      throw error;
     }
     const messageId = normalizeMessageId(payload.messageId ?? payload.messageIds?.[0]);
     if (!messageId) throw new Error('Brevo confirmation send returned no message id.');
@@ -165,18 +194,19 @@ export function createBrevoTransactionalEmailProvider({
       provider: 'brevo',
       message_id: messageId,
       recipient_email: recipient,
-      idempotency_key: idempotencyKey,
+      idempotency_key,
       provider_accepted: true
     };
   }
 
   function verifyWebhook({ headers, raw_body }) {
-    const auth = headers instanceof Headers ? headers.get('authorization') : (headers?.authorization ?? headers?.Authorization);
+    const auth = headerValue(headers, 'authorization');
+    const secondary = headerValue(headers, SECONDARY_WEBHOOK_HEADER);
     if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) return { authenticated: false };
     if (!constantTimeEqual(auth.slice(7), webhook_token)) return { authenticated: false };
+    if (!constantTimeEqual(secondary, webhook_secondary)) return { authenticated: false };
     let event;
-    try { event = JSON.parse(typeof raw_body === 'string' ? raw_body : ''); } catch { return { authenticated: false };
-    }
+    try { event = JSON.parse(typeof raw_body === 'string' ? raw_body : ''); } catch { return { authenticated: false }; }
     const type = String(event?.event ?? '').trim();
     const allowed = new Set(['delivered', 'hard_bounce', 'hardBounce', 'blocked', 'invalid', 'error', 'soft_bounce', 'softBounce', 'deferred']);
     if (!allowed.has(type)) throw new Error('Unsupported Brevo transactional email event.');
@@ -196,7 +226,8 @@ export function createBrevoTransactionalEmailProvider({
     };
   }
 
-  return { name: 'brevo', sendAgreementConfirmation, verifyWebhook };
+  return { name: 'brevo', sendAgreementConfirmation, verifyWebhook, secondary_webhook_header: SECONDARY_WEBHOOK_HEADER };
 }
 
 export const BREVO_API_ORIGIN = API_ORIGIN;
+export const BREVO_SECONDARY_WEBHOOK_HEADER = SECONDARY_WEBHOOK_HEADER;
