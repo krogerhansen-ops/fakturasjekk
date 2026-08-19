@@ -116,6 +116,13 @@ assert.equal(head.byte_size, Buffer.byteLength('%PDF-synthetic'));
 assert.equal(head.content_type, 'application/pdf');
 assert.deepEqual(await provider.headObject({ bucket, key: 'cases/owner-1/case-1/missing.pdf' }), { exists: false });
 
+const privateBytes = await provider.getObjectBytes({ bucket, key: 'cases/owner-1/case-1/doc-1.pdf', max_bytes: 100 });
+assert.equal(new TextDecoder().decode(privateBytes.bytes), '%PDF-synthetic');
+assert.equal(privateBytes.byte_size, Buffer.byteLength('%PDF-synthetic'));
+assert.equal(privateBytes.content_type, 'application/pdf');
+await assert.rejects(() => provider.getObjectBytes({ bucket, key: 'cases/owner-1/case-1/doc-1.pdf', max_bytes: 4 }), /scanner byte limit/i);
+await assert.rejects(() => provider.getObjectBytes({ bucket, key: 'cases/owner-1/case-1/missing.pdf', max_bytes: 100 }), /not found/i);
+
 await provider.putObject({ bucket, key: 'deletion-ledger/case-1.json', body: JSON.stringify({ version: 1, case_id: 'case-1', deleted_at: '2026-08-19T12:00:00.000Z' }), content_type: 'application/json', cache_control: 'no-store' });
 const ledgerList = await provider.listPrefix({ bucket, prefix: 'deletion-ledger/' });
 assert.deepEqual(ledgerList.items.map(item => item.key), ['deletion-ledger/case-1.json']);
@@ -145,4 +152,4 @@ assert.equal(reserved.provider_expires_at, '2026-08-19T14:00:00.000Z', 'provider
 const serializedRequests = JSON.stringify(requests.map(r => ({ url: r.url, method: r.method })));
 assert.equal(serializedRequests.includes(secret), false, 'secret must never be embedded in provider URLs or serialized request metadata');
 
-console.log('OK Supabase private Storage provider is project-bound, signed, private, deletion-verifying and capped by Fakturasjekk acceptance time.');
+console.log('OK Supabase private Storage provider is project-bound, signed, private, scanner-readable, deletion-verifying and capped by Fakturasjekk acceptance time.');

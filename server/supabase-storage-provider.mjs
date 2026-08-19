@@ -218,6 +218,29 @@ export function createSupabaseStorageProvider({ supabaseUrl, secretKey, fetchImp
       };
     },
 
+    async getObjectBytes({ bucket, key, max_bytes }) {
+      const normalized = normalizeStorageKey(key);
+      const maximum = Number(max_bytes);
+      if (!Number.isFinite(maximum) || maximum <= 0) throw new Error('getObjectBytes requires a positive max_bytes limit.');
+      const head = await objectExists({ bucket, key: normalized });
+      if (!head.exists) throw new Error('Stored object not found.');
+      if (head.byte_size != null && head.byte_size > maximum) throw new Error('Stored object exceeds scanner byte limit.');
+
+      const response = await fetchImpl(`${storageBase}/object/${encodeBucket(bucket)}/${encodeKey(normalized)}`, {
+        method: 'GET',
+        headers: providerHeaders(secret)
+      });
+      if (!response.ok) throw new Error(`Supabase Storage byte read failed with HTTP ${response.status}.`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!bytes.length) throw new Error('Stored object is empty.');
+      if (bytes.byteLength > maximum) throw new Error('Stored object exceeds scanner byte limit.');
+      return {
+        bytes,
+        byte_size: bytes.byteLength,
+        content_type: response.headers.get('content-type') || head.content_type || null
+      };
+    },
+
     async listPrefix({ bucket, prefix }) {
       const normalized = normalizeStorageKey(prefix, { allow_trailing_slash: true });
       if (normalized.endsWith('/')) {
