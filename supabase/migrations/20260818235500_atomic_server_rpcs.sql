@@ -1,7 +1,11 @@
 -- Fakturasjekk atomic server-side operations for Supabase Data API.
 -- Pre-launch migration: rate_limit_windows is realigned to the canonical server schema before customer traffic exists.
+-- Preserve the original empty pre-launch table rather than dropping it; it is isolated with no app-role privileges.
 
-DROP TABLE IF EXISTS public.rate_limit_windows;
+ALTER TABLE public.rate_limit_windows RENAME TO rate_limit_windows_prelaunch_legacy;
+ALTER TABLE public.rate_limit_windows_prelaunch_legacy ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.rate_limit_windows_prelaunch_legacy FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE TABLE public.rate_limit_windows (
   key text PRIMARY KEY,
   count integer NOT NULL CHECK (count >= 0),
@@ -10,7 +14,7 @@ CREATE TABLE public.rate_limit_windows (
 );
 CREATE INDEX idx_rate_limit_windows_reset_at ON public.rate_limit_windows(reset_at);
 ALTER TABLE public.rate_limit_windows ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.rate_limit_windows FROM anon, authenticated;
+REVOKE ALL ON TABLE public.rate_limit_windows FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.rate_limit_windows TO service_role;
 
 CREATE OR REPLACE FUNCTION public.fakturasjekk_increment_rate_limit_window(
