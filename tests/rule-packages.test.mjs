@@ -89,14 +89,13 @@ const withCollection = runCase({
   intake: { buyer_type: 'consumer', subject: 'goods', documents: ['invoice'] },
   facts: { agreed_price: 1000, invoice_total: 1000 },
   collection: {
-    applicable: true,
-    collection_notice_sent: true,
-    collection_notice_after_due_date: true,
-    collection_notice_days: 10
+    stage: 'collection_notice',
+    payment_deadline_days: 10
   },
   registry
 });
 assert.equal(withCollection.rule_package.collection_overlay, true);
+assert.ok(withCollection.analysis.rule_ids.includes('INK_9_NOTICE'));
 assert.ok(withCollection.analysis.rule_ids.every(id => packageRuleIds(goods, { collection: true }).includes(id)));
 
 console.log('OK internal rule packages route goods, vehicle repair, handcraft, services and collection without brand-specific logic.');
