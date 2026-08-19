@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { validateCheckoutConsent, checkoutReadiness, durableConfirmationSnapshot } from '../server/checkout-consent.mjs';
+import { validateCheckoutConsent, checkoutReadiness, agreementConfirmationPayload } from '../server/checkout-consent.mjs';
 import { createCheckoutConsentService } from '../server/checkout-consent-service.mjs';
 import { createMemoryCaseStore } from '../server/reference-adapters.mjs';
 
@@ -42,10 +42,11 @@ for (const field of ['payment_obligation_acknowledged','immediate_service_start_
 assert.throws(() => validateCheckoutConsent({ ...validConsent, terms_version: 'old' }, policy, requirement), error => error?.code === 'checkout_version_mismatch' && error.field === 'terms_version');
 assert.throws(() => validateCheckoutConsent(validConsent, policy, { amount_minor: 3000, currency: 'NOK' }), error => error?.code === 'checkout_price_mismatch');
 
-const confirmation = durableConfirmationSnapshot({ policy, consent_record: checked, case_id: 'case-1', created_at: '2026-08-19T08:00:00.000Z' });
+const confirmation = agreementConfirmationPayload({ policy, consent_record: checked, case_id: 'case-1', created_at: '2026-08-19T08:00:00.000Z' });
 assert.equal(confirmation.product.amount_nok, 29);
 assert.equal(confirmation.seller.legal_name, 'Fakturasjekk Test AS');
 assert.equal(confirmation.acknowledgements.immediate_service_start, true);
+assert.equal(confirmation.durable_medium_delivered, false, 'payload alone is not durable-medium delivery');
 assert.match(confirmation.withdrawal_notice, /angreretten går tapt når Fakturasjekk har levert tjenesten fullt ut/i);
 
 const store = createMemoryCaseStore();
@@ -57,10 +58,12 @@ await store.save({
 const service = createCheckoutConsentService({ caseStore: store, policy, clock: () => new Date('2026-08-19T08:00:00.000Z') });
 const accepted = await service.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'u1', consent: validConsent, requirement });
 assert.match(accepted.checkout_consent_id, /^checkout-/);
-assert.equal(accepted.confirmation.product.amount_nok, 29);
+assert.equal(accepted.agreement_confirmation_payload.product.amount_nok, 29);
+assert.equal(accepted.agreement_confirmation_payload.durable_medium_delivered, false);
 const saved = await store.getOwned('case-1', 'u1');
 assert.equal(saved.checkout_consents.length, 1);
 assert.equal(saved.checkout_consents[0].accepted_at, '2026-08-19T08:00:00.000Z');
+assert.equal(saved.checkout_consents[0].durable_medium_delivered_at, null);
 assert.ok(saved.events.some(event => event.type === 'CHECKOUT_CONSENT_RECORDED'));
 const storedText = JSON.stringify(saved.checkout_consents[0]);
 assert.equal(storedText.includes('ip_address'), false);
@@ -69,4 +72,4 @@ assert.equal(storedText.includes('password'), false);
 
 await assert.rejects(() => service.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'other-user', consent: validConsent, requirement }), /not found|owned/i);
 
-console.log('OK checkout is fail-closed until seller identity is ready and stores versioned explicit consumer consent before payment');
+console.log('OK checkout is fail-closed until seller identity is ready, stores explicit versioned consent, and keeps durable-medium delivery pending');
