@@ -1,4 +1,4 @@
-import { validateCheckoutConsent, durableConfirmationSnapshot } from './checkout-consent.mjs';
+import { validateCheckoutConsent, agreementConfirmationPayload } from './checkout-consent.mjs';
 
 function nowIso(clock) {
   const value = typeof clock === 'function' ? clock() : new Date();
@@ -22,12 +22,8 @@ export function createCheckoutConsentService({ caseStore, policy, clock = () => 
     const validated = validateCheckoutConsent(consent, policy, requirement);
     const accepted_at = nowIso(clock);
     const id = await caseStore.nextId('checkout');
-    const record = {
-      id,
-      ...validated,
-      accepted_at
-    };
-    const confirmation = durableConfirmationSnapshot({
+    const record = { id, ...validated, accepted_at, durable_medium_delivered_at: null };
+    const agreement_confirmation_payload = agreementConfirmationPayload({
       policy,
       consent_record: validated,
       case_id,
@@ -46,17 +42,13 @@ export function createCheckoutConsentService({ caseStore, policy, clock = () => 
           checkout_policy_version: validated.checkout_policy_version,
           terms_version: validated.terms_version,
           amount_minor: validated.amount_minor,
-          currency: validated.currency
+          currency: validated.currency,
+          durable_medium_delivered: false
         }
       }]
     };
     await caseStore.save(caseData);
-    return {
-      checkout_consent_id: id,
-      accepted_at,
-      confirmation,
-      case: caseData
-    };
+    return { checkout_consent_id: id, accepted_at, agreement_confirmation_payload, case: caseData };
   }
 
   return { acceptForPaymentSession };
