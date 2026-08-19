@@ -1,9 +1,9 @@
-const VALID_TYPES = new Set(['documented', 'user_provided', 'calculated', 'rule', 'needs_clarification']);
+const VALID_TYPES = new Set(['documented', 'registry', 'user_provided', 'calculated', 'rule', 'needs_clarification']);
 
 export function evidenceItem({ type, field, value = null, source_id = null, confidence = null, note = '' }) {
   if (!VALID_TYPES.has(type)) throw new Error(`Invalid evidence type: ${type}`);
   if (!field) throw new Error('Evidence field is required');
-  if (type === 'documented' && !source_id) throw new Error(`Documented evidence requires source_id for ${field}`);
+  if ((type === 'documented' || type === 'registry') && !source_id) throw new Error(`${type} evidence requires source_id for ${field}`);
   return { type, field, value, source_id, confidence, note };
 }
 
@@ -21,6 +21,15 @@ export function buildEvidenceLedger({ facts = {}, origins = {}, analysis = null,
         confidence: origin.confidence ?? 'high',
         note: origin.note ?? ''
       }));
+    } else if (origin?.type === 'registry') {
+      ledger.push(evidenceItem({
+        type: 'registry',
+        field,
+        value,
+        source_id: origin.source_id,
+        confidence: origin.confidence ?? 'authoritative_public_registry',
+        note: origin.note ?? 'Opplysning fra offentlig register.'
+      }));
     } else if (origin?.type === 'user_provided') {
       ledger.push(evidenceItem({
         type: 'user_provided',
@@ -30,12 +39,21 @@ export function buildEvidenceLedger({ facts = {}, origins = {}, analysis = null,
         confidence: origin.confidence ?? null,
         note: origin.note ?? 'Opplyst av brukeren.'
       }));
+    } else if (origin?.type === 'calculated') {
+      ledger.push(evidenceItem({
+        type: 'calculated',
+        field,
+        value,
+        source_id: null,
+        confidence: origin.confidence ?? 'deterministic',
+        note: origin.note ?? 'Beregnet av Fakturasjekk fra registrerte kilder.'
+      }));
     } else {
       ledger.push(evidenceItem({
         type: 'needs_clarification',
         field,
         value,
-        note: 'Faktum mangler dokumentert eller eksplisitt brukeroppgitt kilde.'
+        note: 'Faktum mangler dokumentert, offentlig register- eller eksplisitt brukeroppgitt kilde.'
       }));
     }
   }
@@ -95,9 +113,11 @@ export function summarizeEvidence(ledger = []) {
 export function assertEvidenceSafety(ledger = []) {
   const badDocumented = ledger.filter(item => item.type === 'documented' && !item.source_id);
   if (badDocumented.length) throw new Error('Documented evidence without source_id');
+  const badRegistry = ledger.filter(item => item.type === 'registry' && !item.source_id);
+  if (badRegistry.length) throw new Error('Registry evidence without source_id');
 
-  const userNoteAsDocument = ledger.find(item => item.field === 'user_note' && item.type === 'documented');
-  if (userNoteAsDocument) throw new Error('User note was incorrectly promoted to documented evidence');
+  const userNoteAsDocument = ledger.find(item => item.field === 'user_note' && ['documented', 'registry'].includes(item.type));
+  if (userNoteAsDocument) throw new Error('User note was incorrectly promoted to sourced evidence');
 
   return true;
 }

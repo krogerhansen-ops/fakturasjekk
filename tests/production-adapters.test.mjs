@@ -21,9 +21,10 @@ const jwtVerifier = { async verify() { return { signature_valid: true, claims: {
 const extractor = { async extract() { return { fields: {} }; } };
 const responseInterpreter = { async interpret() { return { items: [] }; } };
 const paymentGateway = { provider_name: 'provider-x', async createSession() { return {}; }, async verifyEvent() { return {}; } };
+const fetchImpl = async () => new Response(null, { status: 404 });
 
-const adapters = createCoreProductionAdapters({ config, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway });
-for (const key of ['caseStore','storage','extractor','responseInterpreter','authAdapter','paymentGateway','paymentEventStore','idempotencyStore','auditAdapter','rateLimiter']) {
+const adapters = createCoreProductionAdapters({ config, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway, fetchImpl });
+for (const key of ['caseStore','storage','extractor','responseInterpreter','authAdapter','companyRegistry','paymentGateway','paymentEventStore','idempotencyStore','auditAdapter','rateLimiter']) {
   assert.ok(adapters[key], `missing ${key}`);
 }
 assert.equal(typeof adapters.rateLimiter.check, 'function');
@@ -31,6 +32,9 @@ assert.equal(typeof adapters.authAdapter.verifyBearer, 'function');
 assert.equal(typeof adapters.storage.reservePrivateObject, 'function');
 assert.equal(typeof adapters.storage.recordDeletionTombstone, 'function');
 assert.equal(typeof adapters.storage.listDeletionTombstones, 'function');
+assert.equal(typeof adapters.companyRegistry.lookupByOrganizationNumber, 'function');
+assert.equal(typeof adapters.companyRegistry.searchByExactName, 'function');
+assert.equal(adapters.companyRegistry.cache_policy, 'no-store');
 
 assert.throws(
   () => createCoreProductionAdapters({ config: { environment: 'development' }, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway }),
@@ -54,4 +58,4 @@ assert.throws(
   /putObject|listPrefix|getObject/i
 );
 
-console.log('OK production adapter composition and restore-safe storage contract');
+console.log('OK production adapter composition includes no-store Brreg company check and restore-safe storage contract');

@@ -99,6 +99,35 @@ function projectDocumentChecks(checks) {
   };
 }
 
+function projectCompanyCheck(check) {
+  if (!check) return null;
+  const registry = check.registry ? {
+    organization_number: check.registry.organization_number,
+    name: check.registry.name,
+    organization_form: check.registry.organization_form?.description ?? null,
+    registered_in_vat: check.registry.registered_in_vat,
+    registered_in_business_register: check.registry.registered_in_business_register,
+    bankrupt: check.registry.bankrupt,
+    under_liquidation: check.registry.under_liquidation,
+    under_forced_liquidation_or_dissolution: check.registry.under_forced_liquidation_or_dissolution,
+    deleted_date: check.registry.deleted_date,
+    registration_date: check.registry.registration_date,
+    business_activity: check.registry.business_code?.description ?? null,
+    business_address: check.registry.business_address
+  } : null;
+  return {
+    status: check.status,
+    source: 'Brønnøysundregistrene – Enhetsregisteret',
+    registry,
+    comparison: check.comparison ? {
+      organization_number: check.comparison.organization_number,
+      name: check.comparison.name,
+      vat_marker: check.comparison.vat_marker
+    } : null,
+    note: check.customer_note ?? null
+  };
+}
+
 export function projectFullResult(result, registry) {
   const ruleMap = new Map((registry?.rules ?? []).map(rule => [rule.id, rule]));
   const ruleIds = [...new Set(result?.analysis?.rule_ids ?? [])];
@@ -114,6 +143,7 @@ export function projectFullResult(result, registry) {
       field: item.field,
       value: item.value,
       ...(item.type === 'documented' ? { source_document_id: item.source_id, confidence: item.confidence } : {}),
+      ...(item.type === 'registry' ? { source: 'Brønnøysundregistrene – Enhetsregisteret', confidence: item.confidence } : {}),
       note: item.note
     }));
 
@@ -126,6 +156,7 @@ export function projectFullResult(result, registry) {
       questions: result.analysis.questions ?? []
     } : null,
     document_checks: projectDocumentChecks(result?.document_checks),
+    company_check: projectCompanyCheck(result?.company_check),
     assurance: result?.assurance ? {
       level: result.assurance.level,
       counts: result.assurance.counts,
@@ -138,13 +169,13 @@ export function projectFullResult(result, registry) {
   };
   assertNoPrivateFields(projected);
   const text = JSON.stringify(projected);
-  if (/HTJL_|FKJL_|MFL_|POF_|BOF_|INK_|ESTIMATE_ABOVE_|HANDCRAFT_INVOICE_FEE|GOODS_INVOICE_FEE/.test(text)) throw new Error('Internal rule/finding code leaked to customer result.');
+  if (/HTJL_|FKJL_|MFL_|POF_|BOF_|INK_|ESTIMATE_ABOVE_|HANDCRAFT_INVOICE_FEE|GOODS_INVOICE_FEE|registry_entity_|seller_name_mismatch|seller_org_number_mismatch|seller_mva_marker_mismatch/.test(text)) throw new Error('Internal rule/finding/company code leaked to customer result.');
   return projected;
 }
 
 export function assertNoPrivateFields(value) {
   const text = JSON.stringify(value ?? {});
-  const forbidden = ['storage_key', 'provider_reference', 'structured_response', 'raw_text', 'finding_code', 'rule_package'];
+  const forbidden = ['storage_key', 'provider_reference', 'structured_response', 'raw_text', 'finding_code', 'rule_package', 'purge_cache', 'error_code'];
   for (const key of forbidden) {
     if (text.includes(`\"${key}\"`)) throw new Error(`Private field leaked: ${key}`);
   }
