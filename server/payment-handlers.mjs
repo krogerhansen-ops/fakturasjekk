@@ -17,9 +17,7 @@ export function createPaymentHandlers({ services, gateway = null, checkoutConsen
 
     async create_payment_session(request) {
       if (!gateway?.createSession) throw new ApiError(503, 'payment_provider_unavailable', 'Betaling er ikke koblet til ennå.');
-      if (!checkoutConsentService?.acceptForPaymentSession) {
-        throw new ApiError(503, 'checkout_not_ready', 'Kjøpsflyten er ikke ferdig konfigurert.');
-      }
+      if (!checkoutConsentService?.acceptForPaymentSession) throw new ApiError(503, 'checkout_not_ready', 'Kjøpsflyten er ikke ferdig konfigurert.');
       const user = requireUser(request);
       const case_id = requireCaseId(request.params);
       const body = request.body == null ? {} : requireBodyObject(request.body);
@@ -52,7 +50,7 @@ export function createPaymentHandlers({ services, gateway = null, checkoutConsen
           body: {
             ...session,
             checkout_consent_id: accepted.checkout_consent_id,
-            agreement_confirmation: accepted.confirmation
+            agreement_confirmation_payload: accepted.agreement_confirmation_payload
           }
         };
       });
