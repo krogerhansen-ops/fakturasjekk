@@ -178,7 +178,8 @@ export function createBackendServices({
         client: companyRegistry,
         seller_name: facts.seller_name ?? null,
         seller_org_number: facts.seller_org_number ?? null,
-        seller_mva_marker_present: facts.seller_mva_marker_present ?? null
+        seller_mva_marker_present: facts.seller_mva_marker_present ?? null,
+        invoice_date: facts.invoice_date ?? null
       });
       const enrichment = companyCheckFacts(companyCheck);
       facts = { ...facts, ...enrichment.facts };
