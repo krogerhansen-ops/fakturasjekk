@@ -2,21 +2,25 @@ import fs from 'node:fs';
 
 const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
 const specialistRegistry = JSON.parse(fs.readFileSync(new URL('../rules/specialist-candidates.json', import.meta.url), 'utf8'));
+const crossCuttingRegistry = JSON.parse(fs.readFileSync(new URL('../rules/cross-cutting-candidates.json', import.meta.url), 'utf8'));
 const transitions = JSON.parse(fs.readFileSync(new URL('../rules/transitions.json', import.meta.url), 'utf8'));
 
-if (specialistRegistry.runtime !== false || specialistRegistry.purpose !== 'preactivation_only') {
-  throw new Error('Specialist legal registry must remain isolated from runtime.');
+const preactivationRegistries = [specialistRegistry, crossCuttingRegistry];
+for (const item of preactivationRegistries) {
+  if (item.runtime !== false || item.purpose !== 'preactivation_only') {
+    throw new Error('Preactivation legal registries must remain isolated from runtime.');
+  }
 }
 
 const runtimeMonitoredRules = registry.rules.filter(r => ['active', 'candidate'].includes(r.status));
-const preactivationRules = specialistRegistry.rules ?? [];
+const preactivationRules = preactivationRegistries.flatMap(item => item.rules ?? []);
 const allIds = [...runtimeMonitoredRules, ...preactivationRules].map(rule => rule.id);
 if (new Set(allIds).size !== allIds.length) {
-  throw new Error('Duplicate legal rule id exists across runtime and specialist preactivation registries.');
+  throw new Error('Duplicate legal rule id exists across runtime and preactivation registries.');
 }
 for (const rule of preactivationRules) {
-  if (rule.status !== 'preactivation_candidate') throw new Error(`${rule.id}: specialist rule must remain preactivation_candidate.`);
-  if (!Array.isArray(rule.conditions) || !rule.conditions.length) throw new Error(`${rule.id}: specialist rule must document activation conditions.`);
+  if (rule.status !== 'preactivation_candidate') throw new Error(`${rule.id}: preactivation rule must remain preactivation_candidate.`);
+  if (!Array.isArray(rule.conditions) || !rule.conditions.length) throw new Error(`${rule.id}: preactivation rule must document activation conditions.`);
 }
 
 const monitoredRules = [
@@ -42,7 +46,7 @@ function normalizeHtml(html) {
 async function fetchNormalized(url) {
   const response = await fetch(url, {
     redirect: 'follow',
-    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.30 (+https://fakturasjekk.no)' },
+    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.31 (+https://fakturasjekk.no)' },
     signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
