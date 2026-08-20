@@ -37,6 +37,7 @@ jobs:
           cp data/demo-cases.json _site/data/demo-cases.json
           cp config/product.json _site/config/product.json
           sed -i 's/Launch Candidate/Offentlig beta/g' _site/index.html _site/site/index-launch-candidate.html
+          sed -i 's/Prøv en full fakturasjekk/Prøv fakturasjekk-demoen/g' _site/index.html _site/site/index-launch-candidate.html
           touch _site/.nojekyll
       - name: Verify public artifact boundaries and demo dependencies
         run: |
@@ -50,6 +51,7 @@ jobs:
           test -f _site/engine/analyzer.mjs
           test -f _site/engine/draft.mjs
           grep -q 'Offentlig beta' _site/index.html
+          grep -q 'Prøv fakturasjekk-demoen' _site/index.html
           test ! -d _site/server
           test ! -d _site/admin
           test ! -f _site/motor-test.html
