@@ -6,6 +6,14 @@ const INSTALLATION = new Set(['installation', 'installation_service', 'montering
 const MOVING = new Set(['moving', 'moving_service', 'flytting', 'flyttebyra', 'flyttebyrå']);
 const CLEANING = new Set(['cleaning', 'cleaning_service', 'renhold', 'flyttevask']);
 
+const ENERGY = new Set(['energy', 'electricity_supply', 'power_supply', 'strom', 'strøm', 'energi']);
+const TELECOM = new Set(['telecom', 'ekom', 'mobile_subscription', 'broadband', 'telefoni', 'bredband', 'bredbånd']);
+const INSURANCE = new Set(['insurance', 'forsikring']);
+const HEALTHCARE_PAYMENT = new Set(['healthcare_payment', 'patient_payment', 'healthcare', 'pasientbetaling', 'helsebetaling']);
+const TAXI = new Set(['taxi', 'drosje', 'passenger_transport']);
+const REGULATED_TRANSPORT = new Set(['regulated_transport', 'transport_service', 'passenger_service']);
+const FINANCE = new Set(['finance', 'financial_service', 'banking', 'finans']);
+
 const VEHICLE_COMPLAINT_CONTEXTS = new Set(['warranty', 'guarantee', 'complaint', 'consumer_purchase_remedy', 'seller_remedy', 'reklamasjon', 'garanti']);
 const VEHICLE_INSPECTION_CONTEXTS = new Set(['periodic_inspection', 'pkk', 'eu_control', 'eu-kontroll']);
 const VEHICLE_COLLISION_CONTEXTS = new Set(['collision_repair', 'major_collision_repair', 'skadereparasjon']);
@@ -40,6 +48,80 @@ function clarification({ id, label, reason, questions = [], relevant_frameworks 
   };
 }
 
+function regulatedSectorClarification(industry) {
+  if (ENERGY.has(industry)) {
+    return clarification({
+      id: 'regulated_energy_invoice',
+      label: 'Strøm og energi',
+      reason: 'Strøm- og energifakturaer har sektorspesifikke fakturerings- og avtalevilkår. Fakturasjekk skal ikke bruke den generelle tjenestepakken før eget energispor er aktivert.',
+      questions: ['Gjelder kravet strømleveranse, nettleie eller en annen energitjeneste?'],
+      relevant_frameworks: ['kraftomsetningsforskriften', 'energiloven', 'avtalevilkårene']
+    });
+  }
+
+  if (TELECOM.has(industry)) {
+    return clarification({
+      id: 'regulated_telecom_invoice',
+      label: 'Telekom og ekom',
+      reason: 'Mobil-, bredbånds- og andre ekomtjenester har særregler om avtale, fakturering og sluttbrukerrettigheter. Generell tjenesteanalyse kan derfor gi feil rettslig spor.',
+      questions: ['Gjelder kravet mobil, bredbånd, telefoni eller en annen ekomtjeneste?'],
+      relevant_frameworks: ['ekomloven', 'ekomforskriften', 'avtalevilkårene']
+    });
+  }
+
+  if (INSURANCE.has(industry)) {
+    return clarification({
+      id: 'regulated_insurance_invoice',
+      label: 'Forsikring',
+      reason: 'Premiekrav og andre forsikringsbetalinger følger særregler. Fakturasjekk skal ikke behandle dem som en vanlig forbrukertjeneste.',
+      questions: ['Gjelder kravet forsikringspremie, egenandel eller en annen betaling knyttet til forsikringsavtalen?'],
+      relevant_frameworks: ['forsikringsavtaleloven', 'forsikringsavtalen']
+    });
+  }
+
+  if (HEALTHCARE_PAYMENT.has(industry)) {
+    return clarification({
+      id: 'regulated_healthcare_payment',
+      label: 'Helserelatert betaling',
+      reason: 'Pasientbetaling og offentlig eller privat helserelatert fakturering kan være styrt av egne betalings-, refusjons- og sektorregler. Fakturasjekk må avklare typen krav før analyse.',
+      questions: ['Er dette egenandel/pasientbetaling, privat behandling eller et annet helserelatert krav?'],
+      relevant_frameworks: ['sektorspesifikke regler for pasientbetaling', 'avtalegrunnlaget']
+    });
+  }
+
+  if (TAXI.has(industry)) {
+    return clarification({
+      id: 'regulated_taxi_invoice',
+      label: 'Drosje og passasjertransport',
+      reason: 'Drosje og passasjertransport har egne prisopplysnings- og transportregler. Fakturasjekk skal ikke bruke generisk tjenestepakke på disse kravene.',
+      questions: ['Gjelder kravet en drosjetur, annen passasjertransport eller et tillegg/gebyr knyttet til transporten?'],
+      relevant_frameworks: ['prisopplysningsforskriften §§ 25d–25e', 'yrkestransportregelverket', 'avtalegrunnlaget']
+    });
+  }
+
+  if (REGULATED_TRANSPORT.has(industry)) {
+    return clarification({
+      id: 'regulated_transport_invoice',
+      label: 'Særregulert transport',
+      reason: 'Transport kan omfattes av ulike særlover avhengig av hva og hvordan det transporteres. Fakturasjekk må vite transporttypen før riktig regelverk kan velges.',
+      questions: ['Gjelder kravet flyttegods, passasjertransport, varetransport eller en annen transporttjeneste?'],
+      relevant_frameworks: ['relevant transportregelverk', 'avtalegrunnlaget']
+    });
+  }
+
+  if (FINANCE.has(industry)) {
+    return clarification({
+      id: 'regulated_financial_service',
+      label: 'Finans og betalingstjenester',
+      reason: 'Finansielle tjenester, kreditt og betalingstjenester følger egne lovregler og skal ikke vurderes med vanlig vare-/tjenestepakke.',
+      questions: ['Gjelder kravet kreditt, renter, betalingstjeneste, bankgebyr eller en annen finansiell tjeneste?'],
+      relevant_frameworks: ['finansavtaleloven', 'avtalevilkårene']
+    });
+  }
+
+  return null;
+}
+
 export function resolveServiceLegalProfile({ route, facts = {} } = {}) {
   const baseRoute = norm(route);
   const industry = norm(facts.industry);
@@ -55,6 +137,9 @@ export function resolveServiceLegalProfile({ route, facts = {} } = {}) {
       relevant_frameworks: ['finansavtaleloven', 'forbrukerkjøpsloven']
     });
   }
+
+  const regulated = regulatedSectorClarification(industry);
+  if (regulated) return regulated;
 
   if (baseRoute === 'goods') {
     return profile({
@@ -212,7 +297,7 @@ export function resolveServiceLegalProfile({ route, facts = {} } = {}) {
       package_id: 'other_service',
       primary_framework: 'avtalen mellom partene',
       secondary_frameworks: ['prisopplysningsforskriften', 'markedsføringsloven', 'bokføringsforskriften'],
-      notes: ['Ingen generell tjenestelov skal antas å gjelde bare fordi fakturaen gjelder en tjeneste.']
+      notes: ['Ingen generell tjenestelov skal antas å gjelde bare fordi fakturaen gjelder en tjeneste.', 'Kjente særregulerte sektorer stoppes før denne pakken og krever eget juridisk spor.']
     });
   }
 
@@ -234,6 +319,15 @@ export function legalRoutingCatalog() {
       installation: [...INSTALLATION],
       moving: [...MOVING],
       cleaning: [...CLEANING]
+    },
+    fail_closed_industry_aliases: {
+      energy: [...ENERGY],
+      telecom: [...TELECOM],
+      insurance: [...INSURANCE],
+      healthcare_payment: [...HEALTHCARE_PAYMENT],
+      taxi: [...TAXI],
+      regulated_transport: [...REGULATED_TRANSPORT],
+      finance: [...FINANCE]
     }
   });
 }
