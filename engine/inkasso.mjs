@@ -60,6 +60,10 @@ export function analyzeInkasso(input = {}) {
       result.questions.push('Hva er innsigelsen mot hovedkravet, og finnes det dokumentasjon som støtter den?');
     }
 
+    if (input.collection_after_documented_dispute === true && input.ordinary_collection_continues !== true) {
+      result.questions.push('Det finnes et inkassodokument som er datert etter en dokumentert innsigelse. For å vurdere god inkassoskikk og innsigelsesbehandlingen må det avklares hvordan innsigelsen ble vurdert før videre inndriving.');
+    }
+
     if (input.ordinary_collection_continues === true) {
       result.findings.push({
         code: 'DISPUTED_CLAIM_ORDINARY_COLLECTION',
