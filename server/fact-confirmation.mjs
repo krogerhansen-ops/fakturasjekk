@@ -1,7 +1,7 @@
 const CONFIRMABLE_FIELDS = new Set([
   'invoice_total', 'invoice_number', 'agreed_price', 'invoice_fee', 'price_basis',
   'invoice_fee_agreed', 'surcharge_documented', 'price_increase_after_start', 'customer_notified',
-  'industry', 'vehicle_service_context', 'transaction_nature', 'financing_detected'
+  'industry', 'regulated_sector', 'vehicle_service_context', 'transaction_nature', 'financing_detected'
 ]);
 
 function validValue(value, definition = {}) {
