@@ -66,13 +66,16 @@ export function createPaymentWebhookService({ caseStore, services, gateway, even
           durable_medium_type: delivery?.medium_type ?? null
         }
       });
-      return {
+      const response = {
         accepted: true,
         paid: result.paid === true,
-        duplicate,
-        confirmation_delivered: delivery ? delivery.delivered === true : null,
-        durable_medium_type: delivery?.medium_type ?? null
+        duplicate
       };
+      if (delivery) {
+        response.confirmation_delivered = delivery.delivered === true;
+        response.durable_medium_type = delivery.medium_type ?? null;
+      }
+      return response;
     }
 
     await record({ confirmation, outcome: 'acknowledged', metadata: { duplicate, reason: 'non_payable_event' } });
