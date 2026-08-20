@@ -9,8 +9,20 @@
       "new_source_url": "https://lovdata.no/lov/2026-05-22-19",
       "status": "awaiting_commencement",
       "expected_pending_phrase": "i kraft fra den tid Kongen bestemmer",
-      "last_verified": "2026-08-18",
+      "last_verified": "2026-08-20",
       "action_when_changed": "Set all INK_* rules to review_required and perform manual legal review before reactivation."
+    },
+    {
+      "id": "FGAS_EU_2024_573_EEA_INCORPORATION",
+      "topic": "f-gass",
+      "current_law": "produktforskriften § 6a-1 med gjennomført 2014-regime",
+      "current_source_url": "https://www.regjeringen.no/no/sub/eos-notatbasen/notatene/2022/mai/revidert-f-gass-forordning-fase-3/id2918019/",
+      "new_law": "forordning (EU) 2024/573 med norsk/EØS-tilpasning når innlemmet og gjennomført",
+      "new_source_url": "https://lovdata.no/forskrift/2004-06-01-922/%C2%A76a-1",
+      "status": "awaiting_commencement",
+      "expected_pending_phrase": "foreløpig ikke innlemmet i EØS-avtalen",
+      "last_verified": "2026-08-20",
+      "action_when_changed": "Set f-gas related preactivation rules and heat-pump legal routing to manual review. Do not use EU 2024/573 as Norwegian runtime law until EEA incorporation and Norwegian implementation are verified."
     }
   ]
 }
