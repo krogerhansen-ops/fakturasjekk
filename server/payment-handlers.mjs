@@ -36,10 +36,11 @@ export function createPaymentHandlers({ services, gateway = null, checkoutConsen
             case_id,
             owner_id: user.id,
             consent: body.checkout_consent ?? {},
+            buyer_identity: body.buyer_identity ?? {},
             requirement
           });
         } catch (error) {
-          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state'].includes(error?.code)) {
+          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state','buyer_identity_required','buyer_identity_invalid'].includes(error?.code)) {
             throw new ApiError(409, error.code, error.message);
           }
           throw error;
