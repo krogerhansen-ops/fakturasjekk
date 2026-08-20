@@ -40,7 +40,9 @@ Derfor er kamera-kontrakten fail-closed:
 - sanitizert output må være en MIME-type som allerede er godkjent av upload-policyen,
 - lokal informasjon om at filen kom fra kamera sendes ikke som nytt backend-felt.
 
-Dette gjør det mulig å ta imot for eksempel HEIC fra en iPhone lokalt, konvertere/re-encode bildet og laste opp en metadata-strippet JPEG dersom den lokale sanitizer-implementasjonen støtter det.
+`site/app/camera-sanitizer.mjs` implementerer den lokale standardveien uten tredjepartsbibliotek: bildet dekodes til piksler, eventuelt skaleres ned og re-encodes som JPEG. Re-encodingen kopierer ikke original EXIF/GPS-metadata. Hvis nettleseren mangler nødvendige sikre bildeprimitiver, feiler funksjonen lukket i stedet for å sende originalfilen.
+
+Dette gjør det mulig å ta imot for eksempel HEIC fra en iPhone lokalt og laste opp en metadata-strippet JPEG dersom nettleseren kan dekode HEIC-bildet.
 
 ## Støttede upload-formater etter klargjøring
 
@@ -70,16 +72,20 @@ Bearer-token til Fakturasjekk skal aldri sendes til den signerte storage-URL-en.
 
 Hvis target-antall, document-id eller serverbekreftelse ikke stemmer, stopper flyten. Den skal ikke anta at upload var vellykket.
 
+## Kvalitet uten gjetting
+
+Sanitizeren kan markere et bilde som mulig lav oppløsning basert på pikseldimensjoner. Dette er bare et brukergrensesnitt-signal; det skal ikke tolkes som at OCR har lykkes eller feilet. Selve dokumentlesingen må fortsatt skje i den kontrollerte extractor-flyten.
+
 ## Ikke aktivert offentlig ennå
 
-Denne modulen forbereder mobilflyten, men offentlig beta skal fortsatt ikke motta ekte kundedokumenter mens `FAKTURASJEKK_COST_MODE=zero` og launch-gatene er åpne.
+Modulene forbereder mobilflyten, men offentlig beta skal fortsatt ikke motta ekte kundedokumenter mens `FAKTURASJEKK_COST_MODE=zero` og launch-gatene er åpne.
 
 Neste steg før offentlig kameraopptak:
 
-- implementere/teste selve browser-sanitizeren på iOS Safari og Android Chrome,
+- enhetstest av browser-sanitizeren er bygget; praktisk kompatibilitet må fortsatt verifiseres på iOS Safari og Android Chrome,
 - visuell kameraflyt med «Ta bilde» / «Velg fil»,
 - bilde-preview og mulighet til å ta bildet på nytt,
-- kvalitetssignal for uskarpt/lavoppløselig bilde uten å late som OCR-resultatet er kjent,
+- eventuelt skarphets-/kontrastsignal uten å late som OCR-resultatet er kjent,
 - live syntetisk Storage-E2E,
 - Auth-E2E,
 - sluttført DPIA/provider-gjennomgang før ekte kundedata.
