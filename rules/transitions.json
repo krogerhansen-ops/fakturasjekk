@@ -9,8 +9,20 @@
       "new_source_url": "https://lovdata.no/lov/2026-05-22-19",
       "status": "awaiting_commencement",
       "expected_pending_phrase": "i kraft fra den tid Kongen bestemmer",
-      "last_verified": "2026-08-18",
-      "action_when_changed": "Set all INK_* rules to review_required and perform manual legal review before reactivation."
+      "last_verified": "2026-08-20",
+      "action_when_changed": "Set all INK_* rules to review_required and perform manual legal review before reactivation. Rebuild deadlines, cost rules and transition handling from the actual commencement decision; do not assume the whole law starts at once."
+    },
+    {
+      "id": "FGAS_2024_573_EEA_INCORPORATION",
+      "topic": "f-gass",
+      "current_law": "forordning (EU) nr. 517/2014 as incorporated in Norway through product regulations",
+      "current_source_url": "https://www.regjeringen.no/no/sub/eos-notatbasen/notatene/2026/feb/gjennomforingsforordning-om-unntak-fra-omsetningsforbud-for-kjolemaskiner-til-produksjon-av-halvledere/id3153114/",
+      "new_law": "forordning (EU) 2024/573 and implementing acts",
+      "new_source_url": "https://www.regjeringen.no/no/sub/eos-notatbasen/notatene/2026/feb/gjennomforingsforordning-om-unntak-fra-omsetningsforbud-for-kjolemaskiner-til-produksjon-av-halvledere/id3153114/",
+      "status": "awaiting_commencement",
+      "expected_pending_phrase": "foreløpig ikke innlemmet i EØS-avtalen",
+      "last_verified": "2026-08-20",
+      "action_when_changed": "Set f-gas certification candidates and any heat-pump f-gas conclusions to manual review. Verify the EEA Joint Committee decision, Norwegian implementation in product regulations, adapted effective dates and replacement certification rules before reactivation."
     }
   ]
 }
