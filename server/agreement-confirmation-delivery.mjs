@@ -6,6 +6,13 @@ function deliveryError(message, code) {
   return error;
 }
 
+function clockIso(clock) {
+  const value = typeof clock === 'function' ? clock() : new Date();
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw deliveryError('Agreement confirmation delivery clock is invalid.', 'invalid_durable_delivery_time');
+  return date.toISOString();
+}
+
 export function createAgreementConfirmationDeliveryService({ checkoutConsentService, deliveryAdapter, clock = () => new Date(), audit = null } = {}) {
   if (!checkoutConsentService?.getConfirmationForDelivery || !checkoutConsentService?.markConfirmationDelivered) {
     throw new Error('Agreement confirmation delivery requires checkout consent service.');
@@ -57,7 +64,7 @@ export function createAgreementConfirmationDeliveryService({ checkoutConsentServ
     const providerDeliveredAt = delivery.delivered_at ? new Date(delivery.delivered_at) : null;
     const deliveredAt = providerDeliveredAt && !Number.isNaN(providerDeliveredAt.getTime())
       ? providerDeliveredAt.toISOString()
-      : (typeof clock === 'function' ? clock() : new Date()).toISOString();
+      : clockIso(clock);
 
     const saved = await checkoutConsentService.markConfirmationDelivered({
       case_id,
