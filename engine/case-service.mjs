@@ -2,6 +2,7 @@ import { classifyIntake } from './intake.mjs';
 import { analyzeCase } from './analyzer.mjs';
 import { analyzeInkasso } from './inkasso.mjs';
 import { runDocumentChecks } from './document-checks.mjs';
+import { evaluateLegalPreactivation } from './legal-preactivation.mjs';
 import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './evidence.mjs';
 import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
@@ -45,6 +46,17 @@ function combineDocumentChecks(analysis, documentChecks) {
   return { ...analysis, status, findings, questions, document_checks: documentChecks };
 }
 
+function combinePreactivation(analysis, preactivation) {
+  if (!preactivation) return analysis;
+  const extraQuestions = preactivation.questions ?? [];
+  if (!extraQuestions.length) return { ...analysis, preactivation };
+
+  const questions = [...new Set([...(analysis.questions ?? []), ...extraQuestions])];
+  let status = analysis.status;
+  if (analysis.supported !== false && status !== 'unsupported' && status === 'clean') status = 'review';
+  return { ...analysis, status, questions, preactivation };
+}
+
 export function runCase({ intake, facts = {}, origins = {}, collection = null, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
   const intakeResult = classifyIntake(intake ?? {});
 
@@ -56,6 +68,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     analysis: null,
     inkasso: null,
     document_checks: null,
+    preactivation: null,
     evidence: [],
     evidence_summary: {},
     assurance: null,
@@ -105,7 +118,11 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
   const inkasso = analyzeInkasso(collection ?? {});
   const collectionOverlay = inkasso?.status && inkasso.status !== 'not_applicable';
   const documentChecks = runDocumentChecks(facts);
-  const analysis = combineDocumentChecks(combineAnalysis(invoiceAnalysis, inkasso), documentChecks);
+  const preactivation = evaluateLegalPreactivation(analysisInput);
+  const analysis = combinePreactivation(
+    combineDocumentChecks(combineAnalysis(invoiceAnalysis, inkasso), documentChecks),
+    preactivation
+  );
   const packageSafety = assertRulePackageCompatibility({
     analysis,
     rulePackage,
@@ -136,6 +153,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     analysis: packagedAnalysis,
     inkasso,
     document_checks: documentChecks,
+    preactivation,
     evidence,
     evidence_summary: summarizeEvidence(evidence),
     assurance,
