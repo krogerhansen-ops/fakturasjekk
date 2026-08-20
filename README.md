@@ -4,11 +4,13 @@ Fakturasjekk.no er et norsk forbrukerverktøy for kontroll av faktura mot tilbud
 
 ## Status
 
+**Offentlig beta lansert 20.08.2026.**
+
 Aktuell utviklingsversjon: **V0.50**.
 
 Kundepris i V1: **29 kr for full fakturasjekk + utkast til innsigelse.**
 
-Demoen er gratis og bruker bare syntetiske saker.
+Demoen er gratis og bruker bare syntetiske saker. Offentlig beta tar ikke imot ekte kundedokumenter før produksjonsflyten er eksplisitt åpnet og sikkerhetstestet.
 
 ### Delbar kundedemo
 
