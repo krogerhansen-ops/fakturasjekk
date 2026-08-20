@@ -1,17 +1,26 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
-const specialistRegistry = JSON.parse(fs.readFileSync(new URL('../rules/specialist-candidates.json', import.meta.url), 'utf8'));
-const dueDiligenceRegistry = JSON.parse(fs.readFileSync(new URL('../rules/due-diligence-candidates.json', import.meta.url), 'utf8'));
-const dynamicRates = JSON.parse(fs.readFileSync(new URL('../rules/dynamic-rates.json', import.meta.url), 'utf8'));
-const transitions = JSON.parse(fs.readFileSync(new URL('../rules/transitions.json', import.meta.url), 'utf8'));
+const rulesDir = fileURLToPath(new URL('../rules/', import.meta.url));
+const registry = JSON.parse(fs.readFileSync(path.join(rulesDir, 'rules.json'), 'utf8'));
+const dynamicRates = JSON.parse(fs.readFileSync(path.join(rulesDir, 'dynamic-rates.json'), 'utf8'));
+const transitions = JSON.parse(fs.readFileSync(path.join(rulesDir, 'transitions.json'), 'utf8'));
 
-for (const [name, isolatedRegistry] of [
-  ['specialist', specialistRegistry],
-  ['due_diligence', dueDiligenceRegistry]
-]) {
-  if (isolatedRegistry.runtime !== false || isolatedRegistry.purpose !== 'preactivation_only') {
-    throw new Error(`${name} legal registry must remain isolated from runtime.`);
+const preactivationRegistries = fs.readdirSync(rulesDir)
+  .filter(name => name.endsWith('-candidates.json'))
+  .sort()
+  .map(name => ({
+    name,
+    data: JSON.parse(fs.readFileSync(path.join(rulesDir, name), 'utf8'))
+  }));
+
+if (!preactivationRegistries.length) {
+  throw new Error('At least one isolated *-candidates.json legal registry is required.');
+}
+for (const { name, data } of preactivationRegistries) {
+  if (data.runtime !== false || data.purpose !== 'preactivation_only') {
+    throw new Error(`${name} must remain isolated from runtime.`);
   }
 }
 
@@ -20,10 +29,9 @@ if (dynamicRates?.policy?.select_by_relevant_event_date !== true || dynamicRates
 }
 
 const runtimeMonitoredRules = registry.rules.filter(r => ['active', 'candidate'].includes(r.status));
-const preactivationRules = [
-  ...(specialistRegistry.rules ?? []),
-  ...(dueDiligenceRegistry.rules ?? [])
-];
+const preactivationRules = preactivationRegistries.flatMap(({ name, data }) =>
+  (data.rules ?? []).map(rule => ({ ...rule, registry_file: name }))
+);
 const allIds = [...runtimeMonitoredRules, ...preactivationRules].map(rule => rule.id);
 if (new Set(allIds).size !== allIds.length) {
   throw new Error('Duplicate legal rule id exists across runtime and preactivation registries.');
@@ -35,8 +43,7 @@ for (const rule of preactivationRules) {
 
 const monitoredRules = [
   ...runtimeMonitoredRules.map(rule => ({ ...rule, registry_class: 'runtime' })),
-  ...(specialistRegistry.rules ?? []).map(rule => ({ ...rule, registry_class: 'specialist_preactivation' })),
-  ...(dueDiligenceRegistry.rules ?? []).map(rule => ({ ...rule, registry_class: 'due_diligence_preactivation' }))
+  ...preactivationRules.map(rule => ({ ...rule, registry_class: `preactivation:${rule.registry_file}` }))
 ];
 
 function normalizeHtml(html) {
@@ -57,7 +64,7 @@ function normalizeHtml(html) {
 async function fetchNormalized(url) {
   const response = await fetch(url, {
     redirect: 'follow',
-    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.31 (+https://fakturasjekk.no)' },
+    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.32 (+https://fakturasjekk.no)' },
     signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -129,4 +136,4 @@ const activeCount = registry.rules.filter(r => r.status === 'active').length;
 const candidateCount = registry.rules.filter(r => r.status === 'candidate').length;
 const preactivationCount = preactivationRules.length;
 const dynamicRateCount = (dynamicRates.rates ?? []).length;
-console.log(`\nOK: ${activeCount} aktive runtime-regler, ${candidateCount} runtime-kandidat(er), ${preactivationCount} isolerte preaktiveringskandidat(er), ${dynamicRateCount} daterte satser og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
+console.log(`\nOK: ${activeCount} aktive runtime-regler, ${candidateCount} runtime-kandidat(er), ${preactivationCount} isolerte preaktiveringskandidat(er) i ${preactivationRegistries.length} registerfiler, ${dynamicRateCount} daterte satser og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
