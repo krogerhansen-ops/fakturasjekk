@@ -2,6 +2,11 @@ import { ApiError } from './api-errors.mjs';
 import { requireUser, requireCaseId, requireBodyObject, requireString } from './auth-policy.mjs';
 import { projectCase, projectAnalysisResponse, projectDraftResponse, projectFullResult, assertNoPrivateFields } from './public-projection.mjs';
 
+export function sanitizeCollectionContext(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  return input.claim_disputed === true ? { claim_disputed: true } : null;
+}
+
 export function createCaseHandlers({ services, registry = null, idempotency = null, clock = () => new Date() } = {}) {
   async function mutate(request, operation, fn) {
     if (!idempotency) return fn();
@@ -56,7 +61,7 @@ export function createCaseHandlers({ services, registry = null, idempotency = nu
           case_id,
           owner_id: user.id,
           user_note: typeof body.user_note === 'string' ? body.user_note.slice(0, 4000) : '',
-          collection: body.collection ?? null
+          collection: sanitizeCollectionContext(body.collection)
         });
         return { status: 200, body: safe(projectAnalysisResponse(output)) };
       });
