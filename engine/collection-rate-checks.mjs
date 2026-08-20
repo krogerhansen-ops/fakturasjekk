@@ -9,13 +9,13 @@ function finiteNumber(value) {
 function feeClaimForStage(input) {
   const stage = input.stage ?? 'none';
   if (stage === 'reminder') {
-    return { kind: 'reminder', amount: finiteNumber(input.reminder_fee ?? input.notice_fee), capField: 'reminder_fee_nok', label: 'purregebyr' };
+    return { kind: 'reminder', amount: finiteNumber(input.reminder_fee ?? input.notice_fee), capField: 'reminder_fee_nok', label: 'purregebyr', requiresOwnCollection: false };
   }
   if (stage === 'collection_notice') {
-    return { kind: 'collection_notice', amount: finiteNumber(input.collection_notice_fee ?? input.notice_fee), capField: 'collection_notice_fee_nok', label: 'gebyr for inkassovarsel' };
+    return { kind: 'collection_notice', amount: finiteNumber(input.collection_notice_fee ?? input.notice_fee), capField: 'collection_notice_fee_nok', label: 'gebyr for inkassovarsel', requiresOwnCollection: false };
   }
   if (stage === 'payment_request') {
-    return { kind: 'own_payment_request', amount: finiteNumber(input.payment_request_fee ?? input.notice_fee), capField: 'own_payment_request_fee_nok', label: 'gebyr for betalingsoppfordring ved egeninkasso' };
+    return { kind: 'own_payment_request', amount: finiteNumber(input.payment_request_fee ?? input.notice_fee), capField: 'own_payment_request_fee_nok', label: 'gebyr for betalingsoppfordring ved egeninkasso', requiresOwnCollection: true };
   }
   return null;
 }
@@ -32,37 +32,55 @@ export function evaluateCollectionRateClaims(input = {}) {
   if (fee?.amount !== null) {
     result.status = 'checked';
     const sentDate = input.notice_sent_date ?? input.sent_date ?? null;
-    const caps = inkassoFeeCapsOn(sentDate);
-    const check = {
-      id: 'INKASSO_FEE_DATE_VERSION',
-      type: 'collection_fee',
-      fee_kind: fee.kind,
-      stated_amount_nok: fee.amount,
-      event_date: sentDate,
-      rate_status: caps.status,
-      max_amount_nok: caps.status === 'verified' ? caps[fee.capField] : null,
-      legal_basis: caps.status === 'verified' ? caps.legal_basis : 'inkassoforskriften § 1-2',
-      source_url: caps.status === 'verified' ? caps.source_url : null
-    };
-    result.checks.push(check);
+    const collectionMode = input.collection_mode ?? null;
 
-    if (caps.status !== 'verified') {
-      result.questions.push(sentDate
-        ? `Gebyrsatsen for ${sentDate} er ikke aktivert i Fakturasjekks versjonerte satstabell. Gebyret vurderes derfor ikke automatisk.`
-        : 'Hvilken dato ble purringen, inkassovarselet eller betalingsoppfordringen sendt? Gebyrgrensen bestemmes av satsen på utsendelsesdatoen.');
-    } else if (fee.amount > caps[fee.capField]) {
-      result.findings.push({
-        code: 'COLLECTION_NOTICE_FEE_ABOVE_DATE_CAP',
-        severity: 'high',
-        title: `${fee.label[0].toUpperCase()}${fee.label.slice(1)} er høyere enn satsen for utsendelsesdatoen`,
-        explanation: `Dokumentet viser ${fee.amount} kr. Maksimal gebyrmessig erstatning for denne typen varsel på ${sentDate} er ${caps[fee.capField]} kr etter inkassoforskriften § 1-2.`,
-        rule_ids: ['INK_17_COLLECTION_COSTS'],
-        legal_basis: caps.legal_basis,
-        source_url: caps.source_url,
-        event_date: sentDate,
+    if (fee.requiresOwnCollection && collectionMode !== 'own_collection') {
+      result.checks.push({
+        id: 'INKASSO_FEE_DATE_VERSION',
+        type: 'collection_fee',
+        fee_kind: fee.kind,
         stated_amount_nok: fee.amount,
-        max_amount_nok: caps[fee.capField]
+        event_date: sentDate,
+        rate_status: 'unresolved',
+        reason: 'collection_mode_not_documented',
+        max_amount_nok: null,
+        legal_basis: 'inkassoforskriften § 1-2'
       });
+      result.questions.push('Er betalingsoppfordringen sendt av den opprinnelige fordringshaveren som egeninkasso, eller av et inkassoforetak? 113-kronersgrensen brukes bare når egeninkasso er dokumentert.');
+    } else {
+      const caps = inkassoFeeCapsOn(sentDate);
+      const check = {
+        id: 'INKASSO_FEE_DATE_VERSION',
+        type: 'collection_fee',
+        fee_kind: fee.kind,
+        stated_amount_nok: fee.amount,
+        event_date: sentDate,
+        collection_mode: collectionMode,
+        rate_status: caps.status,
+        max_amount_nok: caps.status === 'verified' ? caps[fee.capField] : null,
+        legal_basis: caps.status === 'verified' ? caps.legal_basis : 'inkassoforskriften § 1-2',
+        source_url: caps.status === 'verified' ? caps.source_url : null
+      };
+      result.checks.push(check);
+
+      if (caps.status !== 'verified') {
+        result.questions.push(sentDate
+          ? `Gebyrsatsen for ${sentDate} er ikke aktivert i Fakturasjekks versjonerte satstabell. Gebyret vurderes derfor ikke automatisk.`
+          : 'Hvilken dato ble purringen, inkassovarselet eller betalingsoppfordringen sendt? Gebyrgrensen bestemmes av satsen på utsendelsesdatoen.');
+      } else if (fee.amount > caps[fee.capField]) {
+        result.findings.push({
+          code: 'COLLECTION_NOTICE_FEE_ABOVE_DATE_CAP',
+          severity: 'high',
+          title: `${fee.label[0].toUpperCase()}${fee.label.slice(1)} er høyere enn satsen for utsendelsesdatoen`,
+          explanation: `Dokumentet viser ${fee.amount} kr. Maksimal gebyrmessig erstatning for denne typen varsel på ${sentDate} er ${caps[fee.capField]} kr etter inkassoforskriften § 1-2.`,
+          rule_ids: ['INK_17_COLLECTION_COSTS'],
+          legal_basis: caps.legal_basis,
+          source_url: caps.source_url,
+          event_date: sentDate,
+          stated_amount_nok: fee.amount,
+          max_amount_nok: caps[fee.capField]
+        });
+      }
     }
   }
 
