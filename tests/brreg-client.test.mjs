@@ -21,6 +21,7 @@ const entityPayload = {
   navn: 'Demo Butikk AS',
   organisasjonsform: { kode: 'AS', beskrivelse: 'Aksjeselskap' },
   registrertIMvaregisteret: true,
+  registreringsdatoMerverdiavgiftsregisteret: '2021-05-01',
   registrertIForetaksregisteret: true,
   konkurs: false,
   underAvvikling: false,
@@ -34,8 +35,9 @@ const normalized = normalizeBrregEntity(entityPayload);
 assert.deepEqual(Object.keys(normalized).sort(), [
   'bankrupt','business_address','business_code','deleted_date','name','organization_form','organization_number',
   'registered_in_business_register','registered_in_vat','registration_date','source','source_version',
-  'under_forced_liquidation_or_dissolution','under_liquidation'
+  'under_forced_liquidation_or_dissolution','under_liquidation','vat_registration_date'
 ].sort());
+assert.equal(normalized.vat_registration_date, '2021-05-01');
 assert.equal('telefon' in normalized, false);
 assert.equal('epostadresse' in normalized, false);
 
@@ -49,6 +51,7 @@ const client = createBrregClient({
 const hit = await client.lookupByOrganizationNumber('509 100 675');
 assert.equal(hit.status, 'verified');
 assert.equal(hit.entity.name, 'Demo Butikk AS');
+assert.equal(hit.entity.vat_registration_date, '2021-05-01');
 assert.match(calls[0].url, /\/enheter\/509100675$/);
 assert.equal(calls[0].options.headers.accept, 'application/vnd.brreg.enhetsregisteret.enhet.v2+json');
 assert.equal(calls[0].options.redirect, 'error');
@@ -89,4 +92,4 @@ const ambiguousPayload = { _embedded: { enheter: [entityPayload, { ...entityPayl
 const ambiguousClient = createBrregClient({ fetchImpl: async () => new Response(JSON.stringify(ambiguousPayload), { status: 200 }) });
 assert.equal((await ambiguousClient.searchByExactName('Demo Butikk AS')).status, 'ambiguous');
 
-console.log('OK Brreg client uses exact, versioned, no-store company lookup and treats 404/410/ambiguity separately.');
+console.log('OK Brreg client uses exact, versioned, no-store company lookup and captures VAT registration date without inferring history.');
