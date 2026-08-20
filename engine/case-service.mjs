@@ -6,6 +6,7 @@ import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './
 import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
 import { resolveRulePackage, assertRulePackageCompatibility } from './rule-packages.mjs';
+import { resolveServiceLegalProfile } from './service-legal-router.mjs';
 
 function combineAnalysis(baseAnalysis, inkasso) {
   if (!inkasso || inkasso.status === 'not_applicable') return baseAnalysis;
@@ -50,6 +51,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
   const base = {
     engine: registry?.engine_version ?? null,
     intake: intakeResult,
+    legal_profile: null,
     rule_package: null,
     analysis: null,
     inkasso: null,
@@ -69,10 +71,25 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     };
   }
 
-  const rulePackage = resolveRulePackage({ route: intakeResult.route, facts });
+  const legalProfile = resolveServiceLegalProfile({ route: intakeResult.route, facts });
+  if (legalProfile.status !== 'ready') {
+    return {
+      ...base,
+      legal_profile: legalProfile,
+      status: 'needs_clarification',
+      intake: {
+        ...intakeResult,
+        questions: [...new Set([...(intakeResult.questions ?? []), ...(legalProfile.questions ?? [])])]
+      },
+      draft: { allowed: false, reason: legalProfile.reason ?? 'Riktig juridisk hovedspor må avklares før regelanalyse.' }
+    };
+  }
+
+  const rulePackage = resolveRulePackage({ route: intakeResult.route, facts, legalProfile });
   if (!rulePackage) {
     return {
       ...base,
+      legal_profile: legalProfile,
       status: 'needs_clarification',
       draft: { allowed: false, reason: 'Saken kunne ikke knyttes sikkert til en aktiv regelpakke.' }
     };
@@ -81,7 +98,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
   const analysisInput = {
     ...facts,
     party_type: 'consumer',
-    case_type: intakeResult.route
+    case_type: rulePackage.base_routes?.[0] ?? intakeResult.route
   };
 
   const invoiceAnalysis = analyzeCase(analysisInput, registry);
@@ -113,6 +130,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
 
   return {
     ...base,
+    legal_profile: legalProfile,
     status: packagedAnalysis.status,
     rule_package: packageSafety,
     analysis: packagedAnalysis,
