@@ -1,0 +1,54 @@
+{
+  "version": "2026-08-20-v1",
+  "enabled": false,
+  "document_type": "sales_document",
+  "currency": "NOK",
+  "numbering": {
+    "mode": "adapter_controlled_sequence",
+    "sequence_prefix": "FS",
+    "require_atomic_next_number": true
+  },
+  "seller": {
+    "ready": false,
+    "legal_name": null,
+    "organization_number": null,
+    "postal_address": null,
+    "organization_form": null,
+    "registered_in_business_register": null,
+    "registered_in_vat": null,
+    "mva_registration_verified_at": null
+  },
+  "vat_treatment": {
+    "status": "unresolved",
+    "rate_percent": null,
+    "price_is_gross_consumer_price": true,
+    "rule": "Never show or calculate VAT until seller VAT registration and the service VAT treatment are explicitly verified."
+  },
+  "buyer_identity": {
+    "required_fields": ["name", "postal_address"],
+    "purpose": "sales_documentation_only"
+  },
+  "issuance": {
+    "trigger": "paid_service_delivered",
+    "do_not_issue_tax_sales_document_before_delivery": true,
+    "send_to_buyer_unprompted": true
+  },
+  "retention": {
+    "class": "primary_accounting_material",
+    "minimum_years_after_financial_year_end": 5,
+    "must_be_separate_from_case_retention": true,
+    "immutable_after_issue": true
+  },
+  "sources": [
+    "https://lovdata.no/forskrift/2004-12-01-1558/§5-1-1",
+    "https://lovdata.no/forskrift/2004-12-01-1558/§5-1-2",
+    "https://lovdata.no/forskrift/2004-12-01-1558/§5-1-3",
+    "https://lovdata.no/forskrift/2004-12-01-1558/§5-2-2",
+    "https://lovdata.no/forskrift/2004-12-01-1558/§5-2-6"
+  ],
+  "notes": [
+    "Internet sales are not treated as cash sales under the cash-sales definition.",
+    "The sales document is separate from the consumer-law agreement confirmation and from the payment-provider event.",
+    "Launch remains blocked until seller identity, VAT treatment, accounting sequence and durable delivery are configured."
+  ]
+}
