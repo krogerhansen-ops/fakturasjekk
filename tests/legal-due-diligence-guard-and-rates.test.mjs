@@ -9,7 +9,10 @@ const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', impor
 const dueDiligence = JSON.parse(fs.readFileSync(new URL('../rules/due-diligence-candidates.json', import.meta.url), 'utf8'));
 const rates = JSON.parse(fs.readFileSync(new URL('../rules/dynamic-rates.json', import.meta.url), 'utf8'));
 
-for (const industry of ['mobil', 'strøm', 'forsikring', 'drosje', 'persontransport']) {
+for (const industry of [
+  'mobil', 'strøm', 'forsikring', 'drosje', 'persontransport', 'streaming', 'parkering',
+  'pakkereise', 'husleie', 'tannlege', 'gravferd'
+]) {
   const guard = resolveRegulatedSectorGuard({ industry });
   assert.ok(guard, `regulated sector must be recognized: ${industry}`);
   assert.equal(guard.status, 'needs_clarification');
@@ -32,6 +35,18 @@ assert.equal(telecom.analysis, null);
 assert.equal(telecom.rule_package, null);
 assert.equal(telecom.draft.allowed, false);
 assert.equal(telecom.legal_profile.id, 'regulated_telecom');
+
+for (const regulated_sector of ['digital_service', 'parking', 'package_travel', 'housing_rent', 'dental', 'funeral']) {
+  const stopped = runCase({
+    intake: { buyer_type: 'consumer', subject: 'service_quote', documents: ['invoice'] },
+    facts: { regulated_sector, invoice_total: 1000 },
+    registry
+  });
+  assert.equal(stopped.status, 'needs_clarification', `${regulated_sector} must fail closed`);
+  assert.equal(stopped.analysis, null);
+  assert.equal(stopped.rule_package, null);
+  assert.equal(stopped.draft.allowed, false);
+}
 
 const ordinaryMoving = runCase({
   intake: { buyer_type: 'consumer', subject: 'service_quote', documents: ['invoice', 'quote'] },
@@ -65,4 +80,4 @@ for (const rule of dueDiligence.rules) {
   assert.equal(packageIds.has(rule.id), false, `${rule.id} must not exist in runtime package`);
 }
 
-console.log('OK: regulated sectors fail closed, ordinary supported services continue, and legal rates resolve strictly by effective date.');
+console.log('OK: special-law sectors fail closed, ordinary supported services continue, and legal rates resolve strictly by effective date.');
