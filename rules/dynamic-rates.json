@@ -1,0 +1,140 @@
+{
+  "version": "0.1.0",
+  "jurisdiction": "NO",
+  "last_reviewed": "2026-08-20",
+  "policy": {
+    "select_by_relevant_event_date": true,
+    "never_apply_latest_rate_retroactively": true,
+    "primary_source_required": true,
+    "derived_amounts_must_name_formula_source": true
+  },
+  "rates": [
+    {
+      "id": "LATE_INTEREST_2026_H1",
+      "type": "late_payment_interest_percent_pa",
+      "value": 12.00,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-06-30",
+      "source_url": "https://lovdata.no/forskrift/2025-12-18-2658",
+      "expected_phrase": "12,00 prosent p.a.",
+      "scope": ["late_payment_interest"],
+      "notes": "For forbruker kan det ikke avtales høyere forsinkelsesrente enn den fastsatte satsen, jf. forsinkelsesrenteloven § 4 bokstav c."
+    },
+    {
+      "id": "LATE_INTEREST_2026_H2",
+      "type": "late_payment_interest_percent_pa",
+      "value": 12.25,
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.finanstilsynet.no/analyser-og-statistikk/forsinkelsesrente-og-standardkompensasjon/forsinkelsesrente/",
+      "expected_phrase": "12,25 prosent fra 1. juli 2026",
+      "scope": ["late_payment_interest"],
+      "notes": "Fastsettes halvårlig. Må ikke brukes på perioder før 1. juli 2026."
+    },
+    {
+      "id": "STANDARD_COMPENSATION_2026_H1",
+      "type": "standard_collection_compensation_nok",
+      "value": 460,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-06-30",
+      "source_url": "https://lovdata.no/forskrift/2025-12-18-2658",
+      "expected_phrase": "460 kroner",
+      "scope": ["non_consumer_or_statutory_eligible_only"],
+      "runtime_for_consumer": false,
+      "notes": "Standardkompensasjon etter forsinkelsesrenteloven § 3a skal ikke behandles som en generell forbrukersats."
+    },
+    {
+      "id": "STANDARD_COMPENSATION_2026_H2",
+      "type": "standard_collection_compensation_nok",
+      "value": 430,
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.finanstilsynet.no/analyser-og-statistikk/forsinkelsesrente-og-standardkompensasjon/forsinkelsesrente/",
+      "expected_phrase": "430 kroner",
+      "scope": ["non_consumer_or_statutory_eligible_only"],
+      "runtime_for_consumer": false,
+      "notes": "Overvåkes for korrekt regelverk, men skal ikke automatisk brukes mot forbruker."
+    },
+    {
+      "id": "INKASSO_RATE_2026",
+      "type": "inkasso_rate_nok",
+      "value": 750,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://lovdata.no/forskrift/1989-07-14-562",
+      "expected_phrase": "Inkassosatsen er kr 750",
+      "scope": ["debt_collection"],
+      "notes": "Inkassoforskriften bruker satsen som beregningsgrunnlag; relevant tidspunkt varierer med kostnadstypen."
+    },
+    {
+      "id": "REMINDER_FEE_2026",
+      "type": "reminder_or_collection_notice_fee_nok",
+      "value": 38,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.finanstilsynet.no/forbrukerinformasjon/inkassovirksomhet/oversikt-over-utenrettslige-inndrivingskostnader/",
+      "expected_phrase": "Purring: 38 kroner",
+      "scope": ["consumer", "reminder", "collection_notice"],
+      "derived_from": "1/20 of inkassosats 750, rounded to nearest NOK under inkassoforskriften § 1-2",
+      "notes": "Gebyr kan bare kreves når forskriftens vilkår og tidsgrenser er oppfylt."
+    },
+    {
+      "id": "OWN_PAYMENT_REQUEST_FEE_2026",
+      "type": "creditor_payment_request_fee_nok",
+      "value": 113,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.finanstilsynet.no/forbrukerinformasjon/inkassovirksomhet/oversikt-over-utenrettslige-inndrivingskostnader/",
+      "expected_phrase": "Betalingsoppfordring (egeninkasso): 113 kroner",
+      "scope": ["consumer", "payment_request", "own_collection"],
+      "derived_from": "3/20 of inkassosats 750, rounded to nearest NOK under inkassoforskriften § 1-2",
+      "notes": "Må ikke forveksles med inkassators salær etter kapittel 2."
+    },
+    {
+      "id": "VAT_GENERAL_2026",
+      "type": "vat_percent",
+      "category": "general",
+      "value": 25,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.regjeringen.no/no/tema/okonomi-og-budsjett/skatter-og-avgifter/skatte-og-avgiftssatser/avgiftssatser-2026/id3121982/",
+      "expected_phrase": "Generell sats",
+      "scope": ["most_goods_and_services"]
+    },
+    {
+      "id": "VAT_FOOD_2026",
+      "type": "vat_percent",
+      "category": "food",
+      "value": 15,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.skatteetaten.no/satser/merverdiavgift/",
+      "expected_phrase": "Næringsmidler",
+      "scope": ["food"]
+    },
+    {
+      "id": "VAT_WATER_SEWER_2026",
+      "type": "vat_percent",
+      "category": "water_and_sewer_service",
+      "value": 15,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.skatteetaten.no/satser/merverdiavgiftssatser-omsetning-og-uttak-av-vann-fra-vannverk-og-avlopstjenester/",
+      "expected_phrase": "15 %",
+      "scope": ["water_from_waterworks", "sewer_services"],
+      "notes": "Skal ikke brukes på vanlig rørleggerarbeid bare fordi saken gjelder VVS."
+    },
+    {
+      "id": "VAT_LOW_2026",
+      "type": "vat_percent",
+      "category": "specified_low_rate_services",
+      "value": 12,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "source_url": "https://www.regjeringen.no/no/dokumenter/prop.-1-ls-20252026/id3124192/?ch=20",
+      "expected_phrase": "Redusert sats med 12 pst.",
+      "scope": ["passenger_transport", "accommodation", "cinema", "specified_admission_services"],
+      "notes": "Flytting av gods er ikke persontransport og skal ikke få 12 % automatisk."
+    }
+  ]
+}
