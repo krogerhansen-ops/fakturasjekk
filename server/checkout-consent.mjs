@@ -3,7 +3,31 @@ function requireString(value, name) {
   return value.trim();
 }
 
+function boundedText(value, name, max) {
+  const normalized = requireString(value, name);
+  if (normalized.length > max) {
+    const error = new Error(`${name} is too long.`);
+    error.code = 'buyer_identity_invalid';
+    error.field = name;
+    throw error;
+  }
+  return normalized;
+}
+
 const DURABLE_MEDIUM_TYPES = new Set(['email_text', 'email_pdf', 'sms_text']);
+
+export function validateBuyerIdentity(input = {}) {
+  try {
+    return {
+      valid: true,
+      name: boundedText(input.name, 'Buyer name', 200),
+      postal_address: boundedText(input.postal_address, 'Buyer postal address', 400)
+    };
+  } catch (error) {
+    if (!error.code) error.code = 'buyer_identity_required';
+    throw error;
+  }
+}
 
 export function checkoutReadiness(policy = {}) {
   const seller = policy.seller ?? {};
@@ -71,8 +95,6 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
   };
 }
 
-// This is the immutable content payload that must later be delivered on a genuine
-// durable medium. Returning/storing this object alone does not satisfy that delivery requirement.
 export function agreementConfirmationPayload({ policy, consent_record, case_id, created_at } = {}) {
   if (!consent_record?.valid) throw new Error('Validated checkout consent is required for agreement confirmation payload.');
   return {
