@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "jurisdiction": "NO",
   "purpose": "preactivation_only",
   "runtime": false,
@@ -14,11 +14,7 @@
       "last_verified": "2026-08-20",
       "status": "preactivation_candidate",
       "scope": ["consumer", "invoice_fee", "goods", "service", "payment"],
-      "conditions": [
-        "Kravet må være et forbrukerkrav innen bestemmelsens virkeområde.",
-        "Et fakturagebyr eller en gebyrdel som gjelder utstedelse/sending av regning må være identifisert.",
-        "Fakturasjekk skal ikke gjette betalingsmottakerens faktiske kostnad; sikkert avvik krever dokumentert kostnadsgrunnlag eller annen kontrollert kilde."
-      ],
+      "conditions": ["Kravet må være et forbrukerkrav innen bestemmelsens virkeområde.", "Et fakturagebyr eller en gebyrdel som gjelder utstedelse/sending av regning må være identifisert.", "Fakturasjekk skal ikke gjette betalingsmottakerens faktiske kostnad; sikkert avvik krever dokumentert kostnadsgrunnlag eller annen kontrollert kilde."],
       "notes": "Gjelder på tvers av vare- og tjenestefakturaer. Kommer i tillegg til særreglene i blant annet håndverkertjenesteloven § 36 og forbrukerkjøpsloven § 37. Ikke runtime-aktiv før faktisk kostnad kan håndteres uten gjetting."
     },
     {
@@ -31,12 +27,138 @@
       "last_verified": "2026-08-20",
       "status": "preactivation_candidate",
       "scope": ["consumer", "handcraft_service", "itemized_invoice", "payment_due"],
-      "conditions": [
-        "Forbrukeren må ha krevd spesifisert regning i tilstrekkelig tid før forfall.",
-        "Tidspunktene for krav, opprinnelig forfall og mottatt spesifisert regning må være dokumentert.",
-        "Begrepet 'tilstrekkelig tid' skal ikke erstattes av en egen oppdiktet daggrense."
-      ],
+      "conditions": ["Forbrukeren må ha krevd spesifisert regning i tilstrekkelig tid før forfall.", "Tidspunktene for krav, opprinnelig forfall og mottatt spesifisert regning må være dokumentert.", "Begrepet 'tilstrekkelig tid' skal ikke erstattes av en egen oppdiktet daggrense."],
       "notes": "Kan gi viktig handlingsinformasjon ved verksted- og håndverkerfakturaer, men holdes utenfor runtime inntil tidslinjen kan dokumenteres sikkert."
+    },
+    {
+      "id": "EKOM_4_11_NONPAYMENT_GUARD",
+      "law": "ekomloven",
+      "section": "§ 4-11",
+      "title": "Særregler ved manglende betaling for ekomtjenester",
+      "source_url": "https://lovdata.no/lov/2024-12-13-76/%C2%A74-11",
+      "expected_phrase": "minst én oppfordring til å betale",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "telecom", "nonpayment", "routing_guard"],
+      "conditions": ["Kravet må gjelde elektronisk kommunikasjon som omfattes av bestemmelsen.", "Sperring/oppsigelse og betalingshistorikk må dokumenteres før konkret vurdering."],
+      "notes": "Kildeanker for fail-closed ekomruting; ikke runtime-aktiv."
+    },
+    {
+      "id": "INSURANCE_5_1_PREMIUM_GUARD",
+      "law": "forsikringsavtaleloven",
+      "section": "§ 5-1",
+      "title": "Første premievarsel og betalingsfrist",
+      "source_url": "https://lovdata.no/lov/1989-06-16-69/%C2%A75-1",
+      "expected_phrase": "Betalingsfristen skal være minst en måned",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "insurance", "premium", "routing_guard"],
+      "conditions": ["Forsikringstype og relevant del av forsikringsavtaleloven må klassifiseres før konkret regelvalg.", "Premievarsel og datoer må dokumenteres."],
+      "notes": "Forsikring har egne premiefrister og skal ikke gå gjennom generic service."
+    },
+    {
+      "id": "ENERGY_7_2_INVOICE_GUARD",
+      "law": "forskrift om kraftomsetning og nettjenester",
+      "section": "§ 7-2",
+      "title": "Særkrav til faktura for nettjenester",
+      "source_url": "https://lovdata.no/forskrift/1999-03-11-301/%C2%A77-2",
+      "expected_phrase": "Fakturaen skal være oversiktlig og lett å forstå for forbrukeren",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "electricity_energy", "invoice", "routing_guard"],
+      "conditions": ["Det må skilles mellom nettjeneste, kraftleveranse og eventuelle tilleggstjenester.", "Fakturagrunnlag, prisområde, måleverdier og avtaletype må være sikkert klassifisert før konkret kontroll."],
+      "notes": "Kildeanker for særregulert strøm-/nettfakturering; ikke runtime-aktiv."
+    },
+    {
+      "id": "TAXI_25D_PRICE_QUOTE_GUARD",
+      "law": "prisopplysningsforskriften",
+      "section": "§ 25d",
+      "title": "Pristilbud for drosjetjeneste",
+      "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A725d",
+      "expected_phrase": "uoppfordret gi forbrukeren et pristilbud",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "taxi", "quote", "routing_guard"],
+      "conditions": ["Tjenesten må være en drosjetjeneste innen bestemmelsens virkeområde.", "Bestemmelsessted/pristilbud og faktisk beregnet pris må dokumenteres."],
+      "notes": "Drosje har eget prisregelspor og skal ikke gå gjennom generic service."
+    },
+    {
+      "id": "DIGITAL_28_PRICE_GUARD",
+      "law": "digitalytelsesloven",
+      "section": "§ 28",
+      "title": "Pris, prisendring og fakturagebyr for digitale ytelser",
+      "source_url": "https://lovdata.no/lov/2022-06-17-56/%C2%A728",
+      "expected_phrase": "kan ikke i tillegg til vederlaget kreve gebyr for utstedelse og sending av regning",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "digital_service", "price", "routing_guard"],
+      "conditions": ["Ytelsen må omfattes av digitalytelseslovens virkeområde.", "Avtale, eventuell løpende prisendring og betalingskrav må dokumenteres."],
+      "notes": "Digitalytelser har eget lovspor; V1 stopper før generisk analyse."
+    },
+    {
+      "id": "PARKING_36_SANCTION_GUARD",
+      "law": "parkeringsforskriften",
+      "section": "§ 36",
+      "title": "Kontrollsanksjon ved vilkårsparkering",
+      "source_url": "https://lovdata.no/forskrift/2016-03-18-260/%C2%A736",
+      "expected_phrase": "kontrollsanksjon på kr 660",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "parking", "sanction", "routing_guard"],
+      "conditions": ["Det må skilles mellom ordinær parkeringsbetaling/fakturering og kontrollsanksjon.", "Sanksjonstype, parkeringsvilkår og tidslinje må dokumenteres."],
+      "notes": "Faste sanksjonssatser og særvilkår gjør at parkering ikke skal gå gjennom generic service."
+    },
+    {
+      "id": "PACKAGE_TRAVEL_9_TOTAL_PRICE_GUARD",
+      "law": "pakkereiseloven",
+      "section": "§ 9",
+      "title": "Samlet pris og tillegg for pakkereiser",
+      "source_url": "https://lovdata.no/lov/2018-06-15-32/%C2%A79",
+      "expected_phrase": "pakkereisens samlede pris",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "package_travel", "price", "routing_guard"],
+      "conditions": ["Det må først fastslås at avtalen er pakkereise eller sammensatt reisearrangement.", "Avtale, samlet pris, tillegg og betalingsvilkår må dokumenteres."],
+      "notes": "Kildeanker for særregulert reise; ikke runtime-aktiv."
+    },
+    {
+      "id": "HOUSING_RENT_3_1_RENT_GUARD",
+      "law": "husleieloven",
+      "section": "§ 3-1",
+      "title": "Leie og særskilte tillegg",
+      "source_url": "https://lovdata.no/lov/1999-03-26-17/%C2%A73-1",
+      "expected_phrase": "Leien skal fastsettes til et bestemt beløp",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "housing_rent", "rent", "routing_guard"],
+      "conditions": ["Kravet må gjelde husleieforhold innen lovens virkeområde.", "Leieavtale, tillegg og forfallsgrunnlag må dokumenteres."],
+      "notes": "Boligleie har egen lov og skal ikke gå gjennom generic service."
+    },
+    {
+      "id": "DENTAL_18_QUOTE_GUARD",
+      "law": "prisopplysningsforskriften",
+      "section": "§ 18",
+      "title": "Pristilbud ved tannhelsetjenester",
+      "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A718",
+      "expected_phrase": "Vil totalprisen overstige kr 5000",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "dental", "quote", "routing_guard"],
+      "conditions": ["Tjenesten må være tannhelsetjeneste og terskel/forløp må vurderes etter gjeldende bestemmelse.", "Stønads-/refusjonsopplysninger kan kreve eget grunnlag."],
+      "notes": "Særregel gjør at tannhelsefaktura ikke skal behandles som generic service før egen pakke."
+    },
+    {
+      "id": "FUNERAL_17_QUOTE_GUARD",
+      "law": "prisopplysningsforskriften",
+      "section": "§ 17",
+      "title": "Pristilbud og tillegg ved gravferdstjenester",
+      "source_url": "https://lovdata.no/forskrift/2012-11-14-1066/%C2%A717",
+      "expected_phrase": "varer og tjenester som ikke er inkludert i pristilbudet",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "funeral", "quote", "routing_guard"],
+      "conditions": ["Tjenesten må være gravferdstjeneste innen forskriftens kapittel 4.", "Pristilbud, tillegg og eventuell transportrefusjon må dokumenteres."],
+      "notes": "Særregel gjør at gravferdsfaktura ikke skal behandles som generic service før egen pakke."
     }
   ]
 }
