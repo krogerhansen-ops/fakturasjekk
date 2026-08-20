@@ -1,4 +1,4 @@
-export function createPaymentWebhookService({ caseStore, services, gateway, eventStore, audit = null } = {}) {
+export function createPaymentWebhookService({ caseStore, services, gateway, eventStore, audit = null, orderConfirmationService = null } = {}) {
   if (!caseStore?.getForSystem) throw new Error('Case store requires getForSystem for payment webhooks.');
   if (!services?.confirmPayment) throw new Error('Backend services require confirmPayment.');
   if (!gateway?.verifyEvent) throw new Error('Payment gateway requires verifyEvent.');
@@ -56,8 +56,30 @@ export function createPaymentWebhookService({ caseStore, services, gateway, even
       // confirmPayment is idempotent by provider reference. Reprocessing a signed
       // duplicate is deliberate so a transient database failure can recover.
       const result = await services.confirmPayment({ case_id: confirmation.case_id, owner_id: caseData.owner_id, confirmation });
-      await record({ confirmation, outcome: result.paid ? 'success' : 'rejected', metadata: { duplicate } });
-      return { accepted: true, paid: result.paid === true, duplicate };
+      let orderConfirmationPrepared = false;
+      let orderConfirmationId = null;
+
+      // Preparing the durable-medium payload is provider-neutral and idempotent.
+      // Actual delivery is a separate, explicit step; this must never be confused
+      // with proof that an email/document was delivered to the customer.
+      if (result.paid === true && orderConfirmationService?.prepare) {
+        const prepared = await orderConfirmationService.prepare({ case_id: confirmation.case_id, owner_id: caseData.owner_id });
+        orderConfirmationPrepared = Boolean(prepared?.confirmation);
+        orderConfirmationId = prepared?.confirmation?.confirmation_id ?? null;
+      }
+
+      await record({
+        confirmation,
+        outcome: result.paid ? 'success' : 'rejected',
+        metadata: { duplicate, order_confirmation_prepared: orderConfirmationPrepared }
+      });
+      return {
+        accepted: true,
+        paid: result.paid === true,
+        duplicate,
+        order_confirmation_prepared: orderConfirmationPrepared,
+        order_confirmation_id: orderConfirmationId
+      };
     }
 
     await record({ confirmation, outcome: 'acknowledged', metadata: { duplicate, reason: 'non_payable_event' } });
