@@ -5,6 +5,8 @@ import { createCaseManagement } from './case-management.mjs';
 import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { createCheckoutConsentService } from './checkout-consent-service.mjs';
+import { createAgreementConfirmationDeliveryService } from './agreement-confirmation-delivery.mjs';
+import { createPaidServiceDeliveryGate } from './paid-service-delivery-gate.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createApi } from './api.mjs';
@@ -46,6 +48,10 @@ export function createProductionApp({
   const idempotencyStore = required(adapters.idempotencyStore, 'idempotencyStore', 'put');
   const auditAdapter = required(adapters.auditAdapter, 'auditAdapter', 'write');
   const rateLimiter = required(adapters.rateLimiter, 'rateLimiter', 'check');
+  const durableRequired = checkoutPolicy?.requirements?.durable_confirmation_required_before_service_delivery === true;
+  const durableMediumDelivery = durableRequired
+    ? required(adapters.durableMediumDelivery, 'durableMediumDelivery', 'deliverAgreementConfirmation')
+    : adapters.durableMediumDelivery ?? null;
 
   const serviceAdapters = { caseStore, storage, extractor, responseInterpreter };
   const services = createBackendServices({
@@ -61,8 +67,21 @@ export function createProductionApp({
   const management = createCaseManagement({ caseStore, storage, audit });
   const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
   const idempotency = createIdempotencyService({ store: idempotencyStore });
-  const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, eventStore: paymentEventStore, audit });
   const checkoutConsentService = checkoutPolicy ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy }) : null;
+  const agreementConfirmationDelivery = checkoutConsentService && durableMediumDelivery
+    ? createAgreementConfirmationDeliveryService({ checkoutConsentService, deliveryAdapter: durableMediumDelivery, audit })
+    : null;
+  const serviceDeliveryGate = checkoutConsentService
+    ? createPaidServiceDeliveryGate({ checkoutConsentService, required: durableRequired })
+    : null;
+  const paymentWebhookService = createPaymentWebhookService({
+    caseStore,
+    services,
+    gateway: paymentGateway,
+    eventStore: paymentEventStore,
+    agreementConfirmationDelivery,
+    audit
+  });
   const readinessResult = evaluateReadiness({ product, registry, adapters: serviceAdapters, paymentGateway });
   if (!readinessResult.ready) {
     const failed = readinessResult.checks.filter(c => !c.ok).map(c => c.name).join(', ');
@@ -79,6 +98,7 @@ export function createProductionApp({
     paymentWebhookService,
     paymentProviderName: paymentGateway.provider_name ?? config.payment_provider,
     checkoutConsentService,
+    serviceDeliveryGate,
     allowedReturnOrigins: [config.app_origin],
     readiness,
     version: product.version,
@@ -93,7 +113,18 @@ export function createProductionApp({
     production: true,
     basePath: edgeBasePath
   });
-  return { handler, fetchHandler, api, services, management, readiness: readinessResult, launch_gate: launchGateResult };
+  return {
+    handler,
+    fetchHandler,
+    api,
+    services,
+    management,
+    readiness: readinessResult,
+    launch_gate: launchGateResult,
+    checkout_consent_service: checkoutConsentService,
+    agreement_confirmation_delivery: agreementConfirmationDelivery,
+    service_delivery_gate: serviceDeliveryGate
+  };
 }
 
 export async function startProductionApp({ app, port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? '0.0.0.0' } = {}) {
