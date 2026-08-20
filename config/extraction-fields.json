@@ -1,5 +1,5 @@
 {
-  "version": "0.67.0",
+  "version": "0.68.0",
   "fields": {
     "invoice_number": { "type": "string", "critical": true, "roles": ["invoice"] },
     "invoice_total": { "type": "number", "critical": true, "roles": ["invoice"] },
@@ -13,6 +13,10 @@
     "seller_address": { "type": "string", "critical": false, "roles": ["invoice"] },
     "buyer_name": { "type": "string", "critical": false, "roles": ["invoice"] },
     "currency": { "type": "string", "critical": false, "roles": ["invoice"] },
+    "industry": { "type": "enum", "values": ["vehicle_repair", "electrical", "plumbing", "heat_pump", "installation", "moving", "cleaning", "other"], "critical": false, "roles": ["invoice", "quote", "agreement", "order_confirmation", "other"], "instruction": "Dette er kun sakstypeklassifisering. Returner bare når dokumentets tjeneste-/varebeskrivelse tydelig identifiserer kategorien. Ikke klassifiser fra firmanavn eller merkevare alene. Utelat ved tvil." },
+    "vehicle_service_context": { "type": "enum", "values": ["ordinary_paid_repair", "consumer_purchase_remedy", "periodic_inspection", "collision_repair"], "critical": false, "roles": ["invoice", "quote", "agreement", "order_confirmation", "correspondence", "other"], "instruction": "Gjelder bare kjøretøysaker. Returner bare når kilden eksplisitt viser vanlig bestilt verkstedarbeid, reklamasjon/garanti som avhjelp etter kjøp, PKK/EU-kontroll eller skadereparasjon. Ikke utled juridisk status fra verkstednavn." },
+    "transaction_nature": { "type": "enum", "values": ["purchase_dominant", "service_dominant", "credit"], "critical": false, "roles": ["invoice", "quote", "agreement", "order_confirmation"], "instruction": "Brukes bare til ruting. Returner purchase_dominant eller service_dominant bare når dokumentet tydelig viser hva hovedavtalen gjelder. Returner credit bare når finansiering/kreditt fremgår uttrykkelig. Utelat ved blandet eller uklart grunnlag." },
+    "financing_detected": { "type": "boolean", "critical": false, "roles": ["invoice", "agreement", "order_confirmation"], "positive_only": true, "instruction": "Returner bare true når dokumentet eksplisitt viser finansiering, delbetaling på kreditt, renter eller en kredittavtale. Fravær er ikke false." },
     "vat_total": { "type": "number", "critical": false, "roles": ["invoice"], "legacy": true },
     "invoice_fee": { "type": "number", "critical": true, "roles": ["invoice"] },
     "lines": { "type": "line_items", "critical": false, "roles": ["invoice"], "legacy": true },
@@ -41,7 +45,8 @@
     "vat_amount": "optional number explicitly stated on document"
   },
   "principles": [
-    "Extract facts, not legal conclusions.",
+    "Extract facts and bounded routing context, not legal conclusions.",
+    "Routing context must be based on explicit document content and must never be inferred from a brand/company name alone.",
     "Keep invoice lines and agreement/quote lines in separate fields.",
     "Unknown or ambiguous values must be omitted, not guessed.",
     "Every returned field must include source document and page.",
