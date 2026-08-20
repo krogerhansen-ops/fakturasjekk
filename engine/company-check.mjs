@@ -4,10 +4,15 @@ function bool(value) {
   return value === true ? true : value === false ? false : null;
 }
 
+function validIsoDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
 export function compareSellerToRegistry({
   seller_name = null,
   seller_org_number = null,
   seller_mva_marker_present = null,
+  invoice_date = null,
   lookup = null
 } = {}) {
   const result = {
@@ -38,6 +43,7 @@ export function compareSellerToRegistry({
     name: entity.name,
     organization_form: entity.organization_form,
     registered_in_vat: entity.registered_in_vat,
+    vat_registration_date: entity.vat_registration_date ?? null,
     registered_in_business_register: entity.registered_in_business_register,
     bankrupt: entity.bankrupt,
     under_liquidation: entity.under_liquidation,
@@ -64,14 +70,21 @@ export function compareSellerToRegistry({
   }
 
   const marker = bool(seller_mva_marker_present);
-  if (marker !== null) {
-    if (marker === true && entity.registered_in_vat === false) {
-      result.comparison.vat_marker = 'different';
-      result.flags.push('seller_mva_marker_mismatch');
-    } else if (marker === true && entity.registered_in_vat === true) {
-      result.comparison.vat_marker = 'matches';
-    } else {
-      result.comparison.vat_marker = 'not_compared';
+  if (marker === true) {
+    const invoiceDate = validIsoDate(invoice_date);
+    const vatRegistrationDate = validIsoDate(entity.vat_registration_date);
+
+    if (entity.registered_in_vat === true && invoiceDate && vatRegistrationDate && invoiceDate < vatRegistrationDate) {
+      result.comparison.vat_marker = 'invoice_predates_registry_registration';
+      result.flags.push('seller_mva_invoice_predates_registration');
+    } else if (entity.registered_in_vat === true) {
+      result.comparison.vat_marker = 'matches_current_registry';
+    } else if (entity.registered_in_vat === false) {
+      // Enhetsregisterets ordinære oppslag gir dagens MVA-status, ikke full historikk.
+      // En historisk faktura må derfor ikke feilaktig merkes som lovstridig bare fordi
+      // virksomheten ikke står registrert i MVA-registeret i dag.
+      result.comparison.vat_marker = 'historical_verification_required';
+      result.flags.push('seller_mva_historical_status_unresolved');
     }
   }
 
@@ -84,7 +97,7 @@ export function compareSellerToRegistry({
   return result;
 }
 
-export async function checkSellerCompany({ client, seller_name = null, seller_org_number = null, seller_mva_marker_present = null } = {}) {
+export async function checkSellerCompany({ client, seller_name = null, seller_org_number = null, seller_mva_marker_present = null, invoice_date = null } = {}) {
   if (!client?.lookupByOrganizationNumber || !client?.searchByExactName) throw new Error('Company check requires registry-compatible client.');
 
   let lookup;
@@ -94,13 +107,13 @@ export async function checkSellerCompany({ client, seller_name = null, seller_or
     } else if (normalizeCompanyName(seller_name)) {
       lookup = await client.searchByExactName(seller_name);
     } else {
-      return compareSellerToRegistry({ seller_name, seller_org_number, seller_mva_marker_present, lookup: { status: 'not_checked', entity: null } });
+      return compareSellerToRegistry({ seller_name, seller_org_number, seller_mva_marker_present, invoice_date, lookup: { status: 'not_checked', entity: null } });
     }
   } catch (error) {
     lookup = { status: 'unavailable', entity: null, purge_cache: false, error_code: error?.code ?? 'registry_unavailable' };
   }
 
-  return compareSellerToRegistry({ seller_name, seller_org_number, seller_mva_marker_present, lookup });
+  return compareSellerToRegistry({ seller_name, seller_org_number, seller_mva_marker_present, invoice_date, lookup });
 }
 
 export function companyCheckFacts(companyCheck = {}) {
@@ -113,6 +126,7 @@ export function companyCheckFacts(companyCheck = {}) {
       registry_seller_name: entity.name,
       registry_seller_org_number: entity.organization_number,
       registry_seller_mva_registered: entity.registered_in_vat,
+      registry_seller_vat_registration_date: entity.vat_registration_date,
       registry_seller_business_register_registered: entity.registered_in_business_register,
       registry_seller_bankrupt: entity.bankrupt,
       registry_seller_under_liquidation: entity.under_liquidation,
@@ -132,13 +146,15 @@ export function companyCheckFacts(companyCheck = {}) {
   }
 
   for (const flag of companyCheck.flags ?? []) {
-    if (flag === 'seller_org_number_mismatch' || flag === 'seller_name_mismatch' || flag === 'seller_mva_marker_mismatch') {
+    if (['seller_org_number_mismatch', 'seller_name_mismatch', 'seller_mva_invoice_predates_registration', 'seller_mva_historical_status_unresolved'].includes(flag)) {
       facts[flag] = true;
       origins[flag] = {
         type: 'calculated',
         source_id: null,
         confidence: 'deterministic',
-        note: 'Beregnet sammenligning mellom fakturaopplysning og offentlig registeropplysning.'
+        note: flag === 'seller_mva_historical_status_unresolved'
+          ? 'Dagens registerstatus er utilstrekkelig til å fastslå historisk MVA-status; ingen negativ konklusjon trekkes.'
+          : 'Beregnet sammenligning mellom fakturaopplysning og offentlig registeropplysning.'
       };
     }
   }
