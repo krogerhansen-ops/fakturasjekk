@@ -85,8 +85,7 @@ function paidConfirmation() {
     eventStore: { async claim() { return { status: 'claimed' }; } }
   });
   const result = await service.process({ headers: {}, raw_body: '{}' });
-  assert.equal(result.paid, true);
-  assert.equal(result.confirmation_delivered, null, 'generic/non-production wiring remains backwards compatible');
+  assert.deepEqual(result, { accepted: true, paid: true, duplicate: false }, 'generic/non-production wiring preserves the legacy response shape');
 }
 
-console.log('OK paid webhook delivers durable confirmation and signed duplicate retry can recover a transient delivery failure.');
+console.log('OK paid webhook delivers durable confirmation, supports retry, and preserves legacy response shape without delivery adapter.');
