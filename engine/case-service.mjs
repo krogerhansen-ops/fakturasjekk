@@ -7,6 +7,7 @@ import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
 import { resolveRulePackage, assertRulePackageCompatibility } from './rule-packages.mjs';
 import { resolveServiceLegalProfile } from './service-legal-router.mjs';
+import { resolveRegulatedSectorGuard } from './regulated-sector-guard.mjs';
 
 function combineAnalysis(baseAnalysis, inkasso) {
   if (!inkasso || inkasso.status === 'not_applicable') return baseAnalysis;
@@ -68,6 +69,20 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
       ...base,
       status: intakeResult.status,
       draft: { allowed: false, reason: intakeResult.reason }
+    };
+  }
+
+  const regulatedGuard = resolveRegulatedSectorGuard(facts);
+  if (regulatedGuard) {
+    return {
+      ...base,
+      legal_profile: regulatedGuard,
+      status: 'needs_clarification',
+      intake: {
+        ...intakeResult,
+        questions: [...new Set([...(intakeResult.questions ?? []), ...(regulatedGuard.questions ?? [])])]
+      },
+      draft: { allowed: false, reason: regulatedGuard.reason }
     };
   }
 
