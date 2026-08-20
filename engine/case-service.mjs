@@ -1,6 +1,7 @@
 import { classifyIntake } from './intake.mjs';
 import { analyzeCase } from './analyzer.mjs';
 import { analyzeInkasso } from './inkasso.mjs';
+import { buildCollectionContext, collectionContextPublicSummary } from './collection-context.mjs';
 import { runDocumentChecks } from './document-checks.mjs';
 import { evaluateLegalPreactivation } from './legal-preactivation.mjs';
 import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './evidence.mjs';
@@ -16,7 +17,6 @@ function combineAnalysis(baseAnalysis, inkasso) {
     : [baseAnalysis.status, inkasso.status].includes('review')
       ? 'review'
       : baseAnalysis.status;
-
   return {
     ...baseAnalysis,
     status,
@@ -32,7 +32,6 @@ function combineDocumentChecks(analysis, documentChecks) {
   const extraFindings = documentChecks.findings ?? [];
   const extraQuestions = documentChecks.questions ?? [];
   if (!extraFindings.length && !extraQuestions.length) return { ...analysis, document_checks: documentChecks };
-
   const baseFindings = extraFindings.length
     ? (analysis.findings ?? []).filter(f => f.code !== 'NO_DOCUMENTED_DEVIATION')
     : (analysis.findings ?? []);
@@ -50,16 +49,22 @@ function combinePreactivation(analysis, preactivation) {
   if (!preactivation) return analysis;
   const extraQuestions = preactivation.questions ?? [];
   if (!extraQuestions.length) return { ...analysis, preactivation };
-
   const questions = [...new Set([...(analysis.questions ?? []), ...extraQuestions])];
   let status = analysis.status;
   if (analysis.supported !== false && status !== 'unsupported' && status === 'clean') status = 'review';
   return { ...analysis, status, questions, preactivation };
 }
 
+function collectionDocumentsFromIntake(intake = {}) {
+  return (intake.documents ?? []).map((document, index) => {
+    if (typeof document === 'string') return { id: `intake-role-${index + 1}`, role: document };
+    if (document && typeof document === 'object') return document;
+    return { id: `intake-role-${index + 1}`, role: null };
+  }).filter(document => document.role);
+}
+
 export function runCase({ intake, facts = {}, origins = {}, collection = null, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
   const intakeResult = classifyIntake(intake ?? {});
-
   const base = {
     engine: registry?.engine_version ?? null,
     intake: intakeResult,
@@ -67,6 +72,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     rule_package: null,
     analysis: null,
     inkasso: null,
+    collection_context: null,
     document_checks: null,
     preactivation: null,
     evidence: [],
@@ -75,47 +81,32 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     draft: { allowed: false, reason: 'Analyse er ikke kjørt.' },
     status: intakeResult.status
   };
-
   if (!intakeResult.supported) {
-    return {
-      ...base,
-      status: intakeResult.status,
-      draft: { allowed: false, reason: intakeResult.reason }
-    };
+    return { ...base, status: intakeResult.status, draft: { allowed: false, reason: intakeResult.reason } };
   }
-
   const legalProfile = resolveServiceLegalProfile({ route: intakeResult.route, facts });
   if (legalProfile.status !== 'ready') {
     return {
       ...base,
       legal_profile: legalProfile,
       status: 'needs_clarification',
-      intake: {
-        ...intakeResult,
-        questions: [...new Set([...(intakeResult.questions ?? []), ...(legalProfile.questions ?? [])])]
-      },
+      intake: { ...intakeResult, questions: [...new Set([...(intakeResult.questions ?? []), ...(legalProfile.questions ?? [])])] },
       draft: { allowed: false, reason: legalProfile.reason ?? 'Riktig juridisk hovedspor må avklares før regelanalyse.' }
     };
   }
-
   const rulePackage = resolveRulePackage({ route: intakeResult.route, facts, legalProfile });
   if (!rulePackage) {
-    return {
-      ...base,
-      legal_profile: legalProfile,
-      status: 'needs_clarification',
-      draft: { allowed: false, reason: 'Saken kunne ikke knyttes sikkert til en aktiv regelpakke.' }
-    };
+    return { ...base, legal_profile: legalProfile, status: 'needs_clarification', draft: { allowed: false, reason: 'Saken kunne ikke knyttes sikkert til en aktiv regelpakke.' } };
   }
-
-  const analysisInput = {
-    ...facts,
-    party_type: 'consumer',
-    case_type: rulePackage.base_routes?.[0] ?? intakeResult.route
-  };
-
+  const analysisInput = { ...facts, party_type: 'consumer', case_type: rulePackage.base_routes?.[0] ?? intakeResult.route };
   const invoiceAnalysis = analyzeCase(analysisInput, registry);
-  const inkasso = analyzeInkasso(collection ?? {});
+  const collectionContext = buildCollectionContext({
+    facts,
+    origins,
+    documents: collectionDocumentsFromIntake(intake),
+    user_collection: collection
+  });
+  const inkasso = analyzeInkasso(collectionContext ?? {});
   const collectionOverlay = inkasso?.status && inkasso.status !== 'not_applicable';
   const documentChecks = runDocumentChecks(facts);
   const preactivation = evaluateLegalPreactivation(analysisInput);
@@ -123,28 +114,12 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     combineDocumentChecks(combineAnalysis(invoiceAnalysis, inkasso), documentChecks),
     preactivation
   );
-  const packageSafety = assertRulePackageCompatibility({
-    analysis,
-    rulePackage,
-    collection: collectionOverlay
-  });
-  const packagedAnalysis = {
-    ...analysis,
-    rule_package: packageSafety.id
-  };
-
+  const packageSafety = assertRulePackageCompatibility({ analysis, rulePackage, collection: collectionOverlay });
+  const packagedAnalysis = { ...analysis, rule_package: packageSafety.id };
   const evidence = buildEvidenceLedger({ facts, origins, analysis: packagedAnalysis, user_note });
   assertEvidenceSafety(evidence);
   const assurance = assessAssurance({ analysis: packagedAnalysis, evidence });
-
-  const draft = buildDraft({
-    analysis: packagedAnalysis,
-    registry,
-    invoice_reference,
-    user_note,
-    mode: draft_mode
-  });
-
+  const draft = buildDraft({ analysis: packagedAnalysis, registry, invoice_reference, user_note, mode: draft_mode });
   return {
     ...base,
     legal_profile: legalProfile,
@@ -152,6 +127,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     rule_package: packageSafety,
     analysis: packagedAnalysis,
     inkasso,
+    collection_context: collectionContextPublicSummary(collectionContext),
     document_checks: documentChecks,
     preactivation,
     evidence,
