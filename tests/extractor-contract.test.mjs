@@ -23,6 +23,18 @@ const valid = validateExtractorEnvelope({ fields: {
 assert.equal(valid.valid, true);
 assert.equal(Object.keys(valid.fields).length, 7);
 
+for (const industry of ['electricity_energy', 'telecom', 'insurance', 'healthcare', 'taxi_passenger_transport', 'parking_toll']) {
+  const sector = validateExtractorEnvelope({ fields: {
+    industry: { value: industry, confidence: 0.96, source_document_id: 'doc-1', source_page: 1 }
+  }}, catalog, { documents });
+  assert.equal(sector.valid, true, `${industry} must be a bounded routing enum`);
+  assert.equal(sector.fields.industry.value, industry);
+}
+const inventedSector = validateExtractorEnvelope({ fields: {
+  industry: { value: 'random_regulated_business', confidence: 0.99, source_document_id: 'doc-1', source_page: 1 }
+}}, catalog, { documents });
+assert.equal(inventedSector.valid, false, 'extractor must not invent a legal sector outside the closed enum');
+
 const invalid = validateExtractorEnvelope({ fields: {
   legal_conclusion: { value: 'Kravet er ugyldig', confidence: 1, source_document_id: 'doc-1', source_page: 1 },
   customer_notified: { value: 'probably not', confidence: 0.99, source_document_id: 'message-1', source_page: 1 }
@@ -75,5 +87,6 @@ assert.match(instructions, /kilderoller=/);
 assert.match(instructions, /positive-only/i);
 assert.match(instructions, /preliminary_examination_fee/);
 assert.match(instructions, /additional_work_authorization_documented/);
+assert.match(instructions, /Særregulerte sektorer/i);
 
-console.log('OK extractor contract with source-role provenance and positive-only evidence boundaries');
+console.log('OK extractor contract with bounded regulated-sector routing, source-role provenance and positive-only evidence boundaries');
