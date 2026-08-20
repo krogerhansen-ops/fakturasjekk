@@ -41,7 +41,7 @@ export function analyzeInkasso(input = {}) {
       result.rule_ids.push('INK_10_PAYMENT_REQUEST');
     }
 
-    if (input.claim_doubt_known === true && input.doubt_assessed_before_request !== true) {
+    if (input.claim_doubt_known === true && input.doubt_assessed_before_request === false) {
       result.findings.push({
         code: 'CLAIM_DOUBT_NOT_ASSESSED',
         severity: 'high',
@@ -50,6 +50,8 @@ export function analyzeInkasso(input = {}) {
         rule_ids: ['INK_10_PAYMENT_REQUEST']
       });
       result.rule_ids.push('INK_10_PAYMENT_REQUEST');
+    } else if (input.claim_doubt_known === true && input.doubt_assessed_before_request == null) {
+      result.questions.push('Det er dokumentert eller opplyst tvil om kravet. For å vurdere inkassoloven § 10 må det avklares om denne tvilen ble vurdert før betalingsoppfordringen ble sendt.');
     }
   }
 
