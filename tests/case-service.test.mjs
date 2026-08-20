@@ -50,6 +50,51 @@ const clean = runCase({
 assert.equal(clean.status, 'clean');
 assert.equal(clean.draft.allowed, false);
 
+const rawCollectionInjection = runCase({
+  intake: { buyer_type: 'consumer', subject: 'goods', documents: ['invoice', 'order_confirmation', 'collection_notice'] },
+  facts: { agreed_price: 3490, invoice_total: 3490 },
+  origins: {
+    agreed_price: { type: 'documented', source_id: 'order-injection' },
+    invoice_total: { type: 'documented', source_id: 'invoice-injection' }
+  },
+  collection: {
+    stage: 'payment_request',
+    collection_notice_fee: 999,
+    notice_sent_date: '2026-08-01',
+    collection_mode: 'own_collection',
+    stated_delay_interest_rate_percent: 99,
+    interest_rate_date: '2026-08-01',
+    interest_basis: 'statutory_delay_interest'
+  },
+  registry
+});
+assert.equal(rawCollectionInjection.collection_context.stage, 'collection_notice');
+assert.equal('collection_notice_fee' in rawCollectionInjection.collection_context, false);
+assert.equal(rawCollectionInjection.analysis.findings.some(f => f.code === 'COLLECTION_NOTICE_FEE_ABOVE_DATE_CAP'), false);
+assert.equal(rawCollectionInjection.analysis.findings.some(f => f.code === 'STATED_DELAY_INTEREST_ABOVE_DATE_RATE'), false);
+
+const sourceBackedCollection = runCase({
+  intake: { buyer_type: 'consumer', subject: 'goods', documents: ['invoice', 'order_confirmation', 'collection_notice'] },
+  facts: {
+    agreed_price: 3490,
+    invoice_total: 3490,
+    collection_document_sent_date: '2026-08-01',
+    collection_notice_fee: 39
+  },
+  origins: {
+    agreed_price: { type: 'documented', source_id: 'order-collection' },
+    invoice_total: { type: 'documented', source_id: 'invoice-collection' },
+    collection_document_sent_date: { type: 'documented', source_id: 'notice-collection' },
+    collection_notice_fee: { type: 'documented', source_id: 'notice-collection' }
+  },
+  registry
+});
+assert.equal(sourceBackedCollection.collection_context.stage, 'collection_notice');
+assert.equal(sourceBackedCollection.collection_context.collection_notice_fee, 39);
+assert.equal(sourceBackedCollection.collection_context.source_backed, true);
+assert.equal(sourceBackedCollection.status, 'attention');
+assert.ok(sourceBackedCollection.analysis.findings.some(f => f.code === 'COLLECTION_NOTICE_FEE_ABOVE_DATE_CAP'));
+
 const itemizedTimeline = runCase({
   intake: { buyer_type: 'consumer', subject: 'handcraft_service', documents: ['invoice', 'correspondence'] },
   facts: {
@@ -84,4 +129,4 @@ assert.equal(b2b.intake.supported, false);
 assert.equal(b2b.analysis, null);
 assert.equal(b2b.draft.allowed, false);
 
-console.log('OK: case service orchestrates intake, analysis, evidence and controlled draft with fail-closed scope and HTJL § 37 preactivation.');
+console.log('OK: case service uses source-backed collection facts, orchestrates legal analysis and preserves fail-closed scope.');
