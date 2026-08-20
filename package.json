@@ -8,6 +8,7 @@
     "dev:api": "node server/dev-server.mjs",
     "launch:status": "node scripts/launch-status.mjs",
     "cost:check": "node scripts/zero-cost-status.mjs",
+    "cost:readiness": "node scripts/zero-cost-readiness.mjs",
     "build:cloudflare": "node scripts/build-cloudflare-pages.mjs",
     "legal:check": "node scripts/legal-source-check.mjs",
     "legal:transition": "node scripts/legal-transition-check.mjs"
