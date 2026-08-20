@@ -7,13 +7,17 @@ export function sanitizeCollectionContext(input) {
   return input.claim_disputed === true ? { claim_disputed: true } : null;
 }
 
-export function createCaseHandlers({ services, registry = null, idempotency = null, clock = () => new Date() } = {}) {
+export function createCaseHandlers({ services, registry = null, idempotency = null, serviceDeliveryGate = null, clock = () => new Date() } = {}) {
   async function mutate(request, operation, fn) {
     if (!idempotency) return fn();
     const key = request?.headers?.['idempotency-key'] ?? request?.headers?.['Idempotency-Key'];
     return idempotency.run({ key, operation, owner_id: request.auth.user.id }, fn);
   }
   function safe(body) { assertNoPrivateFields(body); return body; }
+
+  async function assertPaidDeliveryReady({ case_id, owner_id }) {
+    if (serviceDeliveryGate?.assertReady) await serviceDeliveryGate.assertReady({ case_id, owner_id });
+  }
 
   return {
     async create_case(request) {
@@ -70,6 +74,7 @@ export function createCaseHandlers({ services, registry = null, idempotency = nu
     async full_result(request) {
       const user = requireUser(request);
       const case_id = requireCaseId(request.params);
+      await assertPaidDeliveryReady({ case_id, owner_id: user.id });
       const result = await services.getFullResult({ case_id, owner_id: user.id });
       return { status: 200, body: projectFullResult(result, registry) };
     },
@@ -79,6 +84,7 @@ export function createCaseHandlers({ services, registry = null, idempotency = nu
       const case_id = requireCaseId(request.params);
       const body = request.body == null ? {} : requireBodyObject(request.body);
       return mutate(request, `create_draft:${case_id}`, async () => {
+        await assertPaidDeliveryReady({ case_id, owner_id: user.id });
         const output = await services.saveGeneratedDraft({ case_id, owner_id: user.id, mode: body.mode ?? 'request' });
         return { status: 201, body: safe(projectDraftResponse(output)) };
       });
