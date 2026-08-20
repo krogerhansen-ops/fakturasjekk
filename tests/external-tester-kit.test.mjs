@@ -22,7 +22,7 @@ assert.match(playbook, /QA_EXTERNAL_TESTERS.*skal \*\*ikke\*\* markeres complete
 assert.match(playbook, /minst tre reelle eksterne testere/);
 assert.match(playbook, /iPhone \/ Safari/);
 assert.match(playbook, /Android \/ Chrome/);
-assert.match(playbook, /ikke en ekte faktura/i);
+assert.match(playbook, /Ikke bruk ekte faktura/i);
 assert.match(playbook, /29 kr/);
 assert.match(playbook, /kritisk feil/i);
 assert.match(playbook, /camera-local-test\.html/);
