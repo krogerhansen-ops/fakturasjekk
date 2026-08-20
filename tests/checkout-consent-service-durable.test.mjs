@@ -59,16 +59,19 @@ const consent = {
   privacy_notice_version: policy.privacy_notice_version,
   withdrawal_information_version: policy.withdrawal_information_version
 };
+const buyer_identity = { name: 'Ola Nordmann', postal_address: 'Storgata 1, 0001 Oslo' };
 const requirement = { amount_minor: 2900, currency: 'NOK' };
 
-const accepted = await service.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'u1', consent, requirement });
+const accepted = await service.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'u1', consent, buyer_identity, requirement });
 assert.equal(accepted.checkout_consent_id, 'checkout-1');
 assert.equal(accepted.accepted_at, '2026-08-20T08:00:00.000Z');
 assert.equal(accepted.agreement_confirmation_payload.durable_medium_delivered, false);
 assert.equal(accepted.agreement_confirmation_payload.product.amount_nok, 29);
 assert.equal(accepted.case.checkout_consents.length, 1);
+assert.deepEqual(accepted.case.checkout_consents[0].buyer_identity_snapshot, buyer_identity);
 assert.equal(accepted.case.checkout_consents[0].durable_medium_delivered_at, null);
 assert.equal(accepted.case.events.at(-1).type, 'CHECKOUT_CONSENT_RECORDED');
+assert.equal(accepted.case.events.at(-1).data.buyer_identity_recorded, true);
 
 const before = await service.deliveryReadiness({ case_id: 'case-1', owner_id: 'u1' });
 assert.equal(before.ready, false);
@@ -125,4 +128,4 @@ await store.save(stale);
 const latestCompatible = await service.getLatestCompatible({ case_id: 'case-1', owner_id: 'u1' });
 assert.equal(latestCompatible.record.id, 'checkout-1', 'newer incompatible consent must not shadow the compatible delivered consent');
 
-console.log('OK checkout consent service persists exact consent versions and one durable delivery event and exposes readiness only after delivery.');
+console.log('OK checkout consent service persists buyer identity, exact consent versions and one durable delivery event.');
