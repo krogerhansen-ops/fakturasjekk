@@ -74,7 +74,17 @@ Hvis target-antall, document-id eller serverbekreftelse ikke stemmer, stopper fl
 
 ## Kvalitet uten gjetting
 
-Sanitizeren kan markere et bilde som mulig lav oppløsning basert på pikseldimensjoner. Dette er bare et brukergrensesnitt-signal; det skal ikke tolkes som at OCR har lykkes eller feilet. Selve dokumentlesingen må fortsatt skje i den kontrollerte extractor-flyten.
+`site/app/camera-quality.mjs` analyserer en liten lokal pikselprøve før upload. Den kan varsle om:
+
+- mulig for mørkt bilde,
+- mulig overeksponering/gjenskinn,
+- lav kontrast,
+- mulig uskarphet,
+- behov for å vurdere å ta bildet på nytt.
+
+Kontrollen gjøres lokalt i nettleseren og sender ikke bildeprøven til en ekstern tjeneste. Den bruker enkle lys-, kontrast- og kantdetaljsignaler. Resultatet er bevisst formulert som en indikator, ikke en fasit.
+
+Den skal aldri hevde at OCR vil lykkes eller feile, og den avgjør ikke om dokumentet er juridisk tilstrekkelig. Selve dokumentlesingen må fortsatt skje i den kontrollerte extractor-flyten. Kvalitetssignalet er derfor en UX-advarsel, ikke en ny regelmotor eller en erstatning for serververifisering.
 
 ## Ikke aktivert offentlig ennå
 
@@ -82,10 +92,9 @@ Modulene forbereder mobilflyten, men offentlig beta skal fortsatt ikke motta ekt
 
 Neste steg før offentlig kameraopptak:
 
-- enhetstest av browser-sanitizeren er bygget; praktisk kompatibilitet må fortsatt verifiseres på iOS Safari og Android Chrome,
+- enhetstester for browser-sanitizer og lokal bildekvalitetskontroll er bygget; praktisk kompatibilitet må fortsatt verifiseres på iOS Safari og Android Chrome,
 - visuell kameraflyt med «Ta bilde» / «Velg fil»,
 - bilde-preview og mulighet til å ta bildet på nytt,
-- eventuelt skarphets-/kontrastsignal uten å late som OCR-resultatet er kjent,
 - live syntetisk Storage-E2E,
 - Auth-E2E,
 - sluttført DPIA/provider-gjennomgang før ekte kundedata.
