@@ -54,6 +54,38 @@ function checkoutService({ alreadyDelivered = false } = {}) {
   const checkout = checkoutService();
   const service = createAgreementConfirmationDeliveryService({
     checkoutConsentService: checkout,
+    clock: () => '2026-08-20T08:06:00.000Z',
+    deliveryAdapter: {
+      async deliverAgreementConfirmation() {
+        return { delivered: true, medium_type: 'email_pdf', provider_reference: 'mail-2' };
+      }
+    }
+  });
+  const result = await service.deliverForCase({ case_id: 'case-1', owner_id: 'u1' });
+  assert.equal(result.delivered_at, '2026-08-20T08:06:00.000Z');
+  assert.equal(checkout.state.persisted[0].delivered_at, '2026-08-20T08:06:00.000Z');
+}
+
+{
+  const checkout = checkoutService();
+  const service = createAgreementConfirmationDeliveryService({
+    checkoutConsentService: checkout,
+    clock: () => 'not-a-date',
+    deliveryAdapter: {
+      async deliverAgreementConfirmation() { return { delivered: true, medium_type: 'email_text' }; }
+    }
+  });
+  await assert.rejects(
+    () => service.deliverForCase({ case_id: 'case-1', owner_id: 'u1' }),
+    error => error?.code === 'invalid_durable_delivery_time'
+  );
+  assert.equal(checkout.state.persisted.length, 0);
+}
+
+{
+  const checkout = checkoutService();
+  const service = createAgreementConfirmationDeliveryService({
+    checkoutConsentService: checkout,
     deliveryAdapter: {
       async deliverAgreementConfirmation() {
         return { delivered: true, medium_type: 'web_link', delivered_at: '2026-08-20T08:05:00.000Z' };
@@ -98,4 +130,4 @@ function checkoutService({ alreadyDelivered = false } = {}) {
   assert.equal(checkout.state.persisted.length, 0);
 }
 
-console.log('OK agreement confirmation delivery only persists provider-confirmed durable media and is idempotent.');
+console.log('OK agreement confirmation delivery validates provider delivery, durable media and delivery timestamps and is idempotent.');
