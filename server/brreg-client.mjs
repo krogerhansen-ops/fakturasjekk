@@ -40,6 +40,7 @@ export function normalizeBrregEntity(payload = {}) {
         }
       : null,
     registered_in_vat: payload.registrertIMvaregisteret === true,
+    vat_registration_date: safeText(payload.registreringsdatoMerverdiavgiftsregisteret, 20) || null,
     registered_in_business_register: payload.registrertIForetaksregisteret === true,
     bankrupt: payload.konkurs === true,
     under_liquidation: payload.underAvvikling === true,
