@@ -84,7 +84,8 @@ const documentedDisputeBeforeRequest = buildCollectionContext({
 });
 assert.equal(documentedDisputeBeforeRequest.claim_disputed, true);
 assert.equal(documentedDisputeBeforeRequest.dispute_documentation_provided, true);
-assert.equal(documentedDisputeBeforeRequest.ordinary_collection_continues, true);
+assert.equal(documentedDisputeBeforeRequest.collection_after_documented_dispute, true);
+assert.equal('ordinary_collection_continues' in documentedDisputeBeforeRequest, false);
 
 const noCollectionDocument = buildCollectionContext({
   facts: { collection_notice_fee: 39 },
@@ -98,4 +99,4 @@ assert.equal(summary.source_backed, true);
 assert.equal('_fact_origins' in summary, false);
 assert.equal('_construction' in summary, false);
 
-console.log('OK collection context is built from document roles and source-backed facts, not raw client legal fields.');
+console.log('OK collection context is source-backed and chronology alone does not prove unlawful continuation.');
