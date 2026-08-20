@@ -1,14 +1,27 @@
 const CONFIRMABLE_FIELDS = new Set([
-  'invoice_total', 'invoice_number', 'agreed_price', 'invoice_fee', 'price_basis',
+  'invoice_total', 'invoice_number', 'invoice_date', 'due_date', 'agreed_price', 'invoice_fee', 'price_basis',
   'invoice_fee_agreed', 'surcharge_documented', 'price_increase_after_start', 'customer_notified',
-  'industry', 'vehicle_service_context', 'transaction_nature', 'financing_detected'
+  'industry', 'vehicle_service_context', 'transaction_nature', 'financing_detected', 'seller_mva_marker_present',
+  'itemized_invoice_requested', 'itemized_invoice_request_date', 'itemized_invoice_received_date',
+  'collection_document_sent_date', 'collection_payment_deadline_date', 'reminder_fee', 'collection_notice_fee',
+  'payment_request_fee', 'collection_costs', 'collection_mode', 'stated_delay_interest_rate_percent',
+  'interest_rate_date', 'interest_basis', 'claim_dispute_date'
 ]);
+
+function validIsoDate(value) {
+  if (typeof value !== 'string') return false;
+  const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})$/);
+  if (!match) return false;
+  const ms = Date.parse(`${match[1]}T00:00:00Z`);
+  return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === match[1];
+}
 
 function validValue(value, definition = {}) {
   switch (definition.type) {
     case 'number': return Number.isFinite(Number(value));
     case 'string': return typeof value === 'string' && value.trim().length > 0;
     case 'boolean': return typeof value === 'boolean';
+    case 'date': return validIsoDate(value);
     case 'enum': return typeof value === 'string' && (definition.values ?? []).includes(value);
     default: return false;
   }
