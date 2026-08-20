@@ -1,0 +1,78 @@
+{
+  "version": "0.1.0",
+  "jurisdiction": "NO",
+  "purpose": "preactivation_only",
+  "runtime": false,
+  "rules": [
+    {
+      "id": "MVAL_15_11_VAT_IN_SALES_DOCUMENT",
+      "law": "merverdiavgiftsloven",
+      "section": "§ 15-11",
+      "title": "Adgang til å oppgi merverdiavgift i salgsdokumentasjon",
+      "source_url": "https://lovdata.no/nav/lov/2009-06-19-58/%C2%A715-9",
+      "expected_phrase": "Bare den som er registrert avgiftssubjekt eller tilbyder i forenklet registreringsordning",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "invoice", "vat", "seller_registration"],
+      "conditions": [
+        "Fakturaen må uttrykkelig oppgi merverdiavgift eller MVA-angivelse.",
+        "Virksomheten må identifiseres entydig.",
+        "Registreringsstatus må vurderes på fakturadato; dagens negative registerstatus er ikke tilstrekkelig historisk bevis.",
+        "Eventuelle særordninger/unntak må vurderes før negativ konklusjon."
+      ],
+      "notes": "Ikke runtime-aktiv. Brønnøysund-oppslag brukes datobevisst; historisk status skal forbli uavklart når registerkilden ikke kan bevise status på fakturadato."
+    },
+    {
+      "id": "HTJL_37_ITEMIZED_INVOICE_PAYMENT_TIME",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 37",
+      "title": "Betalingstid etter krav om spesifisert regning",
+      "source_url": "https://lovdata.no/nav/lov/1989-06-16-63/kapVI/%C2%A736",
+      "expected_phrase": "plikter ikke å betale før rekningen er mottatt",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "handcraft_service", "itemized_invoice", "payment_time"],
+      "conditions": [
+        "Forbrukeren må ha krevd spesifisert regning etter § 36.",
+        "Kravet må være fremsatt i tilstrekkelig tid før forfall.",
+        "Tidspunktene for krav, forfall og mottak av spesifisert regning må være dokumentert."
+      ],
+      "notes": "Ikke runtime-aktiv. Kan ikke brukes bare fordi fakturaen er lite spesifisert; tidslinjen i § 37 annet ledd må være dokumentert."
+    },
+    {
+      "id": "FIN_2_4_INVOICE_PAYMENT_FEE_COST_CAP",
+      "law": "finansavtaleloven",
+      "section": "§ 2-4",
+      "title": "Gebyr for betalingsmiddel og utstedelse/sending av regning",
+      "source_url": "https://lovdata.no/dokument/LTI/lov/2020-12-18-146/KAPITTEL_2",
+      "expected_phrase": "kan denne delen av gebyret ikke overstige betalingsmottakerens faktiske kostnad ved å utstede og sende regningen",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "invoice_fee", "payment_instrument", "payment_method"],
+      "conditions": [
+        "Gebyret må faktisk gjelde betalingsinstrument/-middel eller utstedelse/sending av regning; navnet på en post er ikke alene avgjørende.",
+        "For håndverkertjenester gjelder den strengere særregelen i håndverkertjenesteloven § 36 annet ledd.",
+        "For varekjøp må regelen vurderes sammen med forbrukerkjøpsloven § 37.",
+        "Fakturasjekk skal ikke gjette betalingsmottakerens faktiske kostnad uten dokumentert grunnlag."
+      ],
+      "notes": "Ikke runtime-aktiv før gebyrklassifisering og faktisk-kostnad-bevis er modellert. Forbrukertilsynets veiledning brukes som sekundær anvendelseskilde, ikke som erstatning for lovtekst."
+    },
+    {
+      "id": "TEK17_15_4_HEAT_PUMP",
+      "law": "byggteknisk forskrift (TEK17)",
+      "section": "§ 15-4",
+      "title": "Varmepumpe- og kuldeinstallasjon",
+      "source_url": "https://lovdata.no/nav/forskrift/2017-06-19-840/kap9",
+      "expected_phrase": "Varmepumpe- og kuldeinstallasjoner skal prosjekteres og utføres slik at det ikke oppstår skade",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "heat_pump", "cooling", "technical_compliance"],
+      "conditions": [
+        "Den konkrete fakturaposten må gjelde varmepumpe- eller kuldeinstallasjon som omfattes av bestemmelsen.",
+        "Faktura alene kan ikke bevise teknisk forskriftsbrudd.",
+        "Relevant dokumentasjon/bilder/faglig grunnlag må foreligge før et teknisk avvik kan konkluderes."
+      ],
+      "notes": "Ikke runtime-aktiv. Teknisk særspor som kan forklare hvilken dokumentasjon som bør etterspørres, men ikke brukes til automatisk pris- eller mangelkonklusjon."
+    }
+  ]
+}
