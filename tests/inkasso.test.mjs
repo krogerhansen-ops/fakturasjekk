@@ -29,6 +29,17 @@ assert.ok(disputed.rule_ids.includes('INK_10_PAYMENT_REQUEST'));
 assert.ok(disputed.rule_ids.includes('INK_17_COLLECTION_COSTS'));
 assert.equal(disputed.principal_claim_effect, 'separate_from_collection_compliance');
 
+const chronologyOnly = analyzeInkasso({
+  stage: 'payment_request',
+  payment_deadline_days: 14,
+  claim_disputed: true,
+  dispute_documentation_provided: true,
+  collection_after_documented_dispute: true
+});
+assert.equal(chronologyOnly.status, 'review');
+assert.equal(chronologyOnly.findings.some(f => f.code === 'DISPUTED_CLAIM_ORDINARY_COLLECTION'), false);
+assert.ok(chronologyOnly.questions.some(q => /hvordan innsigelsen ble vurdert/i.test(q)));
+
 const doubtUnknown = analyzeInkasso({
   stage: 'payment_request',
   payment_deadline_days: 14,
@@ -90,4 +101,4 @@ const h2InterestCorrect = analyzeInkasso({
 assert.equal(h2InterestCorrect.status, 'ok');
 assert.equal(h2InterestCorrect.findings.some(f => f.code === 'STATED_DELAY_INTEREST_ABOVE_DATE_RATE'), false);
 
-console.log('OK: inkasso engine separates principal claim from collection compliance and fails closed on unknown doubt assessment, dates, fees and interest.');
+console.log('OK: inkasso engine fails closed on chronology, unknown doubt assessment, dates, fees and interest.');
