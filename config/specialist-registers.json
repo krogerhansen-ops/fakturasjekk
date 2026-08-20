@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "policy": {
     "default_max_age_hours": 48,
     "require_official_authority": true,
@@ -19,41 +19,46 @@
       "machine_source_verified": false,
       "max_age_hours": 48,
       "applicable_industries": ["electrical"],
-      "notes": "DSB tilbyr søk og full Excel-eksport. Automatisk oppslag aktiveres først når Fakturasjekk har verifisert en stabil offisiell maskinkilde og korrekt matching på arbeidsoppgave/anleggstype."
+      "notes": "DSB tilbyr søk og full Excel-eksport. Automatisk oppslag aktiveres først når Fakturasjekk har verifisert et stabilt offisielt direkte maskinendepunkt og korrekt matching på arbeidsoppgave/anleggstype."
     },
     "vegvesen_workshop": {
       "status": "prepared_not_live",
       "authority": "Statens vegvesen",
       "customer_label": "Statens vegvesen – Verkstedregisteret",
       "landing_url": "https://www.vegvesen.no/kjoretoy/eie-og-vedlikeholde/finn-godkjent-verksted/",
-      "dataset_url": "https://dataut.vegvesen.no/dataset/godkjente-verksteder",
+      "dataset_catalog_url": "https://data.norge.no/nb/datasets/8c85acc0-e826-3c43-98ba-e348520a5d37/godkjente-verksteder",
       "official_export_available": true,
       "machine_source_verified": false,
       "max_age_hours": 48,
       "applicable_industries": ["vehicle_repair"],
-      "notes": "Tjenesten oppdateres daglig og tilbyr CSV. Automatisk oppslag forblir stengt til nåværende offisiell nedlastings-/maskinkilde og godkjenningskategori er verifisert."
+      "notes": "Data.norge bekrefter åpent CSV-datasett fra Statens vegvesen og at godkjenningskategorier inngår. Automatisk oppslag forblir stengt til gjeldende direkte eksportendepunkt kan verifiseres stabilt og kategori kan matches sikkert. En gammel direkte CSV-URL skal ikke gjenbrukes."
     },
     "vegvesen_control_body": {
       "status": "prepared_not_live",
       "authority": "Statens vegvesen",
       "customer_label": "Statens vegvesen – godkjent kontrollorgan for EU-kontroll",
       "landing_url": "https://www.vegvesen.no/kjoretoy/eie-og-vedlikeholde/finn-godkjent-verksted/",
+      "dataset_catalog_url": "https://data.norge.no/nb/datasets/8c85acc0-e826-3c43-98ba-e348520a5d37/godkjente-verksteder",
       "official_export_available": true,
       "machine_source_verified": false,
       "max_age_hours": 48,
       "applicable_industries": ["vehicle_repair"],
-      "notes": "PKK krever kontrollorgan-godkjenning. Fakturasjekk skal kontrollere konkret KONTROLLORGAN-kategori; vanlig verkstedgodkjenning er ikke tilstrekkelig bevis."
+      "notes": "PKK krever kontrollorgan-godkjenning. Fakturasjekk skal kontrollere konkret kontrollorgan-kategori; vanlig verkstedgodkjenning er ikke tilstrekkelig bevis."
     },
     "arbeidstilsynet_cleaning": {
-      "status": "prepared_not_live",
+      "status": "source_verified_not_live",
       "authority": "Arbeidstilsynet",
       "customer_label": "Arbeidstilsynet – Renholdsregisteret",
       "landing_url": "https://www.arbeidstilsynet.no/godkjenninger/renholdsregisteret/",
+      "dataset_catalog_url": "https://data.norge.no/nb/datasets/b3642673-6855-3af9-93b0-fe6f01fbaa5d/renholdsvirksomheter-godkjent-av-arbeidstilsynet",
+      "machine_source_url": "https://registerdata.arbeidstilsynet.no/renhold_register.xml",
+      "schema_url": "https://www.arbeidstilsynet.no/opendata/RegisterXML6.xsd",
       "official_export_available": true,
-      "machine_source_verified": false,
+      "machine_source_verified": true,
+      "source_update_frequency": "daily",
       "max_age_hours": 48,
       "applicable_industries": ["cleaning"],
-      "notes": "Arbeidstilsynet opplyser at registerdata finnes i andre formater via Felles datakatalog. Automatisk oppslag aktiveres først etter verifisert offisiell maskinkilde og korrekt tolkning av Godkjent/Søknad til behandling/HMS-kortbestilling/Ikke godkjent."
+      "notes": "Data.norge oppgir et daglig oppdatert, åpent XML-datasett fra Arbeidstilsynet. Runtime-oppslag er fortsatt stengt inntil parser, XSD-validering, entydig org.nr.-matching og korrekt behandling av tillatte statusverdier er implementert og testet. Manglende treff alene er ikke negativt bevis."
     },
     "fgas_certification": {
       "status": "prepared_not_live",
@@ -64,7 +69,7 @@
       "machine_source_verified": false,
       "max_age_hours": 48,
       "applicable_industries": ["heat_pump"],
-      "notes": "Miljødirektoratet er myndighet, mens operativ sertifikatkontroll for relevante kategorier skjer via utpekt sertifiseringsorgan. Fakturasjekk skal ikke automatisere eller gi negativt funn før en autoritativ, stabil og juridisk egnet oppslagskilde er verifisert."
+      "notes": "Miljødirektoratet er myndighet, mens operativ sertifikatkontroll for relevante kategorier skjer via utpekt sertifiseringsorgan. Forordning (EU) 2024/573 er per 20.08.2026 ikke innlemmet i EØS-avtalen; overgang overvåkes separat. Fakturasjekk skal ikke automatisere negativt funn før autoritativ oppslagskilde og gjeldende norsk rett er verifisert."
     }
   }
 }
