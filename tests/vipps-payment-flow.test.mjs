@@ -8,6 +8,7 @@ await caseStore.save({ id: 'case-vipps-12345678', owner_id: 'u1', state: 'analys
 const eventStore = createMemoryPaymentEventStore();
 let captureCalls = 0;
 let confirmCalls = 0;
+let orderPrepareCalls = 0;
 let currentEvent = null;
 const gateway = {
   async verifyEvent() { return structuredClone(currentEvent); },
@@ -25,7 +26,15 @@ const services = {
     return { paid };
   }
 };
-const webhookService = createPaymentWebhookService({ caseStore, services, gateway, eventStore });
+const orderConfirmationService = {
+  async prepare({ case_id, owner_id }) {
+    orderPrepareCalls += 1;
+    assert.equal(case_id, 'case-vipps-12345678');
+    assert.equal(owner_id, 'u1');
+    return { confirmation: { confirmation_id: 'confirmation-1', durable_medium_delivered: false } };
+  }
+};
+const webhookService = createPaymentWebhookService({ caseStore, services, gateway, eventStore, orderConfirmationService });
 
 currentEvent = {
   case_id: 'case-vipps-12345678', payment_reference: 'fsk-case-vipps-12345678', provider_reference: 'psp-auth-1',
@@ -38,11 +47,13 @@ assert.equal(authorized.paid, false, 'authorization alone must never unlock the 
 assert.equal(authorized.capture_requested, true);
 assert.equal(captureCalls, 1);
 assert.equal(confirmCalls, 0);
+assert.equal(orderPrepareCalls, 0, 'authorization must not prepare a paid order confirmation');
 
 const authorizedReplay = await webhookService.process({ headers: {}, raw_body: '{}' });
 assert.equal(authorizedReplay.duplicate, true);
 assert.equal(authorizedReplay.paid, false);
 assert.equal(captureCalls, 2, 'duplicate authorization retries idempotent capture to recover transient post-claim failures');
+assert.equal(orderPrepareCalls, 0);
 
 currentEvent = {
   case_id: 'case-vipps-12345678', payment_reference: 'fsk-case-vipps-12345678', provider_reference: 'psp-capture-1',
@@ -53,6 +64,9 @@ const captured = await webhookService.process({ headers: {}, raw_body: '{}' });
 assert.equal(captured.accepted, true);
 assert.equal(captured.paid, true, 'only captured payment may unlock');
 assert.equal(confirmCalls, 1);
+assert.equal(orderPrepareCalls, 1, 'verified paid event prepares the provider-neutral order confirmation');
+assert.equal(captured.order_confirmation_prepared, true);
+assert.equal(captured.order_confirmation_id, 'confirmation-1');
 
 currentEvent = {
   case_id: 'case-vipps-12345678', payment_reference: 'fsk-case-vipps-12345678', provider_reference: 'psp-created-1',
@@ -63,6 +77,7 @@ const created = await webhookService.process({ headers: {}, raw_body: '{}' });
 assert.equal(created.accepted, true);
 assert.equal(created.paid, false);
 assert.equal(confirmCalls, 1);
+assert.equal(orderPrepareCalls, 1);
 
 currentEvent = {
   case_id: 'case-vipps-12345678', payment_reference: 'fsk-case-vipps-12345678', provider_reference: 'psp-auth-wrong-amount',
@@ -73,5 +88,6 @@ const wrongAmount = await webhookService.process({ headers: {}, raw_body: '{}' }
 assert.equal(wrongAmount.accepted, true);
 assert.equal(wrongAmount.capture_requested, false);
 assert.equal(captureCalls, 2, 'wrong amount authorization must not be captured');
+assert.equal(orderPrepareCalls, 1);
 
-console.log('OK Vipps authorization is captured idempotently and only CAPTURED unlocks paid access');
+console.log('OK Vipps authorization is captured idempotently, only CAPTURED unlocks paid access, and only paid events prepare order confirmation');
