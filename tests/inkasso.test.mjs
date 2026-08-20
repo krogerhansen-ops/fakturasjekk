@@ -29,6 +29,15 @@ assert.ok(disputed.rule_ids.includes('INK_10_PAYMENT_REQUEST'));
 assert.ok(disputed.rule_ids.includes('INK_17_COLLECTION_COSTS'));
 assert.equal(disputed.principal_claim_effect, 'separate_from_collection_compliance');
 
+const doubtUnknown = analyzeInkasso({
+  stage: 'payment_request',
+  payment_deadline_days: 14,
+  claim_doubt_known: true
+});
+assert.equal(doubtUnknown.status, 'review');
+assert.equal(doubtUnknown.findings.some(f => f.code === 'CLAIM_DOUBT_NOT_ASSESSED'), false);
+assert.ok(doubtUnknown.questions.some(q => /må det avklares om denne tvilen ble vurdert/i.test(q)));
+
 const normalInvoice = analyzeInkasso({ stage: 'invoice' });
 assert.equal(normalInvoice.status, 'not_applicable');
 assert.equal(normalInvoice.findings.length, 0);
@@ -81,4 +90,4 @@ const h2InterestCorrect = analyzeInkasso({
 assert.equal(h2InterestCorrect.status, 'ok');
 assert.equal(h2InterestCorrect.findings.some(f => f.code === 'STATED_DELAY_INTEREST_ABOVE_DATE_RATE'), false);
 
-console.log('OK: inkasso engine separates principal claim from collection compliance and date-checks deadlines, disputes, fees, interest and pressure.');
+console.log('OK: inkasso engine separates principal claim from collection compliance and fails closed on unknown doubt assessment, dates, fees and interest.');
