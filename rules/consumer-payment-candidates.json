@@ -1,0 +1,60 @@
+{
+  "version": "0.1.0",
+  "jurisdiction": "NO",
+  "purpose": "preactivation_only",
+  "runtime": false,
+  "rules": [
+    {
+      "id": "FKJL_38_PAYMENT_TIMING",
+      "law": "forbrukerkjøpsloven",
+      "section": "§ 38",
+      "title": "Tidspunktet for betaling og betaling før levering",
+      "source_url": "https://lovdata.no/lov/2002-06-21-34/%C2%A738",
+      "expected_phrase": "ikke plikt til å betale kjøpesummen uten at tingen blir overlevert",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "goods", "payment_due", "delivery"],
+      "conditions": ["Betalingstidspunktet må ikke allerede være gyldig regulert på annen måte i avtalen.", "Leverings-/rådighetsstatus må være dokumentert.", "Regelen skal ikke brukes på kredittavtaler uten egen finansavtalevurdering."],
+      "notes": "Relevant for varefaktura før levering, men ikke runtime-aktiv før levering/betalingsvilkår kan dokumenteres sikkert."
+    },
+    {
+      "id": "FKJL_41_CANCELLATION_BEFORE_DELIVERY",
+      "law": "forbrukerkjøpsloven",
+      "section": "§ 41",
+      "title": "Avbestilling før levering",
+      "source_url": "https://lovdata.no/lov/2002-06-21-34/%C2%A741",
+      "expected_phrase": "kan selgeren ikke fastholde kjøpet og kreve betaling",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "goods", "cancellation", "before_delivery"],
+      "conditions": ["Avbestillingen må være dokumentert og ha skjedd før levering.", "Eventuelt avtalt avbestillingsgebyr/normalerstatning og selgerens erstatningskrav må holdes adskilt fra krav om selve kjøpesummen.", "Fakturasjekk skal ikke anta at avbestilling er kostnadsfri."],
+      "notes": "Kan være relevant for møbler, elektronikk, bil og andre varer før levering. Ikke runtime-aktiv før tidslinje og kravstype kan skilles sikkert."
+    },
+    {
+      "id": "ANGRL_23_WITHDRAWAL_EFFECT",
+      "law": "angrerettloven",
+      "section": "§ 23",
+      "title": "Virkningene av at angreretten brukes",
+      "source_url": "https://lovdata.no/lov/2014-06-20-27/%C2%A723",
+      "expected_phrase": "bortfaller partenes forpliktelser til å oppfylle avtalen",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "distance_sale", "withdrawal", "payment_obligation"],
+      "conditions": ["Angrerettlovens virkeområde og eventuelle unntak må først være avklart.", "Forbrukerens melding om bruk av angreretten og relevant frist må dokumenteres.", "Tjenester/digitalt innhold som er påbegynt har egne betalings- og samtykkeregler som må vurderes separat."],
+      "notes": "Skal aldri aktiveres bare fordi kunden sier at vedkommende 'angret'."
+    },
+    {
+      "id": "ANGRL_24_REFUND",
+      "law": "angrerettloven",
+      "section": "§ 24",
+      "title": "Tilbakebetaling når gyldig angrerett er brukt",
+      "source_url": "https://lovdata.no/lov/2014-06-20-27/%C2%A724",
+      "expected_phrase": "senest 14 dager fra da den næringsdrivende fikk melding",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "distance_sale", "withdrawal", "refund"],
+      "conditions": ["Gyldig bruk av angreretten må først være dokumentert.", "Mottaksdato for melding må være dokumentert.", "For varer kan næringsdrivende i bestemte tilfeller holde tilbake tilbakebetalingen til varen eller returdokumentasjon er mottatt."],
+      "notes": "Kandidat for kontroll av refusjon etter dokumentert angrerett; ikke en generell fakturabetalingsregel."
+    }
+  ]
+}
