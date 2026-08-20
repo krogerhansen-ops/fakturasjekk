@@ -7,6 +7,7 @@ import {
   packageRuleIds,
   collectionRuleIds
 } from '../engine/rule-packages.mjs';
+import { resolveServiceLegalProfile } from '../engine/service-legal-router.mjs';
 
 const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
 
@@ -14,18 +15,51 @@ const goods = resolveRulePackage({ route: 'goods', facts: {} });
 assert.equal(goods.id, 'goods');
 assert.equal(goods.allowed_rule_ids.includes('HTJL_34_PRELIMINARY_EXAMINATION'), false);
 assert.ok(goods.allowed_rule_ids.includes('FKJL_37_PRICE_AND_FEE'));
+assert.equal(goods.allowed_rule_ids.includes('POF_10_SERVICE_PRICES'), false, 'candidate rule must not enter an automatic package');
 
 const workshop = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'vehicle_repair' } });
 assert.equal(workshop.id, 'vehicle_repair');
 assert.ok(workshop.allowed_rule_ids.includes('HTJL_34_PRELIMINARY_EXAMINATION'));
 assert.ok(workshop.allowed_rule_ids.includes('HTJL_9_ADDITIONAL_WORK'));
 
-const handcraft = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'electrical' } });
+const electrical = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'electrical' } });
+assert.equal(electrical.id, 'electrical_work');
+assert.ok(electrical.allowed_rule_ids.includes('HTJL_32_PRICE_ESTIMATE'));
+
+const plumbing = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'vvs' } });
+assert.equal(plumbing.id, 'plumbing_vvs');
+
+const heatPump = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'varmepumpe' } });
+assert.equal(heatPump.id, 'heat_pump_installation');
+
+const handcraft = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'painting' } });
 assert.equal(handcraft.id, 'home_handcraft');
 
-const service = resolveRulePackage({ route: 'service_quote', facts: { industry: 'moving' } });
-assert.equal(service.id, 'other_service');
-assert.equal(service.allowed_rule_ids.some(id => id.startsWith('HTJL_')), false);
+const moving = resolveRulePackage({ route: 'service_quote', facts: { industry: 'moving' } });
+assert.equal(moving.id, 'moving_service');
+assert.equal(moving.allowed_rule_ids.some(id => id.startsWith('HTJL_')), false);
+
+const cleaning = resolveRulePackage({ route: 'service_quote', facts: { industry: 'cleaning' } });
+assert.equal(cleaning.id, 'cleaning_service');
+assert.equal(cleaning.allowed_rule_ids.some(id => id.startsWith('HTJL_')), false);
+
+const genericService = resolveRulePackage({ route: 'service_quote', facts: { industry: 'other' } });
+assert.equal(genericService.id, 'other_service');
+assert.equal(genericService.allowed_rule_ids.some(id => id.startsWith('HTJL_')), false);
+
+const pkkProfile = resolveServiceLegalProfile({
+  route: 'handcraft_service',
+  facts: { industry: 'vehicle_repair', vehicle_service_context: 'pkk' }
+});
+const pkkPackage = resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'vehicle_repair', vehicle_service_context: 'pkk' }, legalProfile: pkkProfile });
+assert.equal(pkkPackage.id, 'vehicle_inspection');
+assert.equal(pkkPackage.allowed_rule_ids.some(id => id.startsWith('HTJL_')), false);
+
+const warrantyProfile = resolveServiceLegalProfile({
+  route: 'handcraft_service',
+  facts: { industry: 'vehicle_repair', vehicle_service_context: 'warranty' }
+});
+assert.equal(resolveRulePackage({ route: 'handcraft_service', facts: { industry: 'vehicle_repair' }, legalProfile: warrantyProfile }), null, 'unresolved complaint/warranty route must not get an automatic package');
 
 assert.deepEqual(new Set(collectionRuleIds()), new Set([
   'INK_8_GOOD_PRACTICE',
@@ -85,6 +119,37 @@ assert.ok(workshopResult.analysis.rule_ids.includes('HTJL_34_PRELIMINARY_EXAMINA
 assert.ok(workshopResult.analysis.rule_ids.includes('HTJL_9_ADDITIONAL_WORK'));
 assert.ok(workshopResult.analysis.rule_ids.every(id => packageRuleIds(workshop).includes(id)));
 
+const movingResult = runCase({
+  intake: { buyer_type: 'consumer', subject: 'service_quote', documents: ['invoice', 'quote'] },
+  facts: {
+    industry: 'moving',
+    agreed_price: 10000,
+    invoice_total: 13500,
+    price_increase_after_start: true,
+    customer_notified: false,
+    invoice_specification_sufficient: false
+  },
+  registry
+});
+assert.equal(movingResult.rule_package.id, 'moving_service');
+assert.ok(movingResult.analysis.rule_ids.includes('POF_12_QUOTE'));
+assert.equal(movingResult.analysis.rule_ids.some(id => id.startsWith('HTJL_')), false);
+
+const cleaningResult = runCase({
+  intake: { buyer_type: 'consumer', subject: 'service_quote', documents: ['invoice', 'quote'] },
+  facts: {
+    industry: 'cleaning',
+    agreed_price: 4500,
+    invoice_total: 5400,
+    additional_payment_amount: 900,
+    additional_payment_agreement_status: 'not_found'
+  },
+  registry
+});
+assert.equal(cleaningResult.rule_package.id, 'cleaning_service');
+assert.ok(cleaningResult.analysis.rule_ids.includes('MFL_11_UNAGREED_PAYMENT'));
+assert.equal(cleaningResult.analysis.rule_ids.some(id => id.startsWith('HTJL_')), false);
+
 const withCollection = runCase({
   intake: { buyer_type: 'consumer', subject: 'goods', documents: ['invoice'] },
   facts: { agreed_price: 1000, invoice_total: 1000 },
@@ -98,4 +163,4 @@ assert.equal(withCollection.rule_package.collection_overlay, true);
 assert.ok(withCollection.analysis.rule_ids.includes('INK_9_NOTICE'));
 assert.ok(withCollection.analysis.rule_ids.every(id => packageRuleIds(goods, { collection: true }).includes(id)));
 
-console.log('OK internal rule packages route goods, vehicle repair, handcraft, services and collection without brand-specific logic.');
+console.log('OK internal rule packages route goods, vehicle repair/PKK, electrical, VVS, heat pump, moving, cleaning, handcraft and collection without brand-specific logic.');
