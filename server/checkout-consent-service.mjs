@@ -1,5 +1,6 @@
 import {
   validateCheckoutConsent,
+  validateBuyerIdentity,
   agreementConfirmationPayload,
   latestCompatibleCheckoutConsent,
   markAgreementConfirmationDelivered,
@@ -17,7 +18,7 @@ export function createCheckoutConsentService({ caseStore, policy, clock = () => 
   if (!caseStore?.getOwned || !caseStore?.save || !caseStore?.nextId) throw new Error('Checkout consent service requires case store getOwned/save/nextId.');
   if (!policy || typeof policy !== 'object') throw new Error('Checkout policy is required.');
 
-  async function acceptForPaymentSession({ case_id, owner_id, consent, requirement }) {
+  async function acceptForPaymentSession({ case_id, owner_id, consent, buyer_identity, requirement }) {
     let caseData = await caseStore.getOwned(case_id, owner_id);
     if (caseData.state !== 'analysis_ready') {
       const error = new Error('Checkout consent can only be recorded after analysis and before payment.');
@@ -26,11 +27,13 @@ export function createCheckoutConsentService({ caseStore, policy, clock = () => 
     }
 
     const validated = validateCheckoutConsent(consent, policy, requirement);
+    const buyerIdentity = validateBuyerIdentity(buyer_identity ?? {});
     const accepted_at = nowIso(clock);
     const id = await caseStore.nextId('checkout');
     const record = {
       id,
       ...validated,
+      buyer_identity_snapshot: buyerIdentity,
       accepted_at,
       durable_medium_delivered_at: null,
       durable_medium_type: null,
@@ -56,6 +59,7 @@ export function createCheckoutConsentService({ caseStore, policy, clock = () => 
           terms_version: validated.terms_version,
           amount_minor: validated.amount_minor,
           currency: validated.currency,
+          buyer_identity_recorded: true,
           durable_medium_delivered: false
         }
       }]
