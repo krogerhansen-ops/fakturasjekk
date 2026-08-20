@@ -1,6 +1,7 @@
 const CONFIRMABLE_FIELDS = new Set([
   'invoice_total', 'invoice_number', 'agreed_price', 'invoice_fee', 'price_basis',
-  'invoice_fee_agreed', 'surcharge_documented', 'price_increase_after_start', 'customer_notified'
+  'invoice_fee_agreed', 'surcharge_documented', 'price_increase_after_start', 'customer_notified',
+  'industry', 'vehicle_service_context', 'transaction_nature', 'financing_detected'
 ]);
 
 function validValue(value, definition = {}) {
@@ -49,6 +50,7 @@ export function validateFactConfirmations({ items = [], catalog, documents = [],
     if (confirmations[field]) { errors.push(`Duplikat bekreftelse: ${field}`); continue; }
     if (item.confirmed_by_user !== true) { errors.push(`Eksplisitt brukerbekreftelse mangler for ${field}.`); continue; }
     if (!validValue(item.value, definition)) { errors.push(`Ugyldig verdi for ${field}.`); continue; }
+    if (definition.positive_only === true && item.value !== true) { errors.push(`Feltet ${field} kan bare bekreftes som true når dette eksplisitt fremgår av kilden.`); continue; }
     if (!item.source_document_id || !documentIds.has(item.source_document_id)) { errors.push(`Gyldig kildedokument mangler for ${field}.`); continue; }
     const page = Number(item.source_page);
     if (!Number.isInteger(page) || page < 1 || page > 10000) { errors.push(`Gyldig sidenummer mangler for ${field}.`); continue; }
