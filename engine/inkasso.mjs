@@ -1,14 +1,17 @@
+import { evaluateCollectionRateClaims } from './collection-rate-checks.mjs';
+
 export function analyzeInkasso(input = {}) {
   const result = {
     status: 'not_applicable',
     findings: [],
     rule_ids: [],
     questions: [],
-    principal_claim_effect: 'not_assessed'
+    principal_claim_effect: 'not_assessed',
+    rate_checks: null
   };
 
   const stage = input.stage ?? 'none';
-  if (stage === 'none' || stage === 'invoice' || stage === 'reminder') return result;
+  if (stage === 'none' || stage === 'invoice') return result;
 
   result.status = 'ok';
   result.principal_claim_effect = 'separate_from_collection_compliance';
@@ -89,9 +92,16 @@ export function analyzeInkasso(input = {}) {
     result.rule_ids.push('INK_8_GOOD_PRACTICE');
   }
 
+  const rateChecks = evaluateCollectionRateClaims(input);
+  result.rate_checks = rateChecks;
+  result.findings.push(...rateChecks.findings);
+  result.questions.push(...rateChecks.questions);
+  for (const finding of rateChecks.findings) result.rule_ids.push(...(finding.rule_ids ?? []));
+
   result.rule_ids = [...new Set(result.rule_ids)];
+  result.questions = [...new Set(result.questions)];
   if (result.findings.some(f => f.severity === 'high')) result.status = 'attention';
-  else if (result.findings.length) result.status = 'review';
+  else if (result.findings.length || result.questions.length) result.status = 'review';
 
   return result;
 }
