@@ -45,6 +45,8 @@ jobs:
           test -f _site/site/index-launch-candidate.html
           test -f _site/site/camera-local-test.html
           test -f _site/site/camera-test-sheet.html
+          test -f _site/site/tester-start.html
+          test -f _site/site/external-tester-feedback.html
           test -f _site/site/app/camera-sanitizer.mjs
           test -f _site/site/app/camera-quality.mjs
           test -f _site/site/engine/analyzer.mjs
@@ -58,6 +60,8 @@ jobs:
           grep -q 'Prøv fakturasjekk-demoen' _site/index.html
           grep -q 'Bildet forlater ikke enheten din' _site/site/camera-local-test.html
           grep -q 'SYNTETISK TEST' _site/site/camera-test-sheet.html
+          grep -q 'Takk for at du tester' _site/site/tester-start.html
+          grep -q 'Skjemaet lagrer eller sender ingenting' _site/site/external-tester-feedback.html
           test ! -d _site/server
           test ! -d _site/admin
           test ! -f _site/motor-test.html
