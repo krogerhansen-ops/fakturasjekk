@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { resolveServiceLegalProfile } from '../engine/service-legal-router.mjs';
+import { resolveServiceLegalProfile, legalRoutingCatalog } from '../engine/service-legal-router.mjs';
 import { runCase } from '../engine/case-service.mjs';
 
 const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
@@ -48,6 +48,8 @@ assert.ok(plumbing.notes.some(value => /frivillig/i.test(value)), 'sentral godkj
 const heatPump = resolveServiceLegalProfile({ route: 'handcraft_service', facts: { industry: 'varmepumpe' } });
 assert.equal(heatPump.package_id, 'heat_pump_installation');
 assert.ok(heatPump.secondary_frameworks.some(value => /f-gass/i.test(value)));
+assert.ok(heatPump.secondary_frameworks.some(value => /15-4/.test(value)));
+assert.ok(heatPump.notes.some(value => /2024\/573.*ikke.*norsk runtime/i.test(value)));
 
 const moving = resolveServiceLegalProfile({ route: 'service_quote', facts: { industry: 'moving' } });
 assert.equal(moving.package_id, 'moving_service');
@@ -77,6 +79,35 @@ const ordinaryInstallation = resolveServiceLegalProfile({
 });
 assert.equal(ordinaryInstallation.package_id, 'installation_service');
 assert.equal(ordinaryInstallation.primary_framework, 'håndverkertjenesteloven');
+
+const regulatedSectorCases = [
+  ['electricity_energy', 'service_quote', /energi|kraftomsetnings/i],
+  ['telecom', 'service_quote', /ekom/i],
+  ['insurance', 'service_quote', /forsikringsavtaleloven/i],
+  ['healthcare', 'service_quote', /pasient|behandlingsavtale/i],
+  ['taxi_passenger_transport', 'service_quote', /25d|transport/i],
+  ['parking_toll', 'goods', /parkering|finansavtaleloven/i]
+];
+for (const [industry, route, frameworkPattern] of regulatedSectorCases) {
+  const guarded = resolveServiceLegalProfile({ route, facts: { industry } });
+  assert.equal(guarded.status, 'needs_clarification', `${industry} must not enter generic legal analysis`);
+  assert.equal(guarded.package_id, null);
+  assert.ok(guarded.relevant_frameworks.some(value => frameworkPattern.test(value)), `${industry} must name its specialist framework`);
+
+  const result = runCase({
+    intake: { buyer_type: 'consumer', subject: route, documents: ['invoice'] },
+    facts: { industry, invoice_total: 1000, invoice_fee: 99, invoice_specification_sufficient: false },
+    registry
+  });
+  assert.equal(result.status, 'needs_clarification');
+  assert.equal(result.analysis, null, `${industry} must stop before generic analysis`);
+  assert.equal(result.rule_package, null, `${industry} must not receive a runtime package`);
+}
+
+const routingCatalog = legalRoutingCatalog();
+for (const [industry] of regulatedSectorCases) {
+  assert.ok(routingCatalog.regulated_sector_guards.includes(industry));
+}
 
 const warrantyCase = runCase({
   intake: { buyer_type: 'consumer', subject: 'handcraft_service', documents: ['invoice'] },
@@ -122,4 +153,4 @@ assert.equal(movingCase.rule_package.id, 'moving_service');
 assert.equal(movingCase.analysis.rule_ids.some(id => id.startsWith('HTJL_')), false, 'moving must never receive handcraft rules');
 assert.ok(movingCase.analysis.rule_ids.includes('POF_12_QUOTE'));
 
-console.log('OK service legal router separates vehicle repair/remedy/PKK, electrical, VVS, heat pump, moving, cleaning, installation and credit boundaries.');
+console.log('OK service legal router separates supported profiles and fails regulated sectors closed before generic rule packages.');
