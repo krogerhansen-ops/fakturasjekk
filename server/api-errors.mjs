@@ -29,6 +29,10 @@ export function apiErrorResponse(error, requestId = null) {
 export function mapServiceError(error) {
   const message = String(error?.message ?? '');
   if (error?.code === 'legal_review_required' || /legal rule registry requires review/i.test(message)) return new ApiError(503, 'legal_review_required', 'Regelgrunnlaget må kontrolleres før saken kan analyseres eller vises.');
+  if (error?.code === 'checkout_consent_required') return new ApiError(409, 'checkout_consent_required', 'Gyldig bestillingssamtykke må være registrert før fullresultatet kan leveres.');
+  if (error?.code === 'durable_confirmation_required') return new ApiError(409, 'durable_confirmation_required', 'Avtalebekreftelsen må være levert på et varig medium før fullresultatet kan leveres.');
+  if (error?.code === 'durable_delivery_not_confirmed') return new ApiError(503, 'durable_delivery_not_confirmed', 'Avtalebekreftelsen kunne ikke bekreftes levert. Tjenesten er derfor fortsatt låst.');
+  if (error?.code === 'invalid_durable_medium') return new ApiError(500, 'invalid_durable_medium', 'Leveringskanalen for avtalebekreftelsen er ikke godkjent.');
   if (/no fact confirmation is currently required/i.test(message)) return new ApiError(409, 'fact_confirmation_not_required', 'Saken har ingen åpne felt som skal bekreftes nå.');
   if (/not found|does not exist|owner|owned|access|forbidden/i.test(message)) return new ApiError(404, 'case_not_found', 'Saken finnes ikke.');
   if (/locked until verified 29 NOK payment/i.test(message)) return new ApiError(402, 'payment_required', 'Fullresultatet krever verifisert betaling på 29 kr.');
