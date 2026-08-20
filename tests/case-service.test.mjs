@@ -50,6 +50,31 @@ const clean = runCase({
 assert.equal(clean.status, 'clean');
 assert.equal(clean.draft.allowed, false);
 
+const itemizedTimeline = runCase({
+  intake: { buyer_type: 'consumer', subject: 'handcraft_service', documents: ['invoice', 'correspondence'] },
+  facts: {
+    invoice_total: 10000,
+    agreed_price: 10000,
+    itemized_invoice_requested: true,
+    itemized_invoice_request_date: '2026-08-01',
+    due_date: '2026-08-15'
+  },
+  origins: {
+    invoice_total: { type: 'documented', source_id: 'invoice-37' },
+    agreed_price: { type: 'documented', source_id: 'agreement-37' },
+    itemized_invoice_requested: { type: 'documented', source_id: 'message-37' },
+    itemized_invoice_request_date: { type: 'documented', source_id: 'message-37' },
+    due_date: { type: 'documented', source_id: 'invoice-37' }
+  },
+  registry
+});
+assert.equal(itemizedTimeline.status, 'review');
+assert.equal(itemizedTimeline.preactivation.checks[0].id, 'HTJL_37_ITEMIZED_INVOICE_TIMELINE');
+assert.equal(itemizedTimeline.preactivation.checks[0].request_days_before_due, 14);
+assert.equal(itemizedTimeline.preactivation.checks[0].legal_conclusion, false);
+assert.ok(itemizedTimeline.analysis.questions.some(q => /må vurderes konkret/i.test(q)));
+assert.equal(itemizedTimeline.analysis.rule_ids.includes('HTJL_37_ITEMIZED_INVOICE_TIMELINE'), false);
+
 const b2b = runCase({
   intake: { buyer_type: 'business', subject: 'goods', documents: ['invoice'] },
   facts: { agreed_price: 1000, invoice_total: 1500 },
@@ -59,4 +84,4 @@ assert.equal(b2b.intake.supported, false);
 assert.equal(b2b.analysis, null);
 assert.equal(b2b.draft.allowed, false);
 
-console.log('OK: case service orchestrates intake, analysis, evidence and controlled draft with fail-closed scope handling.');
+console.log('OK: case service orchestrates intake, analysis, evidence and controlled draft with fail-closed scope and HTJL § 37 preactivation.');
