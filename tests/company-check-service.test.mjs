@@ -33,6 +33,7 @@ const extractor = {
     return { fields: {
       invoice_total: { value: 12990, confidence: 0.99, source_document_id: invoice.id, source_page: 1 },
       invoice_number: { value: 'BUTIKK-1', confidence: 0.99, source_document_id: invoice.id, source_page: 1 },
+      invoice_date: { value: '2024-03-15', confidence: 0.99, source_document_id: invoice.id, source_page: 1 },
       seller_name: { value: 'Demo Butikk AS', confidence: 0.99, source_document_id: invoice.id, source_page: 1 },
       seller_org_number: { value: '509100675', confidence: 0.99, source_document_id: invoice.id, source_page: 1 },
       seller_mva_marker_present: { value: true, confidence: 0.99, source_document_id: invoice.id, source_page: 1 },
@@ -94,12 +95,13 @@ const stored = await caseStore.getOwned(created.id, owner);
 const result = stored.analyses.at(-1).result;
 assert.equal(result.company_check.status, 'verified');
 assert.equal(result.company_check.comparison.organization_number, 'matches');
-assert.equal(result.company_check.comparison.vat_marker, 'different');
-assert.ok(result.company_check.flags.includes('seller_mva_marker_mismatch'));
-assert.ok(result.analysis.findings.some(f => f.code === 'SELLER_IDENTITY_FORMAL_MISMATCH'));
-assert.ok(result.analysis.rule_ids.includes('BOF_5_1_2_PARTIES'));
-assert.match(result.analysis.findings.find(f => f.code === 'SELLER_IDENTITY_FORMAL_MISMATCH').explanation, /betyr ikke i seg selv at hovedkravet bortfaller/);
+assert.equal(result.company_check.comparison.vat_marker, 'historical_status_unresolved');
+assert.equal(result.company_check.comparison.vat_marker_basis, 'current_status_only');
+assert.ok(result.company_check.flags.includes('seller_mva_historical_status_unresolved'));
+assert.equal(result.company_check.flags.includes('seller_mva_marker_mismatch'), false);
+assert.match(result.company_check.customer_note, /historisk MVA-status på fakturadato er ikke verifisert/i);
+assert.equal(result.analysis.findings.some(f => f.code === 'SELLER_IDENTITY_FORMAL_MISMATCH'), false);
 assert.ok(result.evidence.some(item => item.type === 'registry' && item.field === 'registry_seller_mva_registered'));
-assert.ok(result.evidence.some(item => item.type === 'calculated' && item.field === 'seller_mva_marker_mismatch'));
+assert.equal(result.evidence.some(item => item.type === 'calculated' && item.field === 'seller_mva_marker_mismatch'), false);
 
-console.log('OK backend company check keeps invoice and Brreg facts separate and produces a cautious formal mismatch.');
+console.log('OK backend keeps current Brreg MVA status separate from historical invoice-date status and does not create a false VAT mismatch.');
