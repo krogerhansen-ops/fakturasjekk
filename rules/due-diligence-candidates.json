@@ -1,0 +1,42 @@
+{
+  "version": "0.1.0",
+  "jurisdiction": "NO",
+  "purpose": "preactivation_only",
+  "runtime": false,
+  "rules": [
+    {
+      "id": "FIN_2_4_INVOICE_FEE_ACTUAL_COST",
+      "law": "finansavtaleloven",
+      "section": "§ 2-4",
+      "title": "Fakturagebyr kan ikke overstige faktisk kostnad",
+      "source_url": "https://lovdata.no/lov/2020-12-18-146/%C2%A72-4",
+      "expected_phrase": "faktiske kostnad ved å utstede og sende regningen",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "invoice_fee", "goods", "service", "payment"],
+      "conditions": [
+        "Kravet må være et forbrukerkrav innen bestemmelsens virkeområde.",
+        "Et fakturagebyr eller en gebyrdel som gjelder utstedelse/sending av regning må være identifisert.",
+        "Fakturasjekk skal ikke gjette betalingsmottakerens faktiske kostnad; sikkert avvik krever dokumentert kostnadsgrunnlag eller annen kontrollert kilde."
+      ],
+      "notes": "Gjelder på tvers av vare- og tjenestefakturaer. Kommer i tillegg til særreglene i blant annet håndverkertjenesteloven § 36 og forbrukerkjøpsloven § 37. Ikke runtime-aktiv før faktisk kostnad kan håndteres uten gjetting."
+    },
+    {
+      "id": "HTJL_37_PAYMENT_AFTER_ITEMIZED_INVOICE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 37",
+      "title": "Betalingstid ved krav om spesifisert regning",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A737",
+      "expected_phrase": "plikter forbrukeren ikke å betale før regningen er mottatt",
+      "last_verified": "2026-08-20",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "handcraft_service", "itemized_invoice", "payment_due"],
+      "conditions": [
+        "Forbrukeren må ha krevd spesifisert regning i tilstrekkelig tid før forfall.",
+        "Tidspunktene for krav, opprinnelig forfall og mottatt spesifisert regning må være dokumentert.",
+        "Begrepet 'tilstrekkelig tid' skal ikke erstattes av en egen oppdiktet daggrense."
+      ],
+      "notes": "Kan gi viktig handlingsinformasjon ved verksted- og håndverkerfakturaer, men holdes utenfor runtime inntil tidslinjen kan dokumenteres sikkert."
+    }
+  ]
+}
