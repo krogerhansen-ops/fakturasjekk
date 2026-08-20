@@ -88,12 +88,12 @@ export function buildCollectionContext({ facts = {}, origins = {}, documents = [
   }
 
   if (disputeDate && sentDate && sentDate > disputeDate && ['collection_notice', 'payment_request'].includes(stage)) {
-    context.ordinary_collection_continues = true;
-    context._fact_origins.ordinary_collection_continues = {
+    context.collection_after_documented_dispute = true;
+    context._fact_origins.collection_after_documented_dispute = {
       type: 'calculated',
       source_id: context._fact_origins.notice_sent_date?.source_id ?? null,
       confidence: 'deterministic',
-      note: `Dokumentert innsigelse ${disputeDate} ligger før dokumentert ${stage === 'payment_request' ? 'betalingsoppfordring' : 'inkassovarsel'} ${sentDate}.`
+      note: `Dokumentert innsigelse ${disputeDate} ligger før dokumentert ${stage === 'payment_request' ? 'betalingsoppfordring' : 'inkassovarsel'} ${sentDate}. Dette viser rekkefølge, men ikke alene at innsigelsen ble ignorert eller at videre inndriving var ulovlig.`
     };
   }
 
