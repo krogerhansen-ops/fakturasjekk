@@ -1,5 +1,5 @@
 {
-  "version": "0.69.0",
+  "version": "0.70.0",
   "fields": {
     "invoice_number": { "type": "string", "critical": true, "roles": ["invoice"] },
     "invoice_total": { "type": "number", "critical": true, "roles": ["invoice"] },
@@ -7,6 +7,9 @@
     "stated_vat": { "type": "number", "critical": false, "roles": ["invoice"] },
     "invoice_date": { "type": "date", "critical": false, "roles": ["invoice"] },
     "due_date": { "type": "date", "critical": false, "roles": ["invoice", "collection_notice", "payment_request"] },
+    "itemized_invoice_requested": { "type": "boolean", "critical": false, "roles": ["correspondence", "other"], "positive_only": true, "instruction": "Returner bare true når kilden eksplisitt viser at forbrukeren ba om spesifisert regning/faktura. Fravær av en slik forespørsel i opplastede dokumenter er ikke false." },
+    "itemized_invoice_request_date": { "type": "date", "critical": false, "roles": ["correspondence", "other"], "instruction": "Datoen for forbrukerens dokumenterte forespørsel om spesifisert regning. Ikke utled dato fra fakturadato, forfallsdato eller filmetadata." },
+    "itemized_invoice_received_date": { "type": "date", "critical": false, "roles": ["invoice", "correspondence", "other"], "instruction": "Datoen en etterfølgende spesifisert regning eksplisitt er dokumentert mottatt/sendt i saksmaterialet. Utelat ved tvil." },
     "seller_name": { "type": "string", "critical": false, "roles": ["invoice"] },
     "seller_org_number": { "type": "string", "critical": false, "roles": ["invoice"] },
     "seller_mva_marker_present": { "type": "boolean", "critical": false, "roles": ["invoice"], "positive_only": true, "instruction": "Returner bare true når fakturaen eksplisitt viser MVA-markør i tilknytning til selgers organisasjonsnummer. Fravær skal ikke returneres som false." },
