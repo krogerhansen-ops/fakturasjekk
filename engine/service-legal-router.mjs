@@ -6,6 +6,39 @@ const INSTALLATION = new Set(['installation', 'installation_service', 'montering
 const MOVING = new Set(['moving', 'moving_service', 'flytting', 'flyttebyra', 'flyttebyrå']);
 const CLEANING = new Set(['cleaning', 'cleaning_service', 'renhold', 'flyttevask']);
 
+const REGULATED_SECTORS = Object.freeze({
+  electricity_energy: {
+    label: 'Strøm og energi',
+    reason: 'Strøm- og energifakturaer har egne fakturerings- og forbrukerregler. Fakturasjekk skal ikke bruke generisk tjenestepakke før eget energispor er aktivert.',
+    frameworks: ['energiloven', 'kraftomsetningsforskriften', 'relevante RME-regler']
+  },
+  telecom: {
+    label: 'Telekom og ekom',
+    reason: 'Telekom- og ekomkrav har egne regler om avtale, betaling, varsling og stenging. Generisk tjenesteanalyse er derfor ikke tilstrekkelig.',
+    frameworks: ['ekomloven', 'ekomforskriften', 'relevante Nkom-regler']
+  },
+  insurance: {
+    label: 'Forsikring',
+    reason: 'Forsikringspremier og betalingsfølger reguleres særskilt. Fakturasjekk skal ikke behandle dette som en ordinær vare- eller tjenestefaktura.',
+    frameworks: ['forsikringsavtaleloven']
+  },
+  healthcare: {
+    label: 'Helse og pasientbetaling',
+    reason: 'Helse- og pasientkrav kan bero på særskilte offentlige satser, egenandelsregler eller private behandlingsavtaler. Riktig betalingsgrunnlag må klassifiseres før analyse.',
+    frameworks: ['pasientbetalings-/egenandelsregelverk', 'eventuell privat behandlingsavtale']
+  },
+  taxi_passenger_transport: {
+    label: 'Drosje og passasjertransport',
+    reason: 'Drosje og annen passasjertransport har særregler om prisinformasjon, pristilbud, kvittering og transport. Generisk flytte-/tjenestepakke skal ikke brukes.',
+    frameworks: ['prisopplysningsforskriften §§ 25d–25e', 'relevant transportregelverk']
+  },
+  parking_toll: {
+    label: 'Parkering og bom',
+    reason: 'Parkering, bom og betalingsløsninger kan ha egne avtale-, gebyr- og sektorregler. Fakturasjekk skal ikke bruke generisk fakturagebyrlogikk før eget spor er kvalitetssikret.',
+    frameworks: ['relevant parkerings-/bomregelverk', 'finansavtaleloven § 2-4 der vilkårene gjelder']
+  }
+});
+
 const VEHICLE_COMPLAINT_CONTEXTS = new Set(['warranty', 'guarantee', 'complaint', 'consumer_purchase_remedy', 'seller_remedy', 'reklamasjon', 'garanti']);
 const VEHICLE_INSPECTION_CONTEXTS = new Set(['periodic_inspection', 'pkk', 'eu_control', 'eu-kontroll']);
 const VEHICLE_COLLISION_CONTEXTS = new Set(['collision_repair', 'major_collision_repair', 'skadereparasjon']);
@@ -53,6 +86,17 @@ export function resolveServiceLegalProfile({ route, facts = {} } = {}) {
       reason: 'Kredittkostnader og finansieringsvilkår krever finansavtaleloven og skal ikke vurderes med vanlig vare-/tjenestepakke alene.',
       questions: ['Gjelder beløpet selve varen/tjenesten, eller renter, gebyrer eller andre kostnader i en kredittavtale?'],
       relevant_frameworks: ['finansavtaleloven', 'forbrukerkjøpsloven']
+    });
+  }
+
+  const regulated = REGULATED_SECTORS[industry];
+  if (regulated) {
+    return clarification({
+      id: `regulated_sector_${industry}`,
+      label: regulated.label,
+      reason: regulated.reason,
+      questions: ['Denne fakturatypen krever et eget regelspor før Fakturasjekk kan gi en sikker juridisk vurdering.'],
+      relevant_frameworks: regulated.frameworks
     });
   }
 
@@ -133,9 +177,9 @@ export function resolveServiceLegalProfile({ route, facts = {} } = {}) {
       label: 'Varmepumpe – montering og installasjon',
       package_id: 'heat_pump_installation',
       primary_framework: 'håndverkertjenesteloven',
-      secondary_frameworks: ['f-gassregelverket der utstyret omfattes', 'elregelverket der elektrisk installasjon omfattes', 'prisopplysningsforskriften', 'bokføringsforskriften'],
+      secondary_frameworks: ['byggteknisk forskrift § 15-4 der arbeidet omfattes', 'gjeldende norsk f-gassregelverk der utstyret omfattes', 'elregelverket der elektrisk installasjon omfattes', 'prisopplysningsforskriften', 'bokføringsforskriften'],
       specialist_registers: ['fgas_certification', 'dsb_elvirksomhet'],
-      notes: ['F-gass- og elkrav brukes bare når den konkrete installasjonen faktisk omfattes.']
+      notes: ['F-gass- og elkrav brukes bare når den konkrete installasjonen faktisk omfattes.', 'EU 2024/573 skal ikke behandles som norsk runtime-regel før EØS-innlemmelse og norsk gjennomføring er verifisert.']
     });
   }
 
@@ -234,6 +278,7 @@ export function legalRoutingCatalog() {
       installation: [...INSTALLATION],
       moving: [...MOVING],
       cleaning: [...CLEANING]
-    }
+    },
+    regulated_sector_guards: Object.keys(REGULATED_SECTORS)
   });
 }
