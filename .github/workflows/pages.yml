@@ -49,6 +49,10 @@ jobs:
           test -f _site/site/external-tester-feedback.html
           test -f _site/site/app/camera-sanitizer.mjs
           test -f _site/site/app/camera-quality.mjs
+          test -f _site/site/app/camera-local-test-page.mjs
+          test -f _site/site/app/camera-test-sheet-page.mjs
+          test -f _site/site/app/external-tester-feedback-page.mjs
+          test -f _site/site/app/upload-metadata.mjs
           test -f _site/site/engine/analyzer.mjs
           test -f _site/site/engine/draft.mjs
           test -f _site/site/rules/rules.json
@@ -59,9 +63,13 @@ jobs:
           grep -q 'Offentlig beta' _site/index.html
           grep -q 'Prøv fakturasjekk-demoen' _site/index.html
           grep -q 'Bildet forlater ikke enheten din' _site/site/camera-local-test.html
+          grep -q "connect-src 'none'" _site/site/camera-local-test.html
           grep -q 'SYNTETISK TEST' _site/site/camera-test-sheet.html
+          grep -q "connect-src 'none'" _site/site/camera-test-sheet.html
           grep -q 'Takk for at du tester' _site/site/tester-start.html
+          grep -q "script-src 'none'" _site/site/tester-start.html
           grep -q 'Skjemaet lagrer eller sender ingenting' _site/site/external-tester-feedback.html
+          grep -q "connect-src 'none'" _site/site/external-tester-feedback.html
           test ! -d _site/server
           test ! -d _site/admin
           test ! -f _site/motor-test.html
