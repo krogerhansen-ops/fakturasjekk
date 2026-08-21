@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; manifest-src 'none'">
   <title>Lokal kameratest · Fakturasjekk</title>
   <style>
     :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#102033;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:720px;margin:0 auto;padding:24px 18px 56px}.card{background:#fff;border:1px solid #dbe2ea;border-radius:18px;padding:22px;box-shadow:0 8px 30px rgba(16,32,51,.06)}h1{font-size:clamp(1.7rem,6vw,2.4rem);line-height:1.08;margin:0 0 12px}h2{font-size:1.08rem;margin:24px 0 10px}.lead{font-size:1.05rem;line-height:1.55;color:#40536a}.privacy{background:#eef8f2;border:1px solid #bedfca;border-radius:12px;padding:14px;margin:18px 0}.privacy strong{display:block;margin-bottom:4px}.actions{display:grid;gap:10px;margin:20px 0}.button,label.button{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:12px;border:1px solid #163a63;background:#163a63;color:#fff;font-weight:700;padding:12px 16px;cursor:pointer;text-align:center}.button.secondary,label.button.secondary{background:#fff;color:#163a63}.button:disabled{opacity:.45;cursor:not-allowed}input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.status{border-top:1px solid #e1e7ed;margin-top:20px;padding-top:18px}.muted{color:#63758a;font-size:.93rem}.result{display:none}.result.visible{display:block}.preview{width:100%;max-height:460px;object-fit:contain;background:#edf1f5;border-radius:12px;margin:14px 0}.checks{padding:0;list-style:none;display:grid;gap:8px}.checks li{border-radius:10px;padding:10px 12px;background:#f4f6f8}.checks li.warn{background:#fff4df;border:1px solid #efd39b}.checks li.ok{background:#eef8f2;border:1px solid #bedfca}.error{background:#fff0f0;border:1px solid #e8b8b8;border-radius:10px;padding:12px;color:#762323}.technical{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.83rem;white-space:pre-wrap;background:#f4f6f8;border-radius:10px;padding:12px;overflow:auto}a{color:#163a63}.footer{margin-top:20px;font-size:.88rem;color:#63758a}
@@ -18,7 +20,7 @@
 
     <div class="privacy">
       <strong>Bildet forlater ikke enheten din.</strong>
-      Ingen fil lastes opp, ingen API kalles, og siden sender ikke bildet til Fakturasjekk, Supabase, Google eller andre tjenester. Bruk likevel helst en ufarlig testside – ikke en ekte faktura.
+      Ingen fil lastes opp, ingen API kalles, og siden sender ikke bildet til Fakturasjekk, Supabase, Google eller andre tjenester. Nettleserpolicyen blokkerer også utgående nettverkskall fra testsiden. Bruk likevel helst en ufarlig testside – ikke en ekte faktura.
     </div>
 
     <div class="actions">
@@ -46,98 +48,6 @@
     <p class="footer">Denne testsiden åpner ikke kundopplasting i Fakturasjekk. Produksjonsflyten er fortsatt sperret av launch-gaten og zero-cost-modus.</p>
   </section>
 </main>
-<script type="module">
-  import { createBrowserCameraSanitizer } from './app/camera-sanitizer.mjs';
-  import { createBrowserCameraQualityAssessor } from './app/camera-quality.mjs';
-
-  const cameraInput = document.querySelector('#camera-input');
-  const fileInput = document.querySelector('#file-input');
-  const clearButton = document.querySelector('#clear');
-  const status = document.querySelector('#status');
-  const result = document.querySelector('#result');
-  const preview = document.querySelector('#preview');
-  const checks = document.querySelector('#checks');
-  const technical = document.querySelector('#technical');
-  const sanitize = createBrowserCameraSanitizer();
-  const assess = createBrowserCameraQualityAssessor();
-  let previewUrl = null;
-
-  function revokePreview() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = null;
-    preview.removeAttribute('src');
-  }
-
-  function reset() {
-    revokePreview();
-    cameraInput.value = '';
-    fileInput.value = '';
-    checks.replaceChildren();
-    technical.textContent = '';
-    result.classList.remove('visible');
-    status.textContent = 'Ingen test utført ennå.';
-    clearButton.disabled = true;
-  }
-
-  function addCheck(text, warning = false) {
-    const li = document.createElement('li');
-    li.className = warning ? 'warn' : 'ok';
-    li.textContent = text;
-    checks.append(li);
-  }
-
-  async function run(file) {
-    reset();
-    clearButton.disabled = false;
-    status.textContent = 'Tester bildet lokalt på enheten …';
-    try {
-      const quality = await assess(file);
-      const sanitized = await sanitize(file, { role: 'invoice', index: 0 });
-      previewUrl = URL.createObjectURL(sanitized.file);
-      preview.src = previewUrl;
-      result.classList.add('visible');
-
-      addCheck('Metadata-stripping/re-encoding: OK');
-      addCheck(`Utdataformat: ${sanitized.output_mime_type}`);
-      addCheck(`Oppløsning etter klargjøring: ${sanitized.output_dimensions.width} × ${sanitized.output_dimensions.height}`,
-        sanitized.low_resolution === true);
-
-      if (!quality.warnings.length) addCheck('Ingen tydelig lokal lys-/kontrast-/uskarphetsadvarsel.');
-      for (const warning of quality.warnings) addCheck(warning.message, true);
-      addCheck('Ingen opplasting er utført.');
-
-      technical.textContent = JSON.stringify({
-        original: { name: file.name || null, type: file.type || null, bytes: file.size || null },
-        sanitized: {
-          type: sanitized.output_mime_type,
-          bytes: sanitized.file.size,
-          source_dimensions: sanitized.source_dimensions,
-          output_dimensions: sanitized.output_dimensions,
-          metadata_stripped: sanitized.metadata_stripped
-        },
-        quality: {
-          recommend_retake: quality.recommend_retake,
-          signals: quality.signals,
-          sample_dimensions: quality.sample_dimensions
-        }
-      }, null, 2);
-      status.textContent = quality.recommend_retake
-        ? 'Test fullført. Bildet ble klargjort lokalt, men kvalitetssignalet anbefaler å vurdere et nytt bilde.'
-        : 'Test fullført lokalt. Bildet ble klargjort uten opplasting.';
-    } catch (error) {
-      revokePreview();
-      result.classList.remove('visible');
-      const box = document.createElement('div');
-      box.className = 'error';
-      box.textContent = `Kameratesten kunne ikke fullføres sikkert: ${error?.message || 'ukjent feil'}`;
-      status.replaceChildren(box);
-    }
-  }
-
-  cameraInput.addEventListener('change', () => cameraInput.files?.[0] && run(cameraInput.files[0]));
-  fileInput.addEventListener('change', () => fileInput.files?.[0] && run(fileInput.files[0]));
-  clearButton.addEventListener('click', reset);
-  window.addEventListener('pagehide', revokePreview, { once: true });
-</script>
+<script type="module" src="./app/camera-local-test-page.mjs"></script>
 </body>
 </html>
