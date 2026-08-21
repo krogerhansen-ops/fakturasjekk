@@ -2,6 +2,7 @@ import { classifyIntake } from './intake.mjs';
 import { analyzeCase } from './analyzer.mjs';
 import { analyzeInkasso } from './inkasso.mjs';
 import { runDocumentChecks } from './document-checks.mjs';
+import { buildAnalysisCoverage } from './analysis-coverage.mjs';
 import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './evidence.mjs';
 import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
@@ -45,7 +46,7 @@ function combineDocumentChecks(analysis, documentChecks) {
   return { ...analysis, status, findings, questions, document_checks: documentChecks };
 }
 
-export function runCase({ intake, facts = {}, origins = {}, collection = null, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
+export function runCase({ intake, facts = {}, origins = {}, collection = null, company_check = null, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
   const intakeResult = classifyIntake(intake ?? {});
 
   const base = {
@@ -56,6 +57,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     analysis: null,
     inkasso: null,
     document_checks: null,
+    analysis_coverage: null,
     evidence: [],
     evidence_summary: {},
     assurance: null,
@@ -119,6 +121,12 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
   const evidence = buildEvidenceLedger({ facts, origins, analysis: packagedAnalysis, user_note });
   assertEvidenceSafety(evidence);
   const assurance = assessAssurance({ analysis: packagedAnalysis, evidence });
+  const analysisCoverage = buildAnalysisCoverage({
+    facts,
+    analysis: packagedAnalysis,
+    document_checks: documentChecks,
+    company_check
+  });
 
   const draft = buildDraft({
     analysis: packagedAnalysis,
@@ -136,6 +144,7 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     analysis: packagedAnalysis,
     inkasso,
     document_checks: documentChecks,
+    analysis_coverage: analysisCoverage,
     evidence,
     evidence_summary: summarizeEvidence(evidence),
     assurance,
