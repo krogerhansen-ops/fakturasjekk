@@ -31,14 +31,16 @@ assert.ok(confirmationCall.options.headers['idempotency-key']);
 assert.equal(JSON.parse(confirmationCall.options.body).items[0].confirmed_by_user, true);
 
 const target = { document_id: 'doc-1', upload_url: 'https://signed-upload.example/object?sig=x', required_headers: { 'content-type': 'application/pdf' } };
-const fakeFile = { name: 'faktura.pdf', type: 'application/pdf', size: 123, data: 'x' };
+const fakeFile = { name: 'Kai-Hansen-faktura-august.pdf', type: 'application/pdf', size: 123, data: 'x' };
 await api.uploadSigned(target, fakeFile);
 const uploadCall = calls.at(-1);
 assert.equal(uploadCall.options.method, 'PUT');
 assert.equal('authorization' in uploadCall.options.headers, false, 'Bearer token must never be sent to signed object-storage URL');
 assert.equal(uploadCall.options.credentials, 'omit');
 
-assert.deepEqual(fileDescriptor(fakeFile, 'invoice'), { name: 'faktura.pdf', mime_type: 'application/pdf', size: 123, role: 'invoice' });
+const descriptor = fileDescriptor(fakeFile, 'invoice');
+assert.deepEqual(descriptor, { name: 'invoice-1.pdf', mime_type: 'application/pdf', size: 123, role: 'invoice' });
+assert.equal(JSON.stringify(descriptor).includes('Kai-Hansen'), false, 'original local filename must never be included in backend upload metadata');
 
 const errorApi = createApiClient({
   baseUrl: 'https://api.fakturasjekk.no', getToken: async () => 'token',
@@ -46,4 +48,4 @@ const errorApi = createApiClient({
 });
 await assert.rejects(() => errorApi.getResult('case-1'), error => error instanceof FakturasjekkApiError && error.status === 402 && error.code === 'payment_required' && error.request_id === 'req-pay');
 
-console.log('OK browser API client');
+console.log('OK browser API client and privacy-safe upload metadata');
