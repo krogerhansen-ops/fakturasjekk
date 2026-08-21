@@ -14,11 +14,13 @@ assert.deepEqual(cameraInputAttributes(), {
 });
 
 const ordinary = createDocumentIntake({ policy });
-const pdf = { name: 'faktura.pdf', type: 'application/pdf', size: 120000 };
+const pdf = { name: 'Kai-Hansen-faktura-august.pdf', type: 'application/pdf', size: 120000 };
 const preparedPdf = await ordinary.prepare([pdf], { role: 'invoice', source: 'file' });
 assert.equal(preparedPdf.valid, true);
-assert.deepEqual(preparedPdf.descriptors, [{ name: 'faktura.pdf', mime_type: 'application/pdf', size: 120000, role: 'invoice' }]);
-assert.equal(preparedPdf.files[0], pdf, 'ordinary file upload must pass the original File object through untouched');
+assert.deepEqual(preparedPdf.descriptors, [{ name: 'invoice-1.pdf', mime_type: 'application/pdf', size: 120000, role: 'invoice' }]);
+assert.equal(JSON.stringify(preparedPdf.descriptors).includes('Kai-Hansen'), false, 'original local filename must not leave the browser in upload metadata');
+assert.equal(preparedPdf.files[0], pdf, 'ordinary file upload must pass the original File object through untouched for raw signed PUT');
+assert.ok(preparedPdf.warnings.some(message => /Originale lokale filnavn sendes ikke/.test(message)));
 
 const rawCameraImage = { name: 'IMG_1001.HEIC', type: 'image/heic', size: 2100000 };
 const blockedCamera = await ordinary.prepare([rawCameraImage], { role: 'invoice', source: 'camera' });
@@ -41,7 +43,8 @@ const preparedCamera = await camera.prepare([rawCameraImage], { role: 'invoice',
 assert.equal(sanitizerCalls, 1);
 assert.equal(preparedCamera.valid, true, 'HEIC camera source may be accepted only after sanitizer converts it to an allowed upload type');
 assert.equal(preparedCamera.files[0], safeJpeg);
-assert.deepEqual(preparedCamera.descriptors, [{ name: 'faktura-bilde-1.jpg', mime_type: 'image/jpeg', size: 940000, role: 'invoice' }]);
+assert.deepEqual(preparedCamera.descriptors, [{ name: 'invoice-1.jpg', mime_type: 'image/jpeg', size: 940000, role: 'invoice' }]);
+assert.equal(JSON.stringify(preparedCamera.descriptors).includes('IMG_1001'), false);
 assert.equal(JSON.stringify(preparedCamera.descriptors).includes('camera'), false, 'local capture source must not expand backend metadata contract');
 assert.equal(JSON.stringify(preparedCamera.descriptors).includes('metadata_stripped'), false);
 
@@ -87,6 +90,7 @@ assert.equal(uploaded.uploaded, true);
 assert.equal(uploaded.confirmed[0].document_id, 'doc-1');
 assert.deepEqual(calls.map(call => call[0]), ['register', 'upload', 'confirm'], 'browser flow must register -> signed PUT -> server confirmation in order');
 assert.deepEqual(calls[0][2], preparedPdf.descriptors);
+assert.equal(JSON.stringify(calls[0][2]).includes('Kai-Hansen'), false, 'registerUploads payload must remain filename-minimized');
 
 const mismatchApi = { ...api, registerUploads: async () => ({ accepted: true, validation: { valid: true }, upload_targets: [] }) };
 await assert.rejects(
@@ -94,4 +98,4 @@ await assert.rejects(
   error => error?.code === 'upload_target_mismatch'
 );
 
-console.log('OK browser document intake supports files and privacy-safe camera preparation without weakening signed upload verification');
+console.log('OK browser document intake supports privacy-minimized file/camera upload metadata without weakening signed upload verification');

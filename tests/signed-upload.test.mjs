@@ -39,8 +39,8 @@ const registered = await api.invoke('register_uploads', {
   auth,
   params: { case_id: caseId },
   body: { files: [
-    { name: 'faktura.pdf', mime_type: 'application/pdf', size: 100000, role: 'invoice' },
-    { name: 'tilbud.pdf', mime_type: 'application/pdf', size: 100000, role: 'quote' }
+    { name: 'Kai-Hansen-faktura-privat-august.pdf', mime_type: 'application/pdf', size: 100000, role: 'invoice' },
+    { name: 'Tilbud-Kai-Hansen-adresse.pdf', mime_type: 'application/pdf', size: 100000, role: 'quote' }
   ] }
 });
 assert.equal(registered.status, 200);
@@ -48,7 +48,13 @@ assert.equal(registered.body.upload_targets.length, 2);
 assert.ok(registered.body.upload_targets.every(t => t.upload_url.startsWith('https://')));
 assert.equal(JSON.stringify(registered.body).includes('storage_key'), false);
 assert.equal(JSON.stringify(registered.body).includes('provider_expires_at'), false);
+assert.equal(JSON.stringify(registered.body).includes('Kai-Hansen'), false, 'server response must not preserve client-supplied original filenames');
+assert.deepEqual(registered.body.case.documents.map(d => d.name), ['invoice-1.pdf', 'quote-2.pdf']);
 assert.ok(registered.body.case.documents.every(d => d.status === 'awaiting_upload'));
+
+const storageNames = [...storage._objects.values()].map(item => item.name);
+assert.deepEqual(storageNames, ['invoice-1.pdf', 'quote-2.pdf']);
+assert.equal(JSON.stringify(storageNames).includes('Kai-Hansen'), false, 'server must neutralize filenames before private storage reservation');
 
 const blocked = await api.invoke('analyze_case', { auth, params: { case_id: caseId }, body: {} });
 assert.equal(blocked.status, 409);
@@ -62,6 +68,7 @@ for (const target of registered.body.upload_targets) {
   assert.equal(confirmed.status, 200);
   assert.equal(confirmed.body.document.status, 'uploaded');
   assert.equal(JSON.stringify(confirmed.body).includes('storage_key'), false);
+  assert.equal(JSON.stringify(confirmed.body).includes('Kai-Hansen'), false);
 }
 
 const analyzed = await api.invoke('analyze_case', { auth, params: { case_id: caseId }, body: { user_note: 'Ikke varslet om tillegg.' } });
@@ -71,4 +78,4 @@ assert.equal(analyzed.body.preview.price_nok, 29);
 assert.equal('extraction' in analyzed.body, false);
 assert.equal(JSON.stringify(analyzed.body).includes('raw_text'), false);
 
-console.log('OK signed upload privacy flow');
+console.log('OK signed upload privacy flow neutralizes client filenames server-side');

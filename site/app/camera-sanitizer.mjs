@@ -70,17 +70,29 @@ export function createBrowserCameraSanitizer({
   maxEdge = 3200,
   jpegQuality = 0.92,
   minimumShortEdge = 900,
-  minimumLongEdge = 1200
+  minimumLongEdge = 1200,
+  maxInputBytes = 15 * 1024 * 1024,
+  maxSourcePixels = 40_000_000,
+  maxSourceEdge = 12000
 } = {}) {
   const boundedMaxEdge = Math.round(clampNumber(maxEdge, 3200, 1200, 6000));
   const boundedQuality = clampNumber(jpegQuality, 0.92, 0.75, 0.98);
   const minShort = Math.round(clampNumber(minimumShortEdge, 900, 320, 2400));
   const minLong = Math.round(clampNumber(minimumLongEdge, 1200, 480, 3200));
+  const boundedInputBytes = Math.round(clampNumber(maxInputBytes, 15 * 1024 * 1024, 1024 * 1024, 50 * 1024 * 1024));
+  const boundedSourcePixels = Math.round(clampNumber(maxSourcePixels, 40_000_000, 4_000_000, 100_000_000));
+  const boundedSourceEdge = Math.round(clampNumber(maxSourceEdge, 12000, 3200, 20000));
 
   return async function sanitizeCameraFile(file, { index = 0, role = 'invoice' } = {}) {
-    if (!file || Number(file.size ?? 0) <= 0) {
+    const inputBytes = Number(file?.size ?? 0);
+    if (!file || !Number.isFinite(inputBytes) || inputBytes <= 0) {
       const error = new Error('Kamerafilen er tom.');
       error.code = 'camera_file_empty';
+      throw error;
+    }
+    if (inputBytes > boundedInputBytes) {
+      const error = new Error('Kamerafilen er større enn tillatt grense.');
+      error.code = 'camera_file_too_large';
       throw error;
     }
     const inputType = String(file.type ?? '').toLowerCase();
@@ -97,6 +109,12 @@ export function createBrowserCameraSanitizer({
       if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
         const error = new Error('Kamerabildet mangler gyldige dimensjoner.');
         error.code = 'camera_dimensions_invalid';
+        throw error;
+      }
+      const sourcePixels = sourceWidth * sourceHeight;
+      if (!Number.isSafeInteger(sourcePixels) || sourcePixels > boundedSourcePixels || sourceWidth > boundedSourceEdge || sourceHeight > boundedSourceEdge) {
+        const error = new Error('Kamerabildet har uvanlig store dimensjoner og kan ikke behandles sikkert.');
+        error.code = 'camera_dimensions_too_large';
         throw error;
       }
 

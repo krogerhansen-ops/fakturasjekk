@@ -1,3 +1,5 @@
+import { privacySafeFileDescriptor } from './upload-metadata.mjs';
+
 export class FakturasjekkApiError extends Error {
   constructor(message, { status = 0, code = 'network_error', request_id = null, details = null } = {}) {
     super(message);
@@ -77,6 +79,6 @@ export function createApiClient({ baseUrl, getToken, fetchImpl = globalThis.fetc
   };
 }
 
-export function fileDescriptor(file, role) {
-  return { name: file.name, mime_type: file.type, size: file.size, role };
+export function fileDescriptor(file, role, index = 0) {
+  return privacySafeFileDescriptor(file, role, index);
 }

@@ -9,6 +9,7 @@ import { computeRetention, purgePlan } from '../engine/retention.mjs';
 import { evaluateRuleSafety } from '../engine/rule-safety.mjs';
 import { normalizeStorageReservation, publicUploadTarget, assertUploadTargetSafe } from './storage-contract.mjs';
 import { confirmationNeeds, validateFactConfirmations, mergeConfirmedFacts } from './fact-confirmation.mjs';
+import { neutralServerDocumentName } from './upload-metadata.mjs';
 
 function requireAdapter(adapters, name) {
   const adapter = adapters?.[name];
@@ -71,13 +72,14 @@ export function createBackendServices({
     if (!validation.valid) return { accepted: false, validation, upload_targets: [], case: caseData };
 
     const uploadTargets = [];
-    for (const file of files) {
+    for (const [index, file] of files.entries()) {
+      const neutralName = neutralServerDocumentName({ role: file.role, mime_type: file.mime_type, index });
       const documentId = await store.nextId('document');
       const reservation = normalizeStorageReservation(await storage.reservePrivateObject({
         case_id,
         owner_id,
         document_id: documentId,
-        name: file.name,
+        name: neutralName,
         mime_type: file.mime_type,
         byte_size: file.size
       }));
@@ -89,7 +91,7 @@ export function createBackendServices({
       caseData = addDocument(caseData, {
         id: documentId,
         role: file.role,
-        name: file.name,
+        name: neutralName,
         mime_type: file.mime_type,
         storage_key: reservation.storage_key,
         upload_expires_at: reservation.expires_at,
