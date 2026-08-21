@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; manifest-src 'none'">
   <title>Syntetisk kamera-testark · Fakturasjekk</title>
   <style>
     *{box-sizing:border-box}body{margin:0;background:#eceff3;color:#111;font-family:Arial,Helvetica,sans-serif}.toolbar{max-width:820px;margin:20px auto 8px;padding:0 12px;font-family:system-ui,sans-serif}.toolbar button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;background:#173a61;color:#fff;cursor:pointer}.sheet{width:min(794px,calc(100% - 24px));min-height:1040px;margin:12px auto 40px;background:#fff;padding:54px 58px;box-shadow:0 8px 28px rgba(0,0,0,.12)}.banner{border:3px solid #111;padding:12px;text-align:center;font-weight:800;font-size:22px;letter-spacing:.04em}.small-banner{text-align:center;margin:8px 0 32px;font-size:12px}.row{display:flex;justify-content:space-between;gap:24px}.company h1{font-size:26px;margin:0 0 6px}.company p,.meta p{margin:3px 0}.meta{text-align:right}.rule{border-top:2px solid #111;margin:28px 0 18px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 6px;border-bottom:1px solid #ccc}th:last-child,td:last-child{text-align:right}.totals{margin:24px 0 0 auto;width:310px}.totals div{display:flex;justify-content:space-between;padding:6px}.totals .total{font-size:19px;font-weight:800;border-top:2px solid #111;border-bottom:3px double #111}.fine{font-size:10px;line-height:1.35;color:#333;margin-top:36px}.testline{margin-top:22px;border:1px solid #bbb;padding:12px;font-size:13px}.micro{font-size:8px;margin-top:14px;color:#444}@media print{body{background:#fff}.toolbar{display:none}.sheet{width:auto;min-height:auto;margin:0;box-shadow:none;padding:15mm 16mm}}
   </style>
 </head>
 <body>
-  <div class="toolbar"><button type="button" onclick="window.print()">Skriv ut testark</button></div>
+  <div class="toolbar"><button id="print-test-sheet" type="button">Skriv ut testark</button></div>
   <main class="sheet">
     <div class="banner">SYNTETISK TEST – IKKE EKTE FAKTURA</div>
     <div class="small-banner">Kun laget for lokal kamerakompatibilitetstest i Fakturasjekk. Ingen ekte person- eller virksomhetsopplysninger.</div>
@@ -57,5 +59,6 @@
     <p class="fine">Syntetisk merknad: Dette dokumentet har ingen betalingsverdi og representerer ingen faktisk avtale, faktura eller virksomhet. Alle navn, numre, beløp og adresser er oppdiktet for teknisk testing. Testarket kan fotograferes med mobil for å kontrollere fokus, eksponering, kontrast, lokal metadata-stripping og bildebehandling i Fakturasjekks kameratest.</p>
     <p class="micro">Mikrotekst for fokusprøve: Fakturasjekk lokal kameratest 2026 – syntetisk dokument – ingen opplasting – ingen ekte data – 8pt testlinje.</p>
   </main>
+  <script type="module" src="./app/camera-test-sheet-page.mjs"></script>
 </body>
 </html>
