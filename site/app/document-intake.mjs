@@ -1,3 +1,5 @@
+import { privacySafeFileDescriptor } from './upload-metadata.mjs';
+
 const CAMERA_SOURCE = 'camera';
 const FILE_SOURCE = 'file';
 
@@ -5,26 +7,6 @@ function toArray(files) {
   if (!files) return [];
   if (Array.isArray(files)) return files;
   return Array.from(files);
-}
-
-function finitePositive(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : 0;
-}
-
-function safeName(file, index, source) {
-  const name = String(file?.name ?? '').trim();
-  if (name) return name;
-  return source === CAMERA_SOURCE ? `faktura-bilde-${index + 1}` : `dokument-${index + 1}`;
-}
-
-function descriptor(file, role, index, source) {
-  return {
-    name: safeName(file, index, source),
-    mime_type: String(file?.type ?? ''),
-    size: finitePositive(file?.size),
-    role
-  };
 }
 
 function validatePreparedFiles(files, { role, source, policy }) {
@@ -42,7 +24,7 @@ function validatePreparedFiles(files, { role, source, policy }) {
   let totalBytes = 0;
   const descriptors = [];
   files.forEach((file, index) => {
-    const item = descriptor(file, role, index, source);
+    const item = privacySafeFileDescriptor(file, role, index);
     descriptors.push(item);
     totalBytes += item.size;
     if (!allowedMimeTypes.has(item.mime_type)) errors.push({ code: 'mime_type_not_allowed', index, message: `Fil ${index + 1}: filtypen ${item.mime_type || 'ukjent'} er ikke tillatt.` });
@@ -52,6 +34,7 @@ function validatePreparedFiles(files, { role, source, policy }) {
 
   if (maxTotalBytes > 0 && totalBytes > maxTotalBytes) errors.push({ code: 'total_size_too_large', message: 'Samlet filstørrelse overstiger tillatt grense.' });
   if (source === CAMERA_SOURCE) warnings.push('Kamerabilder må være metadata-strippet før de sendes til Fakturasjekk. Original EXIF/GPS-metadata skal ikke lastes opp.');
+  warnings.push('Originale lokale filnavn sendes ikke til backend; opplastingen bruker nøytrale dokumentnavn.');
   warnings.push('Nettleserens MIME-type er kun forhåndskontroll. Backend skal fortsatt verifisere magic bytes, størrelse og malware-status.');
 
   return { valid: errors.length === 0, errors, warnings, descriptors, total_bytes: totalBytes };
