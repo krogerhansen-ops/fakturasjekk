@@ -89,6 +89,38 @@ const lowResolutionSanitizer = createBrowserCameraSanitizer({
 const low = await lowResolutionSanitizer({ name: 'small.jpg', type: 'image/jpeg', size: 100000 });
 assert.equal(low.low_resolution, true, 'quality heuristic must warn rather than pretend OCR has failed');
 
+let oversizedDecodeCalls = 0;
+const sizeBoundSanitizer = createBrowserCameraSanitizer({
+  createImageBitmapImpl: async () => { oversizedDecodeCalls += 1; return bitmap; },
+  OffscreenCanvasImpl: FakeOffscreenCanvas,
+  FileImpl: FakeFile,
+  maxInputBytes: 15 * 1024 * 1024
+});
+await assert.rejects(
+  () => sizeBoundSanitizer({ name: 'huge.jpg', type: 'image/jpeg', size: 15 * 1024 * 1024 + 1 }),
+  error => error?.code === 'camera_file_too_large'
+);
+assert.equal(oversizedDecodeCalls, 0, 'oversized compressed input must be rejected before browser image decoding');
+
+let extremeClosed = 0;
+let extremeDrawn = 0;
+class ExtremeCanvas {
+  getContext() { return { drawImage() { extremeDrawn += 1; } }; }
+  async convertToBlob() { return new Blob(['x'], { type: 'image/jpeg' }); }
+}
+const dimensionBoundSanitizer = createBrowserCameraSanitizer({
+  createImageBitmapImpl: async () => ({ width: 13000, height: 4000, close() { extremeClosed += 1; } }),
+  OffscreenCanvasImpl: ExtremeCanvas,
+  documentImpl: null,
+  FileImpl: FakeFile
+});
+await assert.rejects(
+  () => dimensionBoundSanitizer({ name: 'decompression-risk.jpg', type: 'image/jpeg', size: 500000 }),
+  error => error?.code === 'camera_dimensions_too_large'
+);
+assert.equal(extremeDrawn, 0, 'extreme decoded dimensions must be rejected before canvas allocation/drawing');
+assert.equal(extremeClosed, 1, 'decoded bitmap must be released when dimensions are rejected');
+
 const noDecode = createBrowserCameraSanitizer({ createImageBitmapImpl: null, OffscreenCanvasImpl: FakeOffscreenCanvas, FileImpl: FakeFile });
 await assert.rejects(
   () => noDecode({ name: 'camera.jpg', type: 'image/jpeg', size: 10 }),
@@ -100,4 +132,4 @@ await assert.rejects(
   error => error?.code === 'camera_not_image'
 );
 
-console.log('OK camera sanitizer re-encodes pixels locally, strips source metadata and fails closed when safe browser primitives are unavailable');
+console.log('OK camera sanitizer strips metadata and fails closed on unsafe browser primitives, oversized inputs and extreme dimensions');
