@@ -19,6 +19,10 @@ assert.match(workflow, /test -f _site\/site\/tester-start\.html/);
 assert.match(workflow, /test -f _site\/site\/external-tester-feedback\.html/);
 assert.match(workflow, /test -f _site\/site\/app\/camera-sanitizer\.mjs/);
 assert.match(workflow, /test -f _site\/site\/app\/camera-quality\.mjs/);
+assert.match(workflow, /test -f _site\/site\/app\/camera-local-test-page\.mjs/);
+assert.match(workflow, /test -f _site\/site\/app\/camera-test-sheet-page\.mjs/);
+assert.match(workflow, /test -f _site\/site\/app\/external-tester-feedback-page\.mjs/);
+assert.match(workflow, /test -f _site\/site\/app\/upload-metadata\.mjs/);
 assert.match(workflow, /test -f _site\/site\/engine\/analyzer\.mjs/);
 assert.match(workflow, /test -f _site\/site\/engine\/draft\.mjs/);
 assert.match(workflow, /test -f _site\/site\/rules\/rules\.json/);
@@ -41,12 +45,27 @@ assert.equal(page.includes('/admin/rules'), false);
 assert.equal(page.includes('motor-test.html'), false);
 assert.equal(page.includes('flow-test.html'), false);
 
+for (const [name, html] of [
+  ['camera', cameraPage],
+  ['camera-sheet', cameraSheet],
+  ['tester-feedback', testerFeedback]
+]) {
+  assert.match(html, /Content-Security-Policy/, `${name} route must declare CSP`);
+  assert.match(html, /connect-src 'none'/, `${name} route must block network connections`);
+  assert.match(html, /meta name="referrer" content="no-referrer"/, `${name} route must suppress referrer leakage`);
+}
+assert.match(testerStart, /Content-Security-Policy/);
+assert.match(testerStart, /script-src 'none'/);
+assert.match(testerStart, /connect-src 'none'/);
+assert.match(testerStart, /meta name="referrer" content="no-referrer"/);
+
 assert.match(cameraPage, /Bildet forlater ikke enheten din/);
 assert.match(cameraPage, /Ingen fil lastes opp/);
 assert.match(cameraPage, /capture="environment"/);
 assert.equal(cameraPage.includes('fetch('), false, 'camera compatibility route must remain local-only');
 assert.match(cameraSheet, /SYNTETISK TEST – IKKE EKTE FAKTURA/);
 assert.match(cameraSheet, /ingen betalingsverdi/i);
+assert.equal(cameraSheet.includes('onclick='), false, 'camera sheet must not need inline event handlers');
 assert.match(testerStart, /Takk for at du tester/);
 assert.match(testerStart, /Ikke bruk ekte fakturaer eller personopplysninger/);
 assert.match(testerFeedback, /Skjemaet lagrer eller sender ingenting/);
@@ -58,4 +77,4 @@ assert.match(rootIndex, /site\/index-launch-candidate\.html/);
 assert.equal(rootIndex.includes('V0.20'), false, 'Root Pages entrypoint must not fall back to the old V0.20 demo');
 assert.equal(rootIndex.includes('Ekstern test · V0.20'), false, 'Old external-test page must not be deployable from root');
 
-console.log('OK public Pages launch-candidate boundary, local camera/tester routes and demo dependencies');
+console.log('OK public Pages boundary includes CSP-locked local tester routes and excludes server/admin assets');
