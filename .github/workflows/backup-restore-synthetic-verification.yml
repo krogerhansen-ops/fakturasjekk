@@ -68,7 +68,8 @@ jobs:
       - name: Create ephemeral age identity and encrypted backup
         shell: bash
         env:
-          DATABASE_URL: postgresql://postgres:synthetic-postgres-only@127.0.0.1:5432/fakturasjekk_source_synthetic
+          DATABASE_URL: postgresql://postgres@127.0.0.1:5432/fakturasjekk_source_synthetic
+          PGPASSWORD: synthetic-postgres-only
           BACKUP_MAX_DAYS: '1'
         run: |
           set -euo pipefail
@@ -95,7 +96,7 @@ jobs:
       - name: Prove production restore target is rejected before decryption
         shell: bash
         env:
-          RESTORE_DATABASE_URL: postgresql://postgres:synthetic@db.jxmkaxwflouacuboaetg.supabase.co:5432/postgres
+          RESTORE_DATABASE_URL: postgresql://postgres@db.jxmkaxwflouacuboaetg.supabase.co:5432/postgres
           RESTORE_TARGET_PROJECT_REF: jxmkaxwflouacuboaetg
           RESTORE_CONFIRMATION: I_UNDERSTAND_ISOLATED_RESTORE_ONLY
         run: |
@@ -109,9 +110,10 @@ jobs:
       - name: Restore encrypted backup into isolated localhost database
         shell: bash
         env:
-          RESTORE_DATABASE_URL: postgresql://postgres:synthetic-postgres-only@127.0.0.1:5432/fakturasjekk_restore_synthetic
+          RESTORE_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/fakturasjekk_restore_synthetic
           RESTORE_CONFIRMATION: I_UNDERSTAND_ISOLATED_RESTORE_ONLY
           AGE_IDENTITY_FILE: ${{ runner.temp }}/fakturasjekk-synthetic-age-key.txt
+          PGPASSWORD: synthetic-postgres-only
         run: |
           set -euo pipefail
           backup="$(cat "${RUNNER_TEMP}/fakturasjekk-synthetic-backup-path.txt")"
