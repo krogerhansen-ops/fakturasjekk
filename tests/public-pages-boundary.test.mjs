@@ -9,30 +9,45 @@ const testerStart = fs.readFileSync(new URL('../site/tester-start.html', import.
 const testerFeedback = fs.readFileSync(new URL('../site/external-tester-feedback.html', import.meta.url), 'utf8');
 const rootIndex = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-assert.match(workflow, /site\/index-launch-candidate\.html/);
+assert.match(workflow, /Build explicitly allowlisted public artifact/);
 assert.match(workflow, /cp site\/index-launch-candidate\.html _site\/index\.html/);
-assert.match(workflow, /cp -R site\/\* _site\/site\//);
-assert.match(workflow, /test -f _site\/site\/index-launch-candidate\.html/);
-assert.match(workflow, /test -f _site\/site\/camera-local-test\.html/);
-assert.match(workflow, /test -f _site\/site\/camera-test-sheet\.html/);
-assert.match(workflow, /test -f _site\/site\/tester-start\.html/);
-assert.match(workflow, /test -f _site\/site\/external-tester-feedback\.html/);
-assert.match(workflow, /test -f _site\/site\/app\/camera-sanitizer\.mjs/);
-assert.match(workflow, /test -f _site\/site\/app\/camera-quality\.mjs/);
-assert.match(workflow, /test -f _site\/site\/app\/camera-local-test-page\.mjs/);
-assert.match(workflow, /test -f _site\/site\/app\/camera-test-sheet-page\.mjs/);
-assert.match(workflow, /test -f _site\/site\/app\/external-tester-feedback-page\.mjs/);
-assert.match(workflow, /test -f _site\/site\/app\/upload-metadata\.mjs/);
-assert.match(workflow, /test -f _site\/site\/engine\/analyzer\.mjs/);
-assert.match(workflow, /test -f _site\/site\/engine\/draft\.mjs/);
-assert.match(workflow, /test -f _site\/site\/rules\/rules\.json/);
-assert.match(workflow, /test -f _site\/site\/data\/demo-cases\.json/);
-assert.match(workflow, /test -f _site\/site\/config\/product\.json/);
-for (const forbidden of ['cp server/', 'cp admin/', 'motor-test.html _site', 'flow-test.html _site', 'followup-test.html _site']) {
+assert.equal(workflow.includes('cp -R site/* _site/site/'), false, 'Public Pages must never recursively publish the whole site tree.');
+
+for (const required of [
+  '_site/site/index-launch-candidate.html',
+  '_site/site/camera-local-test.html',
+  '_site/site/camera-test-sheet.html',
+  '_site/site/tester-start.html',
+  '_site/site/external-tester-feedback.html',
+  '_site/site/app/camera-sanitizer.mjs',
+  '_site/site/app/camera-quality.mjs',
+  '_site/site/app/camera-local-test-page.mjs',
+  '_site/site/app/camera-test-sheet-page.mjs',
+  '_site/site/app/external-tester-feedback-page.mjs',
+  '_site/site/engine/analyzer.mjs',
+  '_site/site/engine/draft.mjs',
+  '_site/site/rules/rules.json',
+  '_site/site/data/demo-cases.json',
+  '_site/site/config/product.json'
+]) {
+  assert.ok(workflow.includes(required), `Public Pages allowlist must explicitly include ${required}`);
+}
+
+for (const forbidden of [
+  'cp server/', 'cp admin/', 'motor-test.html _site', 'flow-test.html _site', 'followup-test.html _site',
+  'cp site/index-v025.html', 'cp site/index-v050.html', 'cp site/app/api-client.mjs',
+  'cp site/app/document-intake.mjs', 'cp site/app/flow-state.mjs', 'cp site/app/upload-metadata.mjs'
+]) {
   assert.equal(workflow.includes(forbidden), false, `Public Pages must not publish ${forbidden}`);
 }
 assert.match(workflow, /test ! -d _site\/server/);
 assert.match(workflow, /test ! -d _site\/admin/);
+assert.match(workflow, /test ! -f _site\/site\/index-v025\.html/);
+assert.match(workflow, /test ! -f _site\/site\/index-v050\.html/);
+assert.match(workflow, /test ! -f _site\/site\/app\/api-client\.mjs/);
+assert.match(workflow, /test ! -f _site\/site\/app\/document-intake\.mjs/);
+assert.match(workflow, /test ! -f _site\/site\/app\/flow-state\.mjs/);
+assert.match(workflow, /test ! -f _site\/site\/app\/upload-metadata\.mjs/);
 
 assert.match(page, /Launch Candidate/);
 assert.match(page, /29 kr/);
@@ -77,4 +92,4 @@ assert.match(rootIndex, /site\/index-launch-candidate\.html/);
 assert.equal(rootIndex.includes('V0.20'), false, 'Root Pages entrypoint must not fall back to the old V0.20 demo');
 assert.equal(rootIndex.includes('Ekstern test · V0.20'), false, 'Old external-test page must not be deployable from root');
 
-console.log('OK public Pages boundary includes CSP-locked local tester routes and excludes server/admin assets');
+console.log('OK public Pages is built from an explicit allowlist, keeps tester CSP boundaries and excludes legacy/internal client surfaces');
