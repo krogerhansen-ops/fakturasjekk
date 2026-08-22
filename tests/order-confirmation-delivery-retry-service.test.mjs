@@ -46,6 +46,7 @@ assert.equal(first.checked, 2);
 assert.equal(first.delivered, 1);
 assert.equal(first.failed, 1);
 assert.equal(first.skipped, 0);
+assert.equal(first.audit_failures, 0);
 assert.equal(first.ok, false);
 assert.equal(first.has_more_possible, true);
 assert.deepEqual(attempted.map(item => item.case_id), ['case-old', 'case-fail'], 'oldest pending confirmations must be retried first');
@@ -65,4 +66,21 @@ assert.equal(empty.checked, 0);
 assert.equal(empty.ok, true);
 assert.equal(empty.limit, 1, 'runtime batch limit must clamp to at least one');
 
-console.log('OK durable receipt retry is bounded, oldest-first, failure-isolated and privacy-safe');
+const auditFailureStore = createMemoryCaseStore();
+await auditFailureStore.save(caseWithConfirmation({
+  id: 'case-audit-failure',
+  updated_at: '2026-08-22T05:40:00.000Z',
+  confirmation_id: 'confirmation-audit-failure'
+}));
+const auditFailureRetry = createOrderConfirmationDeliveryRetryService({
+  caseStore: auditFailureStore,
+  deliveryService: { async deliverPrepared() { return { delivered: true, idempotent: false, medium: 'email' }; } },
+  audit: { async record() { throw new Error('audit database unavailable'); } }
+});
+const auditFailure = await auditFailureRetry.run();
+assert.equal(auditFailure.delivered, 1, 'provider-confirmed delivery must stay successful if audit write fails afterwards');
+assert.equal(auditFailure.failed, 0, 'audit failure must never be reclassified as delivery failure');
+assert.equal(auditFailure.audit_failures, 1);
+assert.equal(auditFailure.ok, false, 'operations must still see audit degradation as a non-green job result');
+
+console.log('OK durable receipt retry is bounded, oldest-first, failure-isolated, audit-isolated and privacy-safe');
