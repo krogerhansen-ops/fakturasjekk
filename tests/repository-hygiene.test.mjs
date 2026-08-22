@@ -64,7 +64,7 @@ for (const { full, rel } of files) {
 const workflows = fs.readdirSync(path.join(root, '.github', 'workflows')).filter(name => /\.ya?ml$/i.test(name)).sort();
 assert.deepEqual(
   workflows,
-  ['backup-restore-synthetic-verification.yml', 'legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
+  ['backup-restore-synthetic-verification.yml', 'google-ai-live-verification.yml', 'legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
   'Unexpected GitHub Actions workflow added; review explicitly before allowlisting.'
 );
 
@@ -79,6 +79,23 @@ assert.equal(backupWorkflow.includes('secrets.'), false, 'Synthetic backup workf
 assert.equal(backupWorkflow.includes('actions/upload-artifact'), false, 'Synthetic backup files must never be published as GitHub artifacts.');
 assert.match(backupWorkflow, /validate-isolated-restore-target\.mjs/, 'Production restore target guard must remain part of the synthetic round-trip.');
 assert.match(backupWorkflow, /db\.jxmkaxwflouacuboaetg\.supabase\.co/, 'Synthetic round-trip must explicitly prove the production project is rejected as a restore target.');
+
+// Google provider verification may incur external-service cost. It is allowlisted only while it remains
+// manual, synthetic-only, project-confirmed and protected by three independent cost/network confirmations.
+const googleWorkflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'google-ai-live-verification.yml'), 'utf8');
+assert.match(googleWorkflow, /workflow_dispatch:/, 'Google live verification must remain manually dispatched.');
+assert.equal(/\n\s*push:/.test(googleWorkflow), false, 'Google live verification must not run on push.');
+assert.equal(/\n\s*pull_request:/.test(googleWorkflow), false, 'Google live verification must not run on pull requests.');
+assert.equal(/\n\s*schedule:/.test(googleWorkflow), false, 'Google live verification must not be scheduled.');
+assert.match(googleWorkflow, /default:\s*zero/, 'Google verification cost mode must default to zero.');
+assert.match(googleWorkflow, /I_APPROVE_SYNTHETIC_GOOGLE_NETWORK_CALLS/, 'Google verification requires an explicit synthetic network-call phrase.');
+assert.match(googleWorkflow, /confirm_project_id/, 'Google verification must require reviewed project-id confirmation.');
+assert.match(googleWorkflow, /validateGoogleLiveTarget/, 'Google verification must validate the version-controlled target before reading provider credentials.');
+assert.match(googleWorkflow, /secrets\.GOOGLE_SERVICE_ACCOUNT_JSON/, 'Google verification may use only the dedicated server-side service-account secret.');
+assert.equal(googleWorkflow.includes('SUPABASE_SECRET_KEY'), false, 'Google verification must not receive Supabase server credentials.');
+assert.equal(googleWorkflow.includes('VIPPS_'), false, 'Google verification must not receive Vipps credentials.');
+assert.equal(googleWorkflow.includes('actions/upload-artifact'), false, 'Google verification must not publish provider output as artifacts.');
+assert.match(googleWorkflow, /customer_data_live_enabled/, 'Google verification must re-check that customer processing remains disabled.');
 
 // The production Supabase workflow is intentionally special-cased here because it can mutate infrastructure.
 // Keep this defense in depth even though tests/supabase-production-workflow.test.mjs performs deeper checks.
