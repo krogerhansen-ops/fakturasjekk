@@ -29,6 +29,8 @@ export function apiErrorResponse(error, requestId = null) {
 export function mapServiceError(error) {
   const message = String(error?.message ?? '');
   if (error?.code === 'legal_review_required' || /legal rule registry requires review/i.test(message)) return new ApiError(503, 'legal_review_required', 'Regelgrunnlaget må kontrolleres før saken kan analyseres eller vises.');
+  if (/outbound record not found/i.test(message)) return new ApiError(404, 'outbound_record_not_found', 'Utkastet som skal registreres som sendt finnes ikke i saken.');
+  if (/outbound .* cannot be marked sent|different outbound communication marked as sent/i.test(message)) return new ApiError(409, 'outbound_state_conflict', 'Meldingen kan ikke registreres som sendt i sakens nåværende steg.');
   if (/no fact confirmation is currently required/i.test(message)) return new ApiError(409, 'fact_confirmation_not_required', 'Saken har ingen åpne felt som skal bekreftes nå.');
   if (/not found|does not exist|owner|owned|access|forbidden/i.test(message)) return new ApiError(404, 'case_not_found', 'Saken finnes ikke.');
   if (/locked until verified 29 NOK payment/i.test(message)) return new ApiError(402, 'payment_required', 'Fullresultatet krever verifisert betaling på 29 kr.');
