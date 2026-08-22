@@ -33,8 +33,14 @@ for (const id of ['dsb_elvirksomhet', 'vegvesen_workshop']) {
 const activeDefinition = {
   status: 'active',
   machine_source_verified: true,
+  runtime_activation_reviewed: true,
+  machine_contract_tested: true,
+  matching_contract_tested: true,
   authority: 'Offentlig registereier',
+  customer_label: 'Offentlig testregister',
   landing_url: 'https://official.example/register',
+  machine_source_url: 'https://official.example/register/export',
+  applicable_industries: ['test'],
   max_age_hours: 48
 };
 
@@ -113,4 +119,15 @@ const missingSource = evaluateSpecialistRegistryResult({
 assert.equal(missingSource.status, 'source_missing');
 assert.equal(missingSource.usable, false);
 
-console.log('OK specialist registers remain fail-closed until official machine sources are verified and fresh.');
+const superficiallyActive = evaluateSpecialistRegistryResult({
+  definition: { ...activeDefinition, runtime_activation_reviewed: false },
+  lookup: {
+    status: 'verified', registered: true, authority: 'Offentlig registereier',
+    source_url: 'https://official.example/register/export', fetched_at: '2026-08-19T18:00:00+02:00'
+  },
+  now
+});
+assert.equal(superficiallyActive.status, 'source_not_active');
+assert.equal(superficiallyActive.usable, false, 'status=active alone must never activate a register');
+
+console.log('OK specialist registers remain fail-closed until source, runtime and matching contracts are all reviewed.');
