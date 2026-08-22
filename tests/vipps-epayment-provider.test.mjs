@@ -34,8 +34,51 @@ const fetchImpl = async (url, options = {}) => {
       aggregate: { capturedAmount: { currency: 'NOK', value: 2900 } }
     }), { status: 200 });
   }
+  if (url.endsWith('/epayment/v1/payments/fsk-case-12345678/cancel')) {
+    assert.deepEqual(body, { cancelTransactionOnly: true });
+    return new Response(JSON.stringify({
+      reference: 'fsk-case-12345678',
+      pspReference: 'cancel-psp-1',
+      aggregate: {
+        authorizedAmount: { currency: 'NOK', value: 2900 },
+        cancelledAmount: { currency: 'NOK', value: 2900 },
+        capturedAmount: { currency: 'NOK', value: 0 },
+        refundedAmount: { currency: 'NOK', value: 0 }
+      }
+    }), { status: 200 });
+  }
+  if (url.endsWith('/epayment/v1/payments/fsk-case-12345678/refund')) {
+    assert.deepEqual(body, { modificationAmount: { currency: 'NOK', value: 1000 } });
+    return new Response(JSON.stringify({
+      reference: 'fsk-case-12345678',
+      pspReference: 'refund-psp-1',
+      aggregate: {
+        authorizedAmount: { currency: 'NOK', value: 2900 },
+        cancelledAmount: { currency: 'NOK', value: 0 },
+        capturedAmount: { currency: 'NOK', value: 2900 },
+        refundedAmount: { currency: 'NOK', value: 1000 }
+      }
+    }), { status: 200 });
+  }
+  if (url.endsWith('/epayment/v1/payments/fsk-case-12345678/events') && options.method === 'GET') {
+    return new Response(JSON.stringify([
+      { reference: 'fsk-case-12345678', pspReference: 'create-psp-1', name: 'CREATED', amount: { currency: 'NOK', value: 2900 }, timestamp: '2026-08-19T06:29:00Z', idempotencyKey: 'create-key', success: true },
+      { reference: 'fsk-case-12345678', pspReference: 'auth-psp-1', name: 'AUTHORIZED', amount: { currency: 'NOK', value: 2900 }, timestamp: '2026-08-19T06:30:00Z', idempotencyKey: 'auth-key', success: true },
+      { reference: 'fsk-case-12345678', pspReference: 'capture-psp-1', name: 'CAPTURED', amount: { currency: 'NOK', value: 2900 }, timestamp: '2026-08-19T06:31:00Z', idempotencyKey: 'capture-key', success: true },
+      { reference: 'fsk-case-12345678', pspReference: 'refund-psp-1', name: 'REFUNDED', amount: { currency: 'NOK', value: 2900 }, timestamp: '2026-08-19T06:32:00Z', idempotencyKey: 'refund-key', success: true }
+    ]), { status: 200 });
+  }
   if (url.endsWith('/epayment/v1/payments/fsk-case-12345678') && options.method === 'GET') {
-    return new Response(JSON.stringify({ reference: 'fsk-case-12345678', state: 'AUTHORIZED', aggregate: { capturedAmount: { currency: 'NOK', value: 0 } } }), { status: 200 });
+    return new Response(JSON.stringify({
+      reference: 'fsk-case-12345678',
+      state: 'AUTHORIZED',
+      aggregate: {
+        authorizedAmount: { currency: 'NOK', value: 2900 },
+        cancelledAmount: { currency: 'NOK', value: 0 },
+        capturedAmount: { currency: 'NOK', value: 2900 },
+        refundedAmount: { currency: 'NOK', value: 2900 }
+      }
+    }), { status: 200 });
   }
   throw new Error(`Unexpected Vipps URL: ${url}`);
 };
@@ -74,8 +117,35 @@ assert.equal(capture.captured, true);
 const captureCall = calls.find(c => c.url.endsWith('/capture'));
 assert.ok(captureCall.options.headers['idempotency-key'].startsWith('fsk-capture-'));
 
+const cancelled = await provider.cancelPayment({ case_id: 'case-12345678', cancel_transaction_only: true });
+assert.equal(cancelled.cancelled, true);
+assert.equal(cancelled.cancelled_amount_minor, 2900);
+const cancelCall = calls.find(c => c.url.endsWith('/cancel'));
+assert.equal(cancelCall.options.headers['idempotency-key'], undefined, 'Vipps cancel does not require an idempotency key');
+assert.deepEqual(cancelCall.body, { cancelTransactionOnly: true });
+
+const refunded = await provider.refundPayment({ case_id: 'case-12345678', amount_minor: 1000, currency: 'NOK', refund_id: 'goodwill-1' });
+assert.equal(refunded.refunded, true);
+assert.equal(refunded.requested_amount_minor, 1000);
+assert.equal(refunded.refunded_total_minor, 1000);
+assert.equal(refunded.refund_id, 'goodwill-1');
+const refundCall = calls.find(c => c.url.endsWith('/refund'));
+assert.ok(refundCall.options.headers['idempotency-key'].startsWith('fsk-refund-'));
+assert.ok(refundCall.options.headers['idempotency-key'].length <= 50);
+
 const polled = await provider.getPayment({ case_id: 'case-12345678' });
 assert.equal(polled.payment.state, 'AUTHORIZED');
+const eventLog = await provider.getPaymentEvents({ case_id: 'case-12345678' });
+assert.deepEqual(eventLog.events.map(event => event.name), ['CREATED', 'AUTHORIZED', 'CAPTURED', 'REFUNDED']);
+assert.equal(eventLog.events[3].amount_minor, 2900);
+
+const reconciliation = await provider.reconcilePayment({ case_id: 'case-12345678' });
+assert.equal(reconciliation.reference, 'fsk-case-12345678');
+assert.equal(reconciliation.fully_captured, true);
+assert.equal(reconciliation.fully_refunded, true);
+assert.equal(reconciliation.fully_cancelled, false);
+assert.equal(reconciliation.latest_successful_event, 'REFUNDED');
+assert.equal(reconciliation.events.length, 4);
 
 async function signedWebhook(event) {
   const raw_body = JSON.stringify(event);
@@ -119,7 +189,10 @@ assert.equal(wrongHost.signature_valid, false);
 
 await assert.rejects(() => provider.createPayment({ case_id: 'case-12345678', amount_minor: 3000, currency: 'NOK', return_url: 'https://fakturasjekk.no' }), /exactly 2900/i);
 await assert.rejects(() => provider.capturePayment({ case_id: 'case-12345678', amount_minor: 2900, currency: 'EUR' }), /exactly 2900/i);
+await assert.rejects(() => provider.refundPayment({ case_id: 'case-12345678', amount_minor: 99, currency: 'NOK', refund_id: 'small' }), /100 to 2900/i);
+await assert.rejects(() => provider.refundPayment({ case_id: 'case-12345678', amount_minor: 1000, currency: 'NOK' }), /refund_id is required/i);
+await assert.rejects(() => provider.cancelPayment({ case_id: 'case-12345678', cancel_transaction_only: 'yes' }), /must be boolean/i);
 
 const paymentCalls = calls.filter(c => c.url.includes('/epayment/'));
 assert.equal(JSON.stringify(paymentCalls).includes('client-secret'), false, 'client secret must never be sent to ePayment endpoints');
-console.log('OK Vipps ePayment create/capture/token/HMAC boundaries');
+console.log('OK Vipps ePayment create/capture/cancel/refund/status/events/reconciliation/token/HMAC boundaries');
