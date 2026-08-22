@@ -11,6 +11,18 @@
       "expected_pending_phrase": "i kraft fra den tid Kongen bestemmer",
       "last_verified": "2026-08-18",
       "action_when_changed": "Set all INK_* rules to review_required and perform manual legal review before reactivation."
+    },
+    {
+      "id": "FGAS_2024_573_EEA_INCORPORATION",
+      "topic": "f-gass",
+      "current_law": "EU 517/2014 as incorporated in Norway",
+      "current_source_url": "https://www.regjeringen.no/no/sub/eos-notatbasen/notatene/2026/feb/gjennomforingsforordning-om-unntak-fra-omsetningsforbud-for-kjolemaskiner-til-produksjon-av-halvledere/id3153114/",
+      "new_law": "EU 2024/573",
+      "new_source_url": "https://www.regjeringen.no/no/sub/eos-notatbasen/notatene/2026/feb/gjennomforingsforordning-om-unntak-fra-omsetningsforbud-for-kjolemaskiner-til-produksjon-av-halvledere/id3153114/",
+      "status": "awaiting_commencement",
+      "expected_pending_phrase": "foreløpig ikke innlemmet i EØS-avtalen",
+      "last_verified": "2026-08-22",
+      "action_when_changed": "Require manual review of f-gas and heat-pump conclusions before reactivation."
     }
   ]
 }
