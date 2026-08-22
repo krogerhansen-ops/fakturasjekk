@@ -7,6 +7,7 @@ import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { createCheckoutConsentService } from './checkout-consent-service.mjs';
 import { createOrderConfirmationService } from './order-confirmation-service.mjs';
 import { createOrderConfirmationDeliveryService } from './order-confirmation-delivery-service.mjs';
+import { createOrderConfirmationDeliveryRetryService } from './order-confirmation-delivery-retry-service.mjs';
 import { createOutboundDeliveryService } from './outbound-delivery-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 import { evaluateLaunchGate } from './launch-gate.mjs';
@@ -73,6 +74,13 @@ export function createProductionApp({
         deliveryAdapter: adapters.orderConfirmationDeliveryAdapter
       })
     : null;
+  const orderConfirmationDeliveryRetryService = orderConfirmationDeliveryService && typeof caseStore.listPendingOrderConfirmationDeliveries === 'function'
+    ? createOrderConfirmationDeliveryRetryService({
+        caseStore,
+        deliveryService: orderConfirmationDeliveryService,
+        audit
+      })
+    : null;
   const paymentWebhookService = createPaymentWebhookService({
     caseStore,
     services,
@@ -122,6 +130,7 @@ export function createProductionApp({
     management,
     orderConfirmationService,
     orderConfirmationDeliveryService,
+    orderConfirmationDeliveryRetryService,
     outboundDeliveryService,
     readiness: readinessResult,
     launch_gate: launchGateResult
