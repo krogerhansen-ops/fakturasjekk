@@ -122,7 +122,7 @@ export function createOrderConfirmationDeliveryRetryService({
 
     return {
       ...summary,
-      ok: summary.failed === 0,
+      ok: summary.failed === 0 && summary.audit_failures === 0,
       limit: batchLimit,
       has_more_possible: candidates.length === batchLimit
     };
