@@ -89,6 +89,7 @@ export function createPostgresCaseStore({ db } = {}) {
             AND jsonb_array_length(snapshot->'order_confirmations') > 0
             AND COALESCE(snapshot->'order_confirmations'->-1->>'document_type', '') = 'order_confirmation_and_payment_receipt'
             AND COALESCE(snapshot->'order_confirmations'->-1->>'durable_medium_delivered', 'false') <> 'true'
+            AND COALESCE(snapshot->'order_confirmations'->-1->>'delivery_provider_accepted', 'false') <> 'true'
           ORDER BY updated_at ASC
           LIMIT $1`,
         [safeLimit]
