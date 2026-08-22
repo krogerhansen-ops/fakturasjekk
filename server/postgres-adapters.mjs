@@ -79,6 +79,22 @@ export function createPostgresCaseStore({ db } = {}) {
       );
       return result.rows.map(hydrateCase);
     },
+    async listPendingOrderConfirmationDeliveries({ limit = 25 } = {}) {
+      const safeLimit = Math.max(1, Math.min(100, Number(limit) || 25));
+      const result = await db.query(
+        `SELECT id, owner_id, state, retention_mode, snapshot, created_at, updated_at, deleted_at
+           FROM cases
+          WHERE deleted_at IS NULL
+            AND jsonb_typeof(snapshot->'order_confirmations') = 'array'
+            AND jsonb_array_length(snapshot->'order_confirmations') > 0
+            AND COALESCE(snapshot->'order_confirmations'->-1->>'document_type', '') = 'order_confirmation_and_payment_receipt'
+            AND COALESCE(snapshot->'order_confirmations'->-1->>'durable_medium_delivered', 'false') <> 'true'
+          ORDER BY updated_at ASC
+          LIMIT $1`,
+        [safeLimit]
+      );
+      return result.rows.map(hydrateCase);
+    },
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
       const current = await getOwned(caseId, ownerId);
 

@@ -1,5 +1,11 @@
 function clone(value) { return structuredClone(value); }
 
+function hasPendingOrderConfirmation(caseData) {
+  const confirmations = caseData?.order_confirmations ?? [];
+  const latest = Array.isArray(confirmations) && confirmations.length ? confirmations.at(-1) : null;
+  return latest?.document_type === 'order_confirmation_and_payment_receipt' && latest?.durable_medium_delivered !== true;
+}
+
 export function createMemoryCaseStore() {
   const cases = new Map();
   const counters = new Map();
@@ -28,6 +34,14 @@ export function createMemoryCaseStore() {
     },
     async listForRetention() {
       return [...cases.values()].filter(item => !item.deleted_at).map(clone);
+    },
+    async listPendingOrderConfirmationDeliveries({ limit = 25 } = {}) {
+      const safeLimit = Math.max(1, Math.min(100, Number(limit) || 25));
+      return [...cases.values()]
+        .filter(item => !item.deleted_at && hasPendingOrderConfirmation(item))
+        .sort((a, b) => String(a.updated_at ?? '').localeCompare(String(b.updated_at ?? '')))
+        .slice(0, safeLimit)
+        .map(clone);
     },
     async deleteOwned(caseId, ownerId, { deleted_at = new Date().toISOString() } = {}) {
       const value = cases.get(caseId);
