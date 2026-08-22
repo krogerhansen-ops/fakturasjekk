@@ -1,6 +1,6 @@
 # Fakturasjekk – personvern- og kjøpsbeslutninger før produksjonslaunch
 
-Dato: 18.08.2026
+Dato: 22.08.2026
 
 Dette dokumentet er en launch-beslutning og arbeidsmal. Punkter som avhenger av valgt leverandør eller juridisk virksomhetsidentitet må ferdigstilles før ekte persondata og betaling åpnes.
 
@@ -38,11 +38,12 @@ Endelig kart må valideres mot faktisk virksomhet og dataflyt.
 | Faktura, tilbud, avtale | Utføre analysen kunden bestiller | Nødvendig for avtale | Ikke samle mer enn nødvendig |
 | Analyse/resultat/utkast | Levere tjenesten | Nødvendig for avtale | Internkoder holdes server-side |
 | Betalingsmetadata | Betaling, avstemming, dokumentasjon | Avtale + eventuell rettslig plikt | Holdes separat fra dokumentinnhold |
+| Ordrebekreftelse/betalingskvittering | Bekrefte kjøpet og gi nødvendig avtale-/betalingsinformasjon på varig medium | Nødvendig for avtale + eventuell separat rettslig dokumentasjonsplikt | Verifisert konto-e-post og kvitteringsdata; ikke faktura/OCR/funn/utkast |
 | Sikkerhets-/auditdata | Misbruk, sikkerhet, feilsporing | Berettiget interesse må interesseavveies | Ingen dokumenttekst i audit |
 | Lagret sak / Svarrunde 2 | Oppfølging brukeren uttrykkelig velger | Avtale/brukerens uttrykkelige valg | 90-dagers automatisk utløp i produktpolicy |
-| Markedsføring | Eventuell fremtidig markedsføring | Samtykke der påkrevd | Ikke del av V1-kjøpet |
+| Markedsføring | Eventuell fremtidig markedsføring | Samtykke der påkrevd | Ikke del av V1-kjøpet og ikke koblet til kvitteringslevering |
 
-Fakturasjekk skal ikke kreve samtykke som vilkår for behandling som egentlig er nødvendig for å levere den kjøpte tjenesten.
+Fakturasjekk skal ikke kreve samtykke som vilkår for behandling som egentlig er nødvendig for å levere den kjøpte tjenesten. E-postadressen som brukes til ordrebekreftelsen er et leveringskontaktpunkt for den kjøpte tjenesten, ikke markedsføringssamtykke.
 
 ## 3. Dataminimering og lagring
 
@@ -53,6 +54,8 @@ Gjeldende produktpolicy:
 - lagret sak: eksplisitt valg, 90 dager etter siste aktivitet, fornyelse krever ny brukerhandling
 - kildefiler, uttrukket personinnhold, utkast og leverandørsvar inngår i purge
 - betalings-/regnskapsopplysninger som må beholdes etter separat plikt holdes adskilt fra saken
+- e-postleverandøren skal bare motta verifisert mottakeradresse og ordrebekreftelses-/kvitteringsinnhold; opplastede dokumenter og analyseresultat sendes ikke dit
+- providerens logg-, bounce-/blocklist- og leveringsretention må kartlegges og godkjennes før live
 
 Retention må valideres i DPIA og mot faktisk produksjonsarkitektur før launch.
 
@@ -66,6 +69,7 @@ Fordi brukere kan laste opp dokumenter med utilsiktet sensitiv informasjon, skal
 - ikke trekke ut felt som ikke finnes i allowlisten
 - minimere lagringstid
 - ha prosedyre for sletting og håndtering dersom særlig sensitivt materiale likevel mottas
+- aldri sende opplastet dokumentinnhold eller analyserte særkategoridata til kvitteringsleverandøren
 
 ## 5. Personvernerklæring – må inneholde før live
 
@@ -75,12 +79,15 @@ Den offentlige personvernerklæringen må fylles med:
 - personvernkontakt
 - hvilke opplysninger som behandles
 - formål og behandlingsgrunnlag
-- mottakere/databehandlere
+- mottakere/databehandlere, inkludert Brevo dersom denne leverandøren godkjennes for kvittering
 - eventuelle overføringer utenfor EØS og overføringsgrunnlag
-- konkrete lagringstider
+- konkrete lagringstider, inkludert relevante providerlogger
 - rettigheter og hvordan de utøves
 - klagerett til Datatilsynet
 - sikkerhets-/automatiseringsinformasjon som er nødvendig for reell åpenhet
+- at kvitteringsadresse brukes til kjøps-/avtalekommunikasjon og ikke automatisk til markedsføring
+
+Brevo er valgt som kodeklar kandidat for transaksjons-e-post. Brevo oppgir EU-basert databasehosting og tilgjengelig DPA, men Fakturasjekks vurdering av DPA, underleverandører, support-/fjernaksess og eventuell tredjelandstilgang er ikke ferdig. Brevo er derfor blokkert for ekte kundedata til denne vurderingen er godkjent.
 
 ## 6. Registrertes rettigheter – operativ flyt
 
@@ -93,8 +100,9 @@ Minimum produksjonsprosess:
 5. Relevant innsyn, retting, sletting eller eksport utføres der regelverket gir rett til det.
 6. Dersom data må beholdes etter separat rettslig plikt, forklares dette konkret.
 7. Utførelse logges dataminimert.
+8. Dersom forespørselen omfatter leveringsdata hos e-postprovider, håndteres dette etter godkjent provider-/retentionprosedyre uten å gjeninnføre slettet saksinnhold.
 
-Produktet har allerede `delete_case` og deterministisk purge; produksjonstesten må kontrollere både database og object storage.
+Produktet har allerede `delete_case` og deterministisk purge; produksjonstesten må kontrollere både database og object storage. Providerretention og eventuell blocklist er en separat leverandøravhengig kontroll som skal dokumenteres før live.
 
 ## 7. Sikkerhetshendelser – minimumsprosedyre
 
@@ -105,6 +113,7 @@ Produktet har allerede `delete_case` og deterministisk purge; produksjonstesten 
 - dokumenter hendelsen og tiltakene
 - følg gjeldende varslings-/meldingsplikter til Datatilsynet og registrerte når tersklene er oppfylt
 - roter kompromitterte nøkler/tokens og tilbakekall tilganger
+- ved e-posthendelse: verifiser om feil mottaker, falsk webhook, provider-konto eller senderdomene er berørt, og stans videre kvitteringsutsending ved behov
 - gjennomfør årsaksanalyse og regresjonstest før normal drift gjenopptas
 
 Endelig plan må ha navngitt ansvarlig og kontaktkanal.
@@ -116,15 +125,27 @@ Fakturasjekk er en nettbasert betalt tjeneste som normalt skal starte analysen u
 Kjøpsflyten skal derfor før betaling:
 
 - vise totalpris **29 kr** tydelig
-- vise hva som leveres
+- vise hva som leveres: full fakturasjekk + innsigelsesutkast
 - identifisere den næringsdrivende
 - lenke til vilkår og personvern
 - ha en betalingsknapp som klart uttrykker betalingsforpliktelsen
 - innhente kundens uttrykkelige anmodning dersom tjenesten skal starte før utløpet av angrefristen
 - la kunden erkjenne at angreretten går tapt når tjenesten er fullt levert, der lovens vilkår er oppfylt
-- gi skriftlig avtalebekreftelse på varig medium før/ved oppstart, med nødvendige opplysninger og registrert samtykke/anmodning
+- opplyse at ordrebekreftelse/betalingskvittering sendes til e-postadressen som er verifisert på den innloggede kontoen
+- ikke ha et browserfelt som lar kunden eller en angriper overstyre kvitteringsadressen ved betaling
+- gi skriftlig avtalebekreftelse på varig medium med nødvendige opplysninger og registrert samtykke/anmodning
 
-Dette må implementeres og testes med den faktiske betalingsleverandøren før launch.
+Teknisk leveringsbeslutning:
+
+- serveren henter bare en bekreftet e-postadresse fra brukerens egen gyldige Auth-session
+- ordinær autorisasjon mottar fortsatt bare brukerens UUID; e-post er avgrenset til checkout-/leveringsbehovet
+- ordrebekreftelsen inneholder kjøps-/betalings-/avtaleinformasjon, ikke kundens faktura, OCR-tekst, regelanalyse, funn eller innsigelsesutkast
+- Brevo API-aksept betyr bare at leverandøren har akseptert meldingen; det er **ikke** dokumentasjon på at varig medium er levert
+- bare en autentisert, matching `delivered`-webhook kan markere `durable_medium_delivered=true`
+- stabil idempotens og lagret providerreferanse hindrer dobbeltsending etter provider-aksept
+- kvitteringsleveringen brukes ikke til markedsføring i V1
+
+Koden for denne grensen er implementert og regresjonstestet. Før launch gjenstår faktisk Vipps-E2E, Brevo sender-/domene-/webhook-oppsett, syntetisk send→`delivered`-E2E og juridisk provider-/DPA-/transfer-godkjenning.
 
 ## 9. Vilkår – innhold som må ferdigstilles
 
@@ -133,6 +154,7 @@ Dette må implementeres og testes med den faktiske betalingsleverandøren før l
 - 29 kr totalpris og betalingsmåte
 - når tjenesten anses levert
 - regler om umiddelbar oppstart og angrerett
+- hvordan ordrebekreftelse/betalingskvittering leveres på varig medium
 - feil/mangel ved Fakturasjekk-tjenesten og kundesupport
 - tilgjengelighet og tekniske forutsetninger
 - brukers ansvar for lovlig opplasting av dokumenter
@@ -145,5 +167,7 @@ Dette må implementeres og testes med den faktiske betalingsleverandøren før l
 - Datatilsynet – DPIA: https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/vurdering-av-personvernkonsekvenser/
 - Datatilsynet – innebygd personvern: https://www.datatilsynet.no/rettigheter-og-plikter/virksomhetenes-plikter/programvareutvikling-med-innebygd-personvern/
 - Angrerettloven: https://lovdata.no/lov/2014-06-20-27
+- Brevo – data storage location: https://help.brevo.com/hc/en-us/articles/360001005510-Data-storage-location
+- Brevo – DPA: https://help.brevo.com/hc/en-us/articles/15403782599570-Where-can-I-find-the-Data-Processing-Agreement-DPA
 
-Dokumentet må gjennomgås på nytt når faktisk behandlingsansvarlig, auth, database, storage, KI-leverandør, betalingsleverandør og hosting er valgt.
+Dokumentet må gjennomgås på nytt når faktisk behandlingsansvarlig, auth, database, storage, KI-leverandør, betalingsleverandør, kvitteringsleverandør og hosting er endelig godkjent.
