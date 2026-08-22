@@ -29,7 +29,14 @@ const storage = {
 };
 const extractor = { async extract() { return { fields: {} }; } };
 const responseInterpreter = { async interpret() { return { items: [] }; } };
-const authAdapter = { async verifyBearer() { return { id: 'u1' }; } };
+const authAdapter = {
+  async verifyBearer() { return { id: 'u1' }; },
+  async getVerifiedDeliveryContact(token, userId) {
+    assert.equal(token, 'test-token');
+    assert.equal(userId, 'u1');
+    return { user_id: 'u1', email: 'customer@example.test', verified_at: '2026-08-22T12:00:00.000Z' };
+  }
+};
 const paymentGateway = {
   provider_name: 'provider-x',
   async createSession() { return { provider: 'provider-x', checkout_url: 'https://pay.example' }; },
@@ -65,6 +72,22 @@ assert.equal(typeof commerceApp.orderConfirmationService?.prepare, 'function');
 assert.equal(typeof commerceApp.orderConfirmationDeliveryService?.deliverPrepared, 'function', 'production composition must wire an explicit durable delivery adapter');
 assert.equal(typeof commerceApp.orderConfirmationDeliveryRetryService?.run, 'function', 'production composition must expose bounded retry when pending-query support exists');
 
+assert.throws(
+  () => createProductionApp({
+    ...input,
+    checkoutPolicy: {},
+    adapters: {
+      ...adapters,
+      authAdapter: { async verifyBearer() { return { id: 'u1' }; } },
+      orderConfirmationDeliveryAdapter: {
+        async deliverOrderConfirmation() { return { delivered: true, medium: 'email', delivery_reference: 'test-message' }; }
+      }
+    }
+  }),
+  /Missing production adapter: deliveryContactResolver/,
+  'durable receipt delivery must fail closed without a server-verified recipient resolver'
+);
+
 const edgeHealth = await app.fetchHandler(new Request('https://jxmkaxwflouacuboaetg.supabase.co/functions/v1/fakturasjekk-api/health'));
 assert.equal(edgeHealth.status, 200);
 assert.equal(edgeHealth.headers.get('x-frame-options'), 'DENY');
@@ -90,4 +113,4 @@ assert.throws(
   /Production readiness failed: product.price/
 );
 
-console.log('OK production app composition exposes Node/Fetch runtimes, durable delivery and bounded receipt retry wiring');
+console.log('OK production app composition exposes Node/Fetch runtimes, verified delivery contact, durable delivery and bounded receipt retry wiring');

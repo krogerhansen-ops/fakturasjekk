@@ -15,6 +15,7 @@ export function createCoreProductionAdapters({
   responseInterpreter,
   paymentGateway,
   orderConfirmationDeliveryAdapter = null,
+  deliveryContactResolver = null,
   fetchImpl = globalThis.fetch
 } = {}) {
   if (config?.environment !== 'production') throw new Error('Validated production config is required.');
@@ -24,6 +25,9 @@ export function createCoreProductionAdapters({
   if (!paymentGateway?.createSession || !paymentGateway?.verifyEvent) throw new Error('Production payment gateway is required.');
   if (orderConfirmationDeliveryAdapter != null && typeof orderConfirmationDeliveryAdapter?.deliverOrderConfirmation !== 'function') {
     throw new Error('Production order confirmation delivery adapter must implement deliverOrderConfirmation.');
+  }
+  if (deliveryContactResolver != null && typeof deliveryContactResolver !== 'function') {
+    throw new Error('Production delivery contact resolver must be a function.');
   }
 
   const caseStore = createPostgresCaseStore({ db });
@@ -48,6 +52,7 @@ export function createCoreProductionAdapters({
     idempotencyStore,
     auditAdapter,
     rateLimiter,
-    ...(orderConfirmationDeliveryAdapter ? { orderConfirmationDeliveryAdapter } : {})
+    ...(orderConfirmationDeliveryAdapter ? { orderConfirmationDeliveryAdapter } : {}),
+    ...(deliveryContactResolver ? { deliveryContactResolver } : {})
   };
 }

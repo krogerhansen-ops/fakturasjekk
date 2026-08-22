@@ -15,9 +15,23 @@ const adapter = createSupabaseAuthAdapter({
         id: permanentId,
         role: 'authenticated',
         is_anonymous: false,
-        email: 'should-not-be-returned@example.no',
-        user_metadata: { role: 'user-editable' }
+        email: 'Verified.User@Example.NO',
+        email_confirmed_at: '2026-08-22T09:00:00.000Z',
+        phone: '+4712345678',
+        user_metadata: { role: 'user-editable', display_name: 'Must not escape auth adapter' }
       }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    if (bearer === 'Bearer unconfirmed-email-jwt') {
+      return new Response(JSON.stringify({
+        id: permanentId, role: 'authenticated', is_anonymous: false,
+        email: 'unconfirmed@example.no', email_confirmed_at: null
+      }), { status: 200 });
+    }
+    if (bearer === 'Bearer other-user-email-jwt') {
+      return new Response(JSON.stringify({
+        id: '33333333-3333-4333-8333-333333333333', role: 'authenticated', is_anonymous: false,
+        email: 'other@example.no', email_confirmed_at: '2026-08-22T09:00:00.000Z'
+      }), { status: 200 });
     }
     if (bearer === 'Bearer anonymous-jwt') {
       return new Response(JSON.stringify({ id: anonymousId, role: 'authenticated', is_anonymous: true }), { status: 200 });
@@ -36,7 +50,19 @@ const adapter = createSupabaseAuthAdapter({
   }
 });
 
-assert.deepEqual(await adapter.verifyBearer('valid-jwt'), { id: permanentId });
+assert.deepEqual(await adapter.verifyBearer('valid-jwt'), { id: permanentId }, 'authorization identity must remain UUID-only');
+const delivery = await adapter.getVerifiedDeliveryContact('valid-jwt', permanentId);
+assert.deepEqual(delivery, {
+  user_id: permanentId,
+  email: 'verified.user@example.no',
+  verified_at: '2026-08-22T09:00:00.000Z'
+});
+assert.equal(JSON.stringify(delivery).includes('+4712345678'), false);
+assert.equal(JSON.stringify(delivery).includes('display_name'), false);
+assert.equal(await adapter.getVerifiedDeliveryContact('unconfirmed-email-jwt', permanentId), null, 'unconfirmed email must not receive paid order confirmation');
+assert.equal(await adapter.getVerifiedDeliveryContact('other-user-email-jwt', permanentId), null, 'delivery lookup must not resolve another account');
+assert.equal(await adapter.getVerifiedDeliveryContact('valid-jwt', 'not-a-uuid'), null);
+
 assert.equal(await adapter.verifyBearer('anonymous-jwt'), null, 'anonymous Auth user must not own paid/stored customer cases');
 assert.equal(await adapter.verifyBearer('wrong-role-jwt'), null);
 assert.equal(await adapter.verifyBearer('malformed-user-jwt'), null);
@@ -57,6 +83,7 @@ assert.equal(requests[0].options.headers.authorization, 'Bearer valid-jwt');
 assert.equal(requests[0].options.cache, 'no-store');
 assert.equal(requests[0].options.redirect, 'error');
 assert.equal(SUPABASE_AUTH_POLICY.require_permanent_user, true);
+assert.equal(SUPABASE_AUTH_POLICY.require_confirmed_delivery_email, true);
 assert.equal(SUPABASE_AUTH_POLICY.project_ref, 'jxmkaxwflouacuboaetg');
 
 const failingNetwork = createSupabaseAuthAdapter({
@@ -65,6 +92,7 @@ const failingNetwork = createSupabaseAuthAdapter({
   fetchImpl: async () => { throw new Error('network unavailable'); }
 });
 assert.equal(await failingNetwork.verifyBearer('anything'), null, 'auth must fail closed on network errors');
+assert.equal(await failingNetwork.getVerifiedDeliveryContact('anything', permanentId), null, 'delivery contact lookup must fail closed on network errors');
 
 assert.throws(() => createSupabaseAuthAdapter({ supabaseUrl: 'http://jxmkaxwflouacuboaetg.supabase.co', publishableKey: 'sb_publishable_x' }), /HTTPS/i);
 assert.throws(() => createSupabaseAuthAdapter({ supabaseUrl: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co', publishableKey: 'sb_publishable_x' }), /dedicated Fakturasjekk/i);
@@ -72,4 +100,4 @@ assert.throws(() => createSupabaseAuthAdapter({ supabaseUrl: 'https://jxmkaxwflo
 assert.throws(() => createSupabaseAuthAdapter({ supabaseUrl: 'https://jxmkaxwflouacuboaetg.supabase.co', publishableKey: 'sb_secret_must_never_be_client_auth_key' }), /secret keys are forbidden/i);
 assert.throws(() => createSupabaseAuthAdapter({ supabaseUrl: 'https://jxmkaxwflouacuboaetg.supabase.co', publishableKey: 'plain-text-key' }), /valid Supabase/i);
 
-console.log('OK Supabase Auth adapter is project-bound, remote, permanent-user-only and returns only minimal Auth UUID');
+console.log('OK Supabase Auth remains UUID-only for authorization and exposes confirmed email only through the checkout delivery-contact boundary');

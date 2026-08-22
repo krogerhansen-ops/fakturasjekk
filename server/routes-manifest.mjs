@@ -13,6 +13,7 @@ export const ROUTES = Object.freeze([
   { method: 'GET', path: '/v1/cases/:case_id/payment', action: 'payment_requirement', auth: true, mutation: false },
   { method: 'POST', path: '/v1/cases/:case_id/payment/session', action: 'create_payment_session', auth: true, mutation: true },
   { method: 'POST', path: '/v1/webhooks/payment/:provider', action: 'payment_webhook', auth: false, mutation: true, raw_body: true, cors: false },
+  { method: 'POST', path: '/v1/webhooks/order-confirmation/:provider', action: 'order_confirmation_delivery_webhook', auth: false, mutation: true, raw_body: true, cors: false },
   { method: 'GET', path: '/v1/cases/:case_id/result', action: 'full_result', auth: true, mutation: false },
   { method: 'GET', path: '/v1/cases/:case_id/order-confirmation/:format', action: 'order_confirmation_download', auth: true, mutation: false },
   { method: 'POST', path: '/v1/cases/:case_id/draft', action: 'create_draft', auth: true, mutation: true },

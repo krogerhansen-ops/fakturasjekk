@@ -19,8 +19,22 @@ export function assertCustomerCommerceDelivery(options = {}) {
   if (!options.checkoutPolicy || typeof options.checkoutPolicy !== 'object' || Array.isArray(options.checkoutPolicy)) {
     throw new Error('Customer production requires a validated checkout policy before 29 NOK payment can be enabled.');
   }
-  if (typeof options.adapters?.orderConfirmationDeliveryAdapter?.deliverOrderConfirmation !== 'function') {
+  const deliveryAdapter = options.adapters?.orderConfirmationDeliveryAdapter;
+  if (typeof deliveryAdapter?.deliverOrderConfirmation !== 'function') {
     throw new Error('Customer production requires a durable order confirmation delivery adapter.');
+  }
+
+  // Email delivery is allowed only when the authenticated account itself resolves
+  // the confirmed recipient. A browser-provided email must never become the delivery address.
+  if (deliveryAdapter.name === 'brevo') {
+    if (typeof deliveryAdapter.verifyWebhook !== 'function') {
+      throw new Error('Brevo durable delivery requires authenticated provider delivery webhooks.');
+    }
+    const hasResolver = typeof options.adapters?.deliveryContactResolver === 'function'
+      || typeof options.adapters?.authAdapter?.getVerifiedDeliveryContact === 'function';
+    if (!hasResolver) {
+      throw new Error('Brevo durable delivery requires a verified account delivery-contact resolver.');
+    }
   }
   return true;
 }

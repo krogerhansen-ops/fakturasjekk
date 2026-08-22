@@ -33,6 +33,22 @@ export function createOrderConfirmationDeliveryService({ orderConfirmationServic
     if (confirmation.durable_medium_delivered === true) {
       return {
         delivered: true,
+        accepted: true,
+        pending_provider_confirmation: false,
+        idempotent: true,
+        confirmation,
+        medium: confirmation.durable_medium ?? null,
+        delivery_reference: confirmation.delivery_reference ?? null
+      };
+    }
+
+    // Provider acceptance is persisted independently from inbox delivery. Once a
+    // provider has accepted a concrete message-id, retries must not send a duplicate.
+    if (confirmation.delivery_provider_accepted === true) {
+      return {
+        delivered: false,
+        accepted: true,
+        pending_provider_confirmation: true,
         idempotent: true,
         confirmation,
         medium: confirmation.durable_medium ?? null,
@@ -49,9 +65,10 @@ export function createOrderConfirmationDeliveryService({ orderConfirmationServic
         case_id: caseId,
         owner_id: ownerId,
         confirmation_id: confirmation.confirmation_id,
+        recipient_email: confirmation.delivery_contact?.medium === 'email' ? confirmation.delivery_contact.address : null,
         // Provider adapters must use this stable key for send-side idempotency. It
-        // protects against duplicate delivery if the provider accepted a message
-        // but persistence of ORDER_CONFIRMATION_DELIVERED failed afterwards.
+        // protects against duplicate delivery during network uncertainty before
+        // provider acceptance can be persisted.
         idempotency_key: confirmation.confirmation_id,
         subject: 'Fakturasjekk – ordrebekreftelse og betalingskvittering',
         text: textDocument.body,
@@ -75,27 +92,56 @@ export function createOrderConfirmationDeliveryService({ orderConfirmationServic
       throw error;
     }
 
-    if (delivery?.delivered !== true) {
-      throw deliveryError('order_confirmation_delivery_unconfirmed', 'Delivery provider did not confirm durable-medium delivery.');
+    const medium = requiredString(delivery?.medium, 'order_confirmation_delivery_medium_missing', 'Delivery provider did not report a durable medium.');
+    const provider = delivery?.provider == null ? null : String(delivery.provider).slice(0, 80);
+    const deliveryReference = delivery?.delivery_reference == null ? null : String(delivery.delivery_reference).slice(0, 200);
+
+    if (delivery?.delivered === true) {
+      const marked = await orderConfirmationService.markDelivered({
+        case_id: caseId,
+        owner_id: ownerId,
+        confirmation_id: confirmation.confirmation_id,
+        medium,
+        provider,
+        delivery_reference: deliveryReference
+      });
+      return {
+        delivered: marked.confirmation?.durable_medium_delivered === true,
+        accepted: true,
+        pending_provider_confirmation: false,
+        idempotent: marked.updated === false,
+        confirmation: marked.confirmation,
+        medium: marked.confirmation?.durable_medium ?? medium,
+        delivery_reference: marked.confirmation?.delivery_reference ?? deliveryReference
+      };
     }
-    const medium = requiredString(delivery.medium, 'order_confirmation_delivery_medium_missing', 'Delivery provider did not report a durable medium.');
-    const deliveryReference = delivery.delivery_reference == null ? null : String(delivery.delivery_reference).slice(0, 200);
 
-    const marked = await orderConfirmationService.markDelivered({
-      case_id: caseId,
-      owner_id: ownerId,
-      confirmation_id: confirmation.confirmation_id,
-      medium,
-      delivery_reference: deliveryReference
-    });
+    if (delivery?.accepted === true) {
+      if (!orderConfirmationService?.markProviderAccepted) {
+        throw deliveryError('order_confirmation_provider_acceptance_unsupported', 'Order confirmation service cannot persist provider acceptance.');
+      }
+      const providerName = requiredString(provider, 'order_confirmation_delivery_provider_missing', 'Delivery provider did not identify itself.');
+      const reference = requiredString(deliveryReference, 'order_confirmation_delivery_reference_missing', 'Delivery provider did not return a message reference.');
+      const marked = await orderConfirmationService.markProviderAccepted({
+        case_id: caseId,
+        owner_id: ownerId,
+        confirmation_id: confirmation.confirmation_id,
+        medium,
+        provider: providerName,
+        delivery_reference: reference
+      });
+      return {
+        delivered: false,
+        accepted: true,
+        pending_provider_confirmation: true,
+        idempotent: marked.updated === false,
+        confirmation: marked.confirmation,
+        medium: marked.confirmation?.durable_medium ?? medium,
+        delivery_reference: marked.confirmation?.delivery_reference ?? reference
+      };
+    }
 
-    return {
-      delivered: marked.confirmation?.durable_medium_delivered === true,
-      idempotent: marked.updated === false,
-      confirmation: marked.confirmation,
-      medium: marked.confirmation?.durable_medium ?? medium,
-      delivery_reference: marked.confirmation?.delivery_reference ?? deliveryReference
-    };
+    throw deliveryError('order_confirmation_delivery_unconfirmed', 'Delivery provider did not confirm message acceptance or durable-medium delivery.');
   }
 
   return { deliverPrepared };

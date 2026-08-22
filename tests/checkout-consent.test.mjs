@@ -49,12 +49,16 @@ assert.equal(confirmation.acknowledgements.immediate_service_start, true);
 assert.equal(confirmation.durable_medium_delivered, false, 'payload alone is not durable-medium delivery');
 assert.match(confirmation.withdrawal_notice, /angreretten går tapt når Fakturasjekk har levert tjenesten fullt ut/i);
 
-const store = createMemoryCaseStore();
-await store.save({
-  id: 'case-1', owner_id: 'u1', state: 'analysis_ready', retention_mode: 'temporary',
-  created_at: '2026-08-19T07:00:00.000Z', updated_at: '2026-08-19T07:30:00.000Z', deleted_at: null,
-  events: [], documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: []
-});
+function seedStore() {
+  const store = createMemoryCaseStore();
+  return store.save({
+    id: 'case-1', owner_id: 'u1', state: 'analysis_ready', retention_mode: 'temporary',
+    created_at: '2026-08-19T07:00:00.000Z', updated_at: '2026-08-19T07:30:00.000Z', deleted_at: null,
+    events: [], documents: [], analyses: [], payments: [], drafts: [], supplier_responses: [], follow_ups: []
+  }).then(() => store);
+}
+
+const store = await seedStore();
 const service = createCheckoutConsentService({ caseStore: store, policy, clock: () => new Date('2026-08-19T08:00:00.000Z') });
 const accepted = await service.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'u1', consent: validConsent, requirement });
 assert.match(accepted.checkout_consent_id, /^checkout-/);
@@ -63,6 +67,7 @@ assert.equal(accepted.agreement_confirmation_payload.durable_medium_delivered, f
 const saved = await store.getOwned('case-1', 'u1');
 assert.equal(saved.checkout_consents.length, 1);
 assert.equal(saved.checkout_consents[0].accepted_at, '2026-08-19T08:00:00.000Z');
+assert.equal(saved.checkout_consents[0].delivery_contact, null, 'non-production checkout tests may remain delivery-provider-neutral');
 assert.equal(saved.checkout_consents[0].durable_medium_delivered_at, null);
 assert.ok(saved.events.some(event => event.type === 'CHECKOUT_CONSENT_RECORDED'));
 const storedText = JSON.stringify(saved.checkout_consents[0]);
@@ -72,4 +77,36 @@ assert.equal(storedText.includes('password'), false);
 
 await assert.rejects(() => service.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'other-user', consent: validConsent, requirement }), /not found|owned/i);
 
-console.log('OK checkout is fail-closed until seller identity is ready, stores explicit versioned consent, and keeps durable-medium delivery pending');
+const deliveryStore = await seedStore();
+const deliveryService = createCheckoutConsentService({
+  caseStore: deliveryStore,
+  policy,
+  requireDeliveryContact: true,
+  clock: () => new Date('2026-08-19T08:00:00.000Z')
+});
+await assert.rejects(
+  () => deliveryService.acceptForPaymentSession({ case_id: 'case-1', owner_id: 'u1', consent: validConsent, requirement }),
+  error => error?.code === 'checkout_delivery_contact_required'
+);
+await assert.rejects(
+  () => deliveryService.acceptForPaymentSession({
+    case_id: 'case-1', owner_id: 'u1', consent: validConsent, requirement,
+    delivery_contact: { user_id: 'other-user', email: 'wrong@example.no', verified_at: '2026-08-19T07:59:00.000Z' }
+  }),
+  error => error?.code === 'checkout_delivery_contact_invalid'
+);
+const withDelivery = await deliveryService.acceptForPaymentSession({
+  case_id: 'case-1', owner_id: 'u1', consent: validConsent, requirement,
+  delivery_contact: { user_id: 'u1', email: 'Customer@Example.NO', verified_at: '2026-08-19T07:59:00.000Z' }
+});
+assert.equal(withDelivery.case.checkout_consents.at(-1).delivery_contact.address, 'customer@example.no');
+assert.deepEqual(withDelivery.case.checkout_consents.at(-1).delivery_contact, {
+  medium: 'email',
+  address: 'customer@example.no',
+  verified_provider: 'supabase_auth',
+  verified_at: '2026-08-19T07:59:00.000Z'
+});
+assert.equal(withDelivery.case.events.at(-1).data.durable_medium_delivery_contact_ready, true);
+assert.equal(JSON.stringify(withDelivery.agreement_confirmation_payload).includes('customer@example.no'), false, 'checkout response must not echo delivery email');
+
+console.log('OK checkout is fail-closed until seller identity is ready and can bind a verified minimal delivery email without echoing it to the browser');
