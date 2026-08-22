@@ -6,6 +6,7 @@ import { createManagementHandlers } from './management-handlers.mjs';
 import { createSystemHandlers } from './system-handlers.mjs';
 import { createSupplierResponseHandlers } from './supplier-response-handlers.mjs';
 import { createOrderConfirmationHandlers } from './order-confirmation-handlers.mjs';
+import { createOrderConfirmationDeliveryWebhookHandler } from './order-confirmation-delivery-webhook-service.mjs';
 
 export function createApi({
   services,
@@ -18,6 +19,8 @@ export function createApi({
   checkoutConsentService = null,
   deliveryContactResolver = null,
   orderConfirmationService = null,
+  orderConfirmationDeliveryWebhookService = null,
+  orderConfirmationDeliveryProviderName = null,
   allowedReturnOrigins = [],
   readiness = null,
   version = null,
@@ -32,6 +35,10 @@ export function createApi({
     ...createPaymentHandlers({ services, gateway: paymentGateway, checkoutConsentService, deliveryContactResolver, idempotency, allowedReturnOrigins }),
     ...createOrderConfirmationHandlers({ orderConfirmationService }),
     ...(paymentWebhookService ? createPaymentWebhookHandler({ webhookService: paymentWebhookService, expectedProvider: paymentProviderName }) : {}),
+    ...(orderConfirmationDeliveryWebhookService ? createOrderConfirmationDeliveryWebhookHandler({
+      webhookService: orderConfirmationDeliveryWebhookService,
+      expectedProvider: orderConfirmationDeliveryProviderName
+    }) : {}),
     ...(management ? createManagementHandlers({ management, idempotency }) : {})
   };
 
