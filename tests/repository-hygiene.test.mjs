@@ -45,8 +45,12 @@ const safeAssignmentPrefixes = ['SET_', '${{', '${', '<', 'REDACTED', 'EXAMPLE',
 for (const { full, rel } of files) {
   if (rel === 'tests/repository-hygiene.test.mjs') continue;
   const text = fs.readFileSync(full, 'utf8');
+  const markedSecurityFixture = rel.startsWith('tests/') && text.includes('SECURITY_TEST_FIXTURE');
+
   for (const [name, re] of patterns) {
-    assert.equal(re.test(text), false, `${name} found in ${rel}`);
+    const matched = re.test(text);
+    const explicitFakeDbFixture = name === 'credential-bearing PostgreSQL URL' && markedSecurityFixture;
+    assert.equal(matched && !explicitFakeDbFixture, false, `${name} found in ${rel}`);
   }
 
   for (const match of text.matchAll(sensitiveAssignments)) {
