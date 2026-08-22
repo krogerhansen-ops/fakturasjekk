@@ -47,10 +47,17 @@ const descriptor = fileDescriptor(fakeFile, 'invoice');
 assert.deepEqual(descriptor, { name: 'invoice-1.pdf', mime_type: 'application/pdf', size: 123, role: 'invoice' });
 assert.equal(JSON.stringify(descriptor).includes('Kai-Hansen'), false, 'original local filename must never be included in backend upload metadata');
 
+await api.markOutboundSent('case 1', 'draft', 'draft 1');
+const sentCall = calls.at(-1);
+assert.match(sentCall.url, /case%201\/draft$/);
+assert.equal(sentCall.options.method, 'POST');
+assert.ok(sentCall.options.headers['idempotency-key']);
+assert.deepEqual(JSON.parse(sentCall.options.body), { action: 'mark_sent', kind: 'draft', record_id: 'draft 1' });
+
 const errorApi = createApiClient({
   baseUrl: 'https://api.fakturasjekk.no', getToken: async () => 'token',
   fetchImpl: async () => ({ ok: false, status: 402, headers: { get: () => 'req-pay' }, text: async () => JSON.stringify({ error: { code: 'payment_required', message: '29 kr kreves.' }, request_id: 'req-pay' }) })
 });
 await assert.rejects(() => errorApi.getResult('case-1'), error => error instanceof FakturasjekkApiError && error.status === 402 && error.code === 'payment_required' && error.request_id === 'req-pay');
 
-console.log('OK browser API client, order-confirmation download request and privacy-safe upload metadata');
+console.log('OK browser API client, mark-sent action, order-confirmation download request and privacy-safe upload metadata');
