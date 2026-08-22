@@ -15,6 +15,16 @@ export function assertCustomerProductionFunding(env = process.env) {
   return cost;
 }
 
+export function assertCustomerCommerceDelivery(options = {}) {
+  if (!options.checkoutPolicy || typeof options.checkoutPolicy !== 'object' || Array.isArray(options.checkoutPolicy)) {
+    throw new Error('Customer production requires a validated checkout policy before 29 NOK payment can be enabled.');
+  }
+  if (typeof options.adapters?.orderConfirmationDeliveryAdapter?.deliverOrderConfirmation !== 'function') {
+    throw new Error('Customer production requires a durable order confirmation delivery adapter.');
+  }
+  return true;
+}
+
 export function createCustomerProductionApp(options = {}) {
   // Funding/cost approval is intentionally checked before the ordinary launch
   // gate. Even a fully completed launch checklist must not activate customer
@@ -35,6 +45,11 @@ export function createCustomerProductionApp(options = {}) {
   if (!repositoryProtection.launch_allowed) {
     throw new Error(`Customer launch is blocked by ${repositoryProtection.blocking_id}.`);
   }
+
+  // Commerce delivery is also independent of the checklist. This prevents a
+  // mistakenly completed launch gate from enabling real customer payments
+  // without the checkout contract and a provider-confirmed durable receipt path.
+  assertCustomerCommerceDelivery(options);
 
   const app = createProductionApp(options);
   return { ...app, launch, repository_protection: repositoryProtection };
