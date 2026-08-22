@@ -41,8 +41,8 @@ export function createOrderConfirmationDeliveryRetryService({
       return true;
     } catch {
       // Audit availability must never alter whether a provider-confirmed receipt
-      // delivery is reported as successful. The runner exposes a separate count
-      // so operations can alert on audit degradation independently.
+      // delivery or provider acceptance is reported as successful. The runner
+      // exposes a separate count for operations.
       return false;
     }
   }
@@ -54,6 +54,7 @@ export function createOrderConfirmationDeliveryRetryService({
       checked: candidates.length,
       delivered: 0,
       already_delivered: 0,
+      awaiting_provider_confirmation: 0,
       skipped: 0,
       failed: 0,
       audit_failures: 0,
@@ -82,9 +83,17 @@ export function createOrderConfirmationDeliveryRetryService({
             confirmation_id: confirmationId,
             outcome: 'success',
             metadata: {
-              idempotent: result?.idempotent === true,
-              durable_medium: result?.medium ?? null
+              status: result?.idempotent === true ? 'already_delivered' : 'delivered'
             }
+          });
+          if (!audited) summary.audit_failures += 1;
+        } else if (result?.accepted === true && result?.pending_provider_confirmation === true) {
+          summary.awaiting_provider_confirmation += 1;
+          const audited = await record({
+            case_id: candidate.id,
+            confirmation_id: confirmationId,
+            outcome: 'provider_accepted',
+            metadata: { status: 'awaiting_provider_confirmation' }
           });
           if (!audited) summary.audit_failures += 1;
         } else {
