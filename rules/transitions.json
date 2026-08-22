@@ -22,7 +22,7 @@
       "status": "awaiting_commencement",
       "expected_pending_phrase": "foreløpig ikke innlemmet i EØS-avtalen",
       "last_verified": "2026-08-22",
-      "action_when_changed": "Require manual review of f-gas and heat-pump conclusions before reactivation."
+      "action_when_changed": "Set f-gas and heat-pump conclusions to review_required and perform manual legal review before reactivation."
     }
   ]
 }
