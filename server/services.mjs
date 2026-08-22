@@ -193,8 +193,16 @@ export function createBackendServices({
       documents: documents.map(d => d.role)
     };
 
-    const result = runCase({ intake, facts, origins, collection, registry, user_note, draft_mode: 'request' });
-    if (companyCheck) result.company_check = companyCheck;
+    const result = runCase({
+      intake,
+      facts,
+      origins,
+      collection,
+      company_check: companyCheck,
+      registry,
+      user_note,
+      draft_mode: 'request'
+    });
     const analysisId = await store.nextId('analysis');
     caseData = addAnalysis({ ...caseData, pending_fact_confirmation: null }, {
       id: analysisId,
@@ -214,6 +222,7 @@ export function createBackendServices({
         finding_count: result.analysis?.findings?.length ?? 0,
         requires_clarification: (result.analysis?.questions?.length ?? 0) > 0,
         company_check_status: companyCheck?.status ?? 'not_checked',
+        coverage: result.coverage?.summary ?? null,
         price_nok: product.price_nok
       },
       extraction,
