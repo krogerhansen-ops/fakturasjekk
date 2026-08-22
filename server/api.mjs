@@ -5,6 +5,7 @@ import { createPaymentHandlers, createPaymentWebhookHandler } from './payment-ha
 import { createManagementHandlers } from './management-handlers.mjs';
 import { createSystemHandlers } from './system-handlers.mjs';
 import { createSupplierResponseHandlers } from './supplier-response-handlers.mjs';
+import { createOrderConfirmationHandlers } from './order-confirmation-handlers.mjs';
 
 export function createApi({
   services,
@@ -15,6 +16,7 @@ export function createApi({
   paymentWebhookService = null,
   paymentProviderName = null,
   checkoutConsentService = null,
+  orderConfirmationService = null,
   allowedReturnOrigins = [],
   readiness = null,
   version = null,
@@ -27,6 +29,7 @@ export function createApi({
     ...(services?.confirmFacts ? createFactConfirmationHandlers({ services, idempotency }) : {}),
     ...createSupplierResponseHandlers({ supplierResponseService, idempotency }),
     ...createPaymentHandlers({ services, gateway: paymentGateway, checkoutConsentService, idempotency, allowedReturnOrigins }),
+    ...createOrderConfirmationHandlers({ orderConfirmationService }),
     ...(paymentWebhookService ? createPaymentWebhookHandler({ webhookService: paymentWebhookService, expectedProvider: paymentProviderName }) : {}),
     ...(management ? createManagementHandlers({ management, idempotency }) : {})
   };
