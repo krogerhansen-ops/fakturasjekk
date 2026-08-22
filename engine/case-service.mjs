@@ -2,6 +2,7 @@ import { classifyIntake } from './intake.mjs';
 import { analyzeCase } from './analyzer.mjs';
 import { analyzeInkasso } from './inkasso.mjs';
 import { runDocumentChecks } from './document-checks.mjs';
+import { buildAnalysisCoverage, assertAnalysisCoverageSafe } from './analysis-coverage.mjs';
 import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './evidence.mjs';
 import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
@@ -45,7 +46,17 @@ function combineDocumentChecks(analysis, documentChecks) {
   return { ...analysis, status, findings, questions, document_checks: documentChecks };
 }
 
-export function runCase({ intake, facts = {}, origins = {}, collection = null, registry, user_note = '', draft_mode = 'request', invoice_reference = '' } = {}) {
+export function runCase({
+  intake,
+  facts = {},
+  origins = {},
+  collection = null,
+  company_check = null,
+  registry,
+  user_note = '',
+  draft_mode = 'request',
+  invoice_reference = ''
+} = {}) {
   const intakeResult = classifyIntake(intake ?? {});
 
   const base = {
@@ -56,6 +67,8 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     analysis: null,
     inkasso: null,
     document_checks: null,
+    company_check: company_check ?? null,
+    coverage: null,
     evidence: [],
     evidence_summary: {},
     assurance: null,
@@ -116,6 +129,14 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     rule_package: packageSafety.id
   };
 
+  const coverage = buildAnalysisCoverage({
+    facts: analysisInput,
+    analysis: packagedAnalysis,
+    document_checks: documentChecks,
+    company_check
+  });
+  assertAnalysisCoverageSafe(coverage);
+
   const evidence = buildEvidenceLedger({ facts, origins, analysis: packagedAnalysis, user_note });
   assertEvidenceSafety(evidence);
   const assurance = assessAssurance({ analysis: packagedAnalysis, evidence });
@@ -136,6 +157,8 @@ export function runCase({ intake, facts = {}, origins = {}, collection = null, r
     analysis: packagedAnalysis,
     inkasso,
     document_checks: documentChecks,
+    company_check: company_check ?? null,
+    coverage,
     evidence,
     evidence_summary: summarizeEvidence(evidence),
     assurance,
