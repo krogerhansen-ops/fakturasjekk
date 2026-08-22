@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-19-v1",
+  "version": "draft-2026-08-19-v1",
   "status": "draft_blocked_until_seller_identity",
   "service_classification": "paid_service",
   "product": {
@@ -14,7 +14,13 @@
     "organization_number": null,
     "postal_address": null,
     "support_email": null,
-    "privacy_email": null
+    "privacy_email": null,
+    "registry_verification": {
+      "source": null,
+      "verified_at": null,
+      "organization_number": null,
+      "legal_name": null
+    }
   },
   "terms_version": "draft-2026-08-19-v1",
   "privacy_notice_version": "draft-2026-08-19-v1",
@@ -34,7 +40,9 @@
   },
   "live_payment_session_enabled": false,
   "notes": [
-    "Seller/controller identity must be completed before live checkout.",
+    "Seller/controller identity must be completed and explicitly verified against Brønnøysundregistrene before live checkout.",
+    "A checksum-valid organization number is only a format check and is never registry proof; registry_verification must match the approved legal name and organization number.",
+    "Policy, terms, privacy and withdrawal-information versions must be final and the policy status must be live_ready before checkout can open.",
     "A valid durable-medium confirmation flow must be connected before service delivery begins.",
     "Do not describe withdrawal right as lost merely because payment was authorized or captured; the service must be fully performed under the applicable rule."
   ]
