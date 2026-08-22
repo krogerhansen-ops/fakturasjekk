@@ -105,7 +105,6 @@ async function assertPrivateWithoutCredentials(fetchImpl, key) {
       cache: 'no-store'
     });
   } catch {
-    // A network-level refusal is also non-disclosure; the live provider read below proves reachability.
     return true;
   }
   if (response.ok) {
@@ -133,7 +132,7 @@ export async function runSupabaseStorageLiveE2E({
   const bytes = syntheticPdfBytes();
   const expectedSha = sha256(bytes);
   let objectMayExist = false;
-  let cleanupVerified = false;
+  let cleanupVerified = true;
 
   try {
     const before = await provider.headObject({ bucket: STORAGE_E2E_BUCKET, key });
@@ -149,9 +148,9 @@ export async function runSupabaseStorageLiveE2E({
     if (signed.required_headers?.['content-type'] !== 'application/pdf') throw new Error('Signed Storage upload did not preserve the declared PDF MIME type.');
 
     objectMayExist = true;
+    cleanupVerified = false;
     await uploadSigned(fetchImpl, signed, bytes);
 
-    // Signed URL must not silently overwrite/replay the same object under the production no-upsert contract.
     const replay = await fetchImpl(signed.url, {
       method: 'PUT',
       headers: { ...signed.required_headers, 'x-upsert': 'false' },
