@@ -27,22 +27,52 @@ jobs:
           persist-credentials: false
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
-      - name: Build public customer artifact
+      - name: Build explicitly allowlisted public artifact
+        shell: bash
         run: |
+          set -euo pipefail
           rm -rf _site
-          mkdir -p _site/site _site/engine _site/rules _site/data _site/config
+          mkdir -p \
+            _site/site/app _site/site/engine _site/site/rules _site/site/data _site/site/config \
+            _site/engine _site/rules _site/data _site/config
+
+          # Customer beta entrypoints.
           cp site/index-launch-candidate.html _site/index.html
-          cp -R site/* _site/site/
+          cp site/index-launch-candidate.html _site/site/index-launch-candidate.html
+
+          # Explicit external tester kit only. Never copy the whole site tree.
+          cp site/tester-start.html _site/site/tester-start.html
+          cp site/camera-local-test.html _site/site/camera-local-test.html
+          cp site/camera-test-sheet.html _site/site/camera-test-sheet.html
+          cp site/external-tester-feedback.html _site/site/external-tester-feedback.html
+
+          # Minimal local-only tester runtime.
+          cp site/app/camera-sanitizer.mjs _site/site/app/camera-sanitizer.mjs
+          cp site/app/camera-quality.mjs _site/site/app/camera-quality.mjs
+          cp site/app/camera-local-test-page.mjs _site/site/app/camera-local-test-page.mjs
+          cp site/app/camera-test-sheet-page.mjs _site/site/app/camera-test-sheet-page.mjs
+          cp site/app/external-tester-feedback-page.mjs _site/site/app/external-tester-feedback-page.mjs
+
+          # Demo runtime dependencies for both root and /site entrypoints.
+          cp site/engine/analyzer.mjs _site/site/engine/analyzer.mjs
+          cp site/engine/draft.mjs _site/site/engine/draft.mjs
+          cp site/rules/rules.json _site/site/rules/rules.json
+          cp site/data/demo-cases.json _site/site/data/demo-cases.json
+          cp site/config/product.json _site/site/config/product.json
           cp engine/analyzer.mjs _site/engine/analyzer.mjs
           cp engine/draft.mjs _site/engine/draft.mjs
           cp rules/rules.json _site/rules/rules.json
           cp data/demo-cases.json _site/data/demo-cases.json
           cp config/product.json _site/config/product.json
+
           sed -i 's/Launch Candidate/Offentlig beta/g' _site/index.html _site/site/index-launch-candidate.html
           sed -i 's/Prøv en full fakturasjekk/Prøv fakturasjekk-demoen/g' _site/index.html _site/site/index-launch-candidate.html
           touch _site/.nojekyll
+
       - name: Verify public artifact boundaries and demo dependencies
+        shell: bash
         run: |
+          set -euo pipefail
           test -f _site/index.html
           test -f _site/site/index-launch-candidate.html
           test -f _site/site/camera-local-test.html
@@ -54,7 +84,6 @@ jobs:
           test -f _site/site/app/camera-local-test-page.mjs
           test -f _site/site/app/camera-test-sheet-page.mjs
           test -f _site/site/app/external-tester-feedback-page.mjs
-          test -f _site/site/app/upload-metadata.mjs
           test -f _site/site/engine/analyzer.mjs
           test -f _site/site/engine/draft.mjs
           test -f _site/site/rules/rules.json
@@ -62,6 +91,7 @@ jobs:
           test -f _site/site/config/product.json
           test -f _site/engine/analyzer.mjs
           test -f _site/engine/draft.mjs
+
           grep -q 'Offentlig beta' _site/index.html
           grep -q 'Prøv fakturasjekk-demoen' _site/index.html
           grep -q 'Bildet forlater ikke enheten din' _site/site/camera-local-test.html
@@ -72,11 +102,20 @@ jobs:
           grep -q "script-src 'none'" _site/site/tester-start.html
           grep -q 'Skjemaet lagrer eller sender ingenting' _site/site/external-tester-feedback.html
           grep -q "connect-src 'none'" _site/site/external-tester-feedback.html
+
+          # Fail if internal, legacy or unused client surfaces leak into Pages.
           test ! -d _site/server
           test ! -d _site/admin
           test ! -f _site/motor-test.html
           test ! -f _site/flow-test.html
           test ! -f _site/followup-test.html
+          test ! -f _site/site/index-v025.html
+          test ! -f _site/site/index-v050.html
+          test ! -f _site/site/app/api-client.mjs
+          test ! -f _site/site/app/document-intake.mjs
+          test ! -f _site/site/app/flow-state.mjs
+          test ! -f _site/site/app/upload-metadata.mjs
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
