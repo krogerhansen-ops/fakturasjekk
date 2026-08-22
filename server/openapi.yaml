@@ -154,7 +154,7 @@ paths:
   /v1/cases/{case_id}/payment/session:
     post:
       summary: Registrer checkout-samtykke og opprett checkout hos betalingsleverandør
-      description: Serveren krever versjonsbundet, uttrykkelig betalings-/oppstarts-/angrerettsamtykke før provider-session opprettes. Klienten kan aldri bekrefte betalingsstatus selv.
+      description: Serveren krever versjonsbundet, uttrykkelig betalings-/oppstarts-/angrerettsamtykke før provider-session opprettes. Klienten kan aldri bekrefte betalingsstatus selv. Produksjon kan i tillegg kreve en serververifisert kontakt fra den innloggede kontoen for levering på varig medium; klienten oppgir ikke denne adressen.
       parameters:
         - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -196,6 +196,25 @@ paths:
         '200': { description: Verifisert hendelse behandlet }
         '401': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
+  /v1/webhooks/order-confirmation/{provider}:
+    post:
+      security: []
+      summary: Autentisert leveringsstatus for ordrebekreftelse
+      description: Rå request-body og en serverkonfigurert webhook-hemmelighet brukes til å kontrollere leverandørhendelsen. Provider-aksept av en e-post er ikke varig-medium-levering; bare en samsvarende delivered-hendelse kan markere ordrebekreftelsen levert.
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Autentisert leveringshendelse behandlet eller sikkert ignorert }
+        '401': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/result:
     get:
       summary: Hent fullt kundesikkert resultat
