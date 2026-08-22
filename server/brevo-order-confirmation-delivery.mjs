@@ -2,7 +2,8 @@ const BREVO_SEND_URL = 'https://api.brevo.com/v3/smtp/email';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SAFE_ID_RE = /^[A-Za-z0-9_-]{1,120}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const TERMINAL_FAILURES = new Set(['hardbounce', 'blocked', 'spam', 'invalid', 'error']);
+const TERMINAL_FAILURES = new Set(['hard_bounce', 'blocked', 'spam', 'invalid_email', 'error']);
+const RETRYABLE_FAILURES = new Set(['soft_bounce', 'deferred']);
 const encoder = new TextEncoder();
 
 function required(value, name, max = 500) {
@@ -77,6 +78,19 @@ function lowerHeaders(headers = {}) {
   }
   for (const [key, value] of Object.entries(headers ?? {})) out[String(key).toLowerCase()] = String(value);
   return out;
+}
+
+function normalizeEventName(value) {
+  const compact = String(value ?? '').trim().toLowerCase().replaceAll('-', '_');
+  const aliases = {
+    hardbounce: 'hard_bounce',
+    hard_bounce: 'hard_bounce',
+    softbounce: 'soft_bounce',
+    soft_bounce: 'soft_bounce',
+    invalidemail: 'invalid_email',
+    invalid_email: 'invalid_email'
+  };
+  return aliases[compact] ?? compact;
 }
 
 export function createBrevoOrderConfirmationDelivery({
@@ -165,9 +179,9 @@ export function createBrevoOrderConfirmationDelivery({
     }
     let event;
     try { event = JSON.parse(typeof raw_body === 'string' ? raw_body : ''); }
-    catch { return { authenticated: false } ; }
+    catch { return { authenticated: false }; }
     if (!event || Array.isArray(event) || typeof event !== 'object') return { authenticated: false };
-    const eventName = String(event.event ?? '').trim().toLowerCase();
+    const eventName = normalizeEventName(event.event);
     const messageId = typeof event['message-id'] === 'string' ? event['message-id'].trim() : '';
     const metadata = event['X-Mailin-custom'] ?? event['x-mailin-custom'] ?? null;
     if (!eventName || !messageId || !metadata) return { authenticated: false };
@@ -181,7 +195,7 @@ export function createBrevoOrderConfirmationDelivery({
       event: eventName,
       delivered: eventName === 'delivered',
       terminal_failure: TERMINAL_FAILURES.has(eventName),
-      retryable_failure: eventName === 'softbounce' || eventName === 'deferred',
+      retryable_failure: RETRYABLE_FAILURES.has(eventName),
       delivery_reference: messageId,
       occurred_at: new Date(timestamp * 1000).toISOString(),
       ...route
