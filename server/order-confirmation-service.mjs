@@ -1,3 +1,5 @@
+import { checkoutPolicyReadiness } from './checkout-policy-readiness.mjs';
+
 const ALLOWED_DURABLE_MEDIA = new Set(['email', 'downloadable_document', 'account_document']);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -70,9 +72,14 @@ function deliveryContact(consent) {
 }
 
 function assertPolicy(policy) {
-  if (!policy?.seller?.ready || !policy.seller.legal_name || !policy.seller.postal_address || !policy.seller.support_email || !policy.seller.privacy_email) {
-    const error = new Error('Seller identity must be complete before order confirmation can be prepared.');
+  // A paid customer's receipt must remain generatable if new checkout sessions are
+  // later disabled. All other identity/policy requirements remain strict.
+  const readiness = checkoutPolicyReadiness(policy, { requireLivePaymentSession: false });
+  if (!readiness.ready) {
+    const error = new Error('Verified, finalized seller identity is required before an order confirmation can be prepared.');
     error.code = 'seller_identity_missing';
+    error.readiness_errors = readiness.errors;
+    error.missing_seller_fields = readiness.missing_seller_fields;
     throw error;
   }
 }
@@ -100,7 +107,7 @@ export function buildOrderConfirmation({ confirmation_id, checkout_policy, check
     delivery_contact: contact,
     seller: {
       legal_name: checkout_policy.seller.legal_name,
-      organization_number: checkout_policy.seller.organization_number ?? null,
+      organization_number: checkout_policy.seller.organization_number,
       postal_address: checkout_policy.seller.postal_address,
       support_email: checkout_policy.seller.support_email,
       privacy_email: checkout_policy.seller.privacy_email
