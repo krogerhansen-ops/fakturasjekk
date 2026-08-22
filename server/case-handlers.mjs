@@ -73,6 +73,28 @@ export function createCaseHandlers({ services, registry = null, idempotency = nu
       const user = requireUser(request);
       const case_id = requireCaseId(request.params);
       const body = request.body == null ? {} : requireBodyObject(request.body);
+
+      if (body.action === 'mark_sent') {
+        if (typeof services.markOutboundSent !== 'function') throw new ApiError(503, 'outbound_delivery_unavailable', 'Registrering av sendt innsigelse er ikke tilgjengelig.');
+        const kind = requireString(body.kind, 'outbound_kind_required', 'Type utgående melding må oppgis.', { max: 32 });
+        if (!['draft', 'follow_up'].includes(kind)) throw new ApiError(400, 'invalid_outbound_kind', 'Type utgående melding må være draft eller follow_up.');
+        const record_id = requireString(body.record_id, 'outbound_record_required', 'Utkast-ID må oppgis.', { max: 128 });
+        return mutate(request, `mark_outbound_sent:${case_id}:${kind}:${record_id}`, async () => {
+          const output = await services.markOutboundSent({ case_id, owner_id: user.id, kind, record_id });
+          return {
+            status: 200,
+            body: safe({
+              sent: output.sent === true,
+              idempotent: output.idempotent === true,
+              kind: output.kind,
+              record_id: output.record_id,
+              sent_at: output.sent_at,
+              case: projectCase(output.case)
+            })
+          };
+        });
+      }
+
       return mutate(request, `create_draft:${case_id}`, async () => {
         const output = await services.saveGeneratedDraft({ case_id, owner_id: user.id, mode: body.mode ?? 'request' });
         return { status: 201, body: safe(projectDraftResponse(output)) };
