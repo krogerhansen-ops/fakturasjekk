@@ -145,6 +145,19 @@ export function createOrderConfirmationService({ caseStore, checkoutPolicy, cloc
     return { confirmation: structuredClone(confirmation), case: caseData, created: true };
   }
 
+  async function getLatestPrepared({ case_id, owner_id }) {
+    const caseData = await caseStore.getOwned(case_id, owner_id);
+    const confirmation = latest(caseData.order_confirmations);
+    if (!confirmation) {
+      const error = new Error('Order confirmation is not prepared yet.');
+      error.code = 'order_confirmation_not_ready';
+      throw error;
+    }
+    assertPaid(confirmation.payment);
+    assertConsent(confirmation.agreement);
+    return { confirmation: structuredClone(confirmation), case: caseData };
+  }
+
   async function markDelivered({ case_id, owner_id, confirmation_id, medium, delivery_reference = null }) {
     if (!ALLOWED_DURABLE_MEDIA.has(medium)) {
       const error = new Error('Unsupported durable medium.');
@@ -189,7 +202,7 @@ export function createOrderConfirmationService({ caseStore, checkoutPolicy, cloc
     return { confirmation: structuredClone(updatedConfirmation), case: caseData, updated: true };
   }
 
-  return { prepare, markDelivered };
+  return { prepare, getLatestPrepared, markDelivered };
 }
 
 export const ORDER_CONFIRMATION_DURABLE_MEDIA = Object.freeze([...ALLOWED_DURABLE_MEDIA]);

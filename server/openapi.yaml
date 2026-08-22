@@ -205,6 +205,27 @@ paths:
         '200': { description: Funn, beregninger, bevisgrunnlag, dokumentkontroll, regel-/paragrafkontroll og kontrollert utkast }
         '402': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  /v1/cases/{case_id}/order-confirmation/{format}:
+    get:
+      summary: Hent klargjort ordrebekreftelse og betalingskvittering
+      description: Krever autentisert eier og en tidligere server-verifisert 29 kr-betaling. Responsen inneholder et lokalt nedlastbart HTML- eller tekstpayload. Henting eller filgenerering markerer ikke i seg selv dokumentet som levert på varig medium.
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - name: format
+          in: path
+          required: true
+          schema: { type: string, enum: [html, text] }
+      responses:
+        '200':
+          description: Kundesikker, nedlastbar kopi av den klargjorte ordrebekreftelsen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderConfirmationDownloadResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '402': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /v1/cases/{case_id}/draft:
     post:
       summary: Lagre kontrollert innsigelsesutkast
@@ -347,6 +368,23 @@ components:
         expires_at: { type: [string, 'null'], format: date-time }
         checkout_consent_id: { type: string }
         agreement_confirmation_payload: { $ref: '#/components/schemas/AgreementConfirmationPayload' }
+    OrderConfirmationDownloadResponse:
+      type: object
+      additionalProperties: false
+      required: [confirmation_id, document]
+      properties:
+        confirmation_id: { type: string }
+        document:
+          type: object
+          additionalProperties: false
+          required: [format, filename, content_type, content_disposition, body, durable_medium_delivered]
+          properties:
+            format: { type: string, enum: [html, text] }
+            filename: { type: string }
+            content_type: { type: string }
+            content_disposition: { type: string }
+            body: { type: string }
+            durable_medium_delivered: { type: boolean, const: false }
     ErrorResponse:
       type: object
       required: [error]

@@ -5,6 +5,7 @@ import { createCaseManagement } from './case-management.mjs';
 import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { createCheckoutConsentService } from './checkout-consent-service.mjs';
+import { createOrderConfirmationService } from './order-confirmation-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createApi } from './api.mjs';
@@ -61,7 +62,15 @@ export function createProductionApp({
   const management = createCaseManagement({ caseStore, storage, audit });
   const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
   const idempotency = createIdempotencyService({ store: idempotencyStore });
-  const paymentWebhookService = createPaymentWebhookService({ caseStore, services, gateway: paymentGateway, eventStore: paymentEventStore, audit });
+  const orderConfirmationService = checkoutPolicy ? createOrderConfirmationService({ caseStore, checkoutPolicy }) : null;
+  const paymentWebhookService = createPaymentWebhookService({
+    caseStore,
+    services,
+    gateway: paymentGateway,
+    eventStore: paymentEventStore,
+    audit,
+    orderConfirmationService
+  });
   const checkoutConsentService = checkoutPolicy ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy }) : null;
   const readinessResult = evaluateReadiness({ product, registry, adapters: serviceAdapters, paymentGateway });
   if (!readinessResult.ready) {
@@ -79,6 +88,7 @@ export function createProductionApp({
     paymentWebhookService,
     paymentProviderName: paymentGateway.provider_name ?? config.payment_provider,
     checkoutConsentService,
+    orderConfirmationService,
     allowedReturnOrigins: [config.app_origin],
     readiness,
     version: product.version,
@@ -93,7 +103,7 @@ export function createProductionApp({
     production: true,
     basePath: edgeBasePath
   });
-  return { handler, fetchHandler, api, services, management, readiness: readinessResult, launch_gate: launchGateResult };
+  return { handler, fetchHandler, api, services, management, orderConfirmationService, readiness: readinessResult, launch_gate: launchGateResult };
 }
 
 export async function startProductionApp({ app, port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? '0.0.0.0' } = {}) {
