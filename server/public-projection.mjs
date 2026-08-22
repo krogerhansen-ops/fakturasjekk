@@ -128,6 +128,26 @@ function projectCompanyCheck(check) {
   };
 }
 
+function projectCoverage(coverage) {
+  if (!coverage) return null;
+  const entries = values => (values ?? []).map(entry => ({
+    label: entry.label,
+    status: entry.status,
+    explanation: entry.explanation
+  }));
+  return {
+    summary: {
+      checked: Number(coverage.summary?.checked ?? 0),
+      limited: Number(coverage.summary?.limited ?? 0),
+      not_applicable: Number(coverage.summary?.not_applicable ?? 0)
+    },
+    message: coverage.message ?? null,
+    checked: entries(coverage.checked),
+    limited: entries(coverage.limited),
+    not_applicable: entries(coverage.not_applicable)
+  };
+}
+
 export function projectFullResult(result, registry) {
   const ruleMap = new Map((registry?.rules ?? []).map(rule => [rule.id, rule]));
   const ruleIds = [...new Set(result?.analysis?.rule_ids ?? [])];
@@ -157,6 +177,7 @@ export function projectFullResult(result, registry) {
     } : null,
     document_checks: projectDocumentChecks(result?.document_checks),
     company_check: projectCompanyCheck(result?.company_check),
+    coverage: projectCoverage(result?.coverage),
     assurance: result?.assurance ? {
       level: result.assurance.level,
       counts: result.assurance.counts,
