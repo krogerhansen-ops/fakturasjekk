@@ -59,6 +59,7 @@ const deliveryAdapter = {
     assert.equal(input.case_id, 'case-1');
     assert.equal(input.owner_id, 'owner-1');
     assert.equal(input.confirmation_id, 'confirmation-1');
+    assert.equal(input.idempotency_key, 'confirmation-1', 'provider send must use stable confirmation ID as idempotency key');
     assert.match(input.subject, /ordrebekreftelse/i);
     assert.match(input.text, /29,00 kr/);
     assert.match(input.html, /Ordrebekreftelse og betalingskvittering/);
@@ -114,4 +115,4 @@ await assert.rejects(
   error => error?.code === 'order_confirmation_mismatch'
 );
 
-console.log('OK durable order confirmation delivery: provider-confirmed only, retry-safe and fail-closed');
+console.log('OK durable order confirmation delivery: provider-confirmed only, provider-idempotent, retry-safe and fail-closed');
