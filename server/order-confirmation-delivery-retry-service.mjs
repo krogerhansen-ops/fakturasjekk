@@ -29,14 +29,22 @@ export function createOrderConfirmationDeliveryRetryService({
   const boundedDefault = safeLimit(defaultLimit);
 
   async function record({ case_id, confirmation_id, outcome, metadata = {} }) {
-    if (!audit?.record) return;
-    await audit.record({
-      actor_id: null,
-      case_id,
-      action: 'order_confirmation.retry',
-      outcome,
-      metadata: { confirmation_id, ...metadata }
-    });
+    if (!audit?.record) return true;
+    try {
+      await audit.record({
+        actor_id: null,
+        case_id,
+        action: 'order_confirmation.retry',
+        outcome,
+        metadata: { confirmation_id, ...metadata }
+      });
+      return true;
+    } catch {
+      // Audit availability must never alter whether a provider-confirmed receipt
+      // delivery is reported as successful. The runner exposes a separate count
+      // so operations can alert on audit degradation independently.
+      return false;
+    }
   }
 
   async function run({ limit = boundedDefault } = {}) {
@@ -48,6 +56,7 @@ export function createOrderConfirmationDeliveryRetryService({
       already_delivered: 0,
       skipped: 0,
       failed: 0,
+      audit_failures: 0,
       errors: []
     };
 
@@ -68,7 +77,7 @@ export function createOrderConfirmationDeliveryRetryService({
         if (result?.delivered === true) {
           if (result?.idempotent === true) summary.already_delivered += 1;
           else summary.delivered += 1;
-          await record({
+          const audited = await record({
             case_id: candidate.id,
             confirmation_id: confirmationId,
             outcome: 'success',
@@ -77,6 +86,7 @@ export function createOrderConfirmationDeliveryRetryService({
               durable_medium: result?.medium ?? null
             }
           });
+          if (!audited) summary.audit_failures += 1;
         } else {
           summary.failed += 1;
           summary.errors.push({
@@ -84,12 +94,13 @@ export function createOrderConfirmationDeliveryRetryService({
             confirmation_id: confirmationId,
             error_code: 'order_confirmation_delivery_unconfirmed'
           });
-          await record({
+          const audited = await record({
             case_id: candidate.id,
             confirmation_id: confirmationId,
             outcome: 'failed',
             metadata: { error_code: 'order_confirmation_delivery_unconfirmed' }
           });
+          if (!audited) summary.audit_failures += 1;
         }
       } catch (error) {
         const errorCode = safeErrorCode(error);
@@ -99,12 +110,13 @@ export function createOrderConfirmationDeliveryRetryService({
           confirmation_id: confirmationId,
           error_code: errorCode
         });
-        await record({
+        const audited = await record({
           case_id: candidate.id,
           confirmation_id: confirmationId,
           outcome: 'failed',
           metadata: { error_code: errorCode }
         });
+        if (!audited) summary.audit_failures += 1;
       }
     }
 
