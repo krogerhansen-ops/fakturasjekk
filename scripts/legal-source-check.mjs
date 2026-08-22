@@ -1,12 +1,15 @@
 import fs from 'node:fs';
+import { assertLegalRateRegistry } from '../engine/legal-rates.mjs';
 
 const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
 const specialistRegistry = JSON.parse(fs.readFileSync(new URL('../rules/specialist-candidates.json', import.meta.url), 'utf8'));
 const transitions = JSON.parse(fs.readFileSync(new URL('../rules/transitions.json', import.meta.url), 'utf8'));
+const rateRegistry = JSON.parse(fs.readFileSync(new URL('../rules/dynamic-rates.json', import.meta.url), 'utf8'));
 
 if (specialistRegistry.runtime !== false || specialistRegistry.purpose !== 'preactivation_only') {
   throw new Error('Specialist legal registry must remain isolated from runtime.');
 }
+assertLegalRateRegistry(rateRegistry);
 
 const runtimeMonitoredRules = registry.rules.filter(r => ['active', 'candidate'].includes(r.status));
 const preactivationRules = specialistRegistry.rules ?? [];
@@ -39,14 +42,22 @@ function normalizeHtml(html) {
     .toLowerCase();
 }
 
+const sourceCache = new Map();
 async function fetchNormalized(url) {
+  if (sourceCache.has(url)) return sourceCache.get(url);
   const response = await fetch(url, {
     redirect: 'follow',
-    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.30 (+https://fakturasjekk.no)' },
+    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.31 (+https://fakturasjekk.no)' },
     signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return normalizeHtml(await response.text());
+  const normalized = normalizeHtml(await response.text());
+  sourceCache.set(url, normalized);
+  return normalized;
+}
+
+function expectedPhrase(value) {
+  return String(value ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 const failures = [];
@@ -54,7 +65,7 @@ const failures = [];
 for (const rule of monitoredRules) {
   try {
     const text = await fetchNormalized(rule.source_url);
-    const expected = rule.expected_phrase.toLowerCase().replace(/\s+/g, ' ').trim();
+    const expected = expectedPhrase(rule.expected_phrase);
     if (!text.includes(expected)) {
       failures.push(`${rule.id} (${rule.status}/${rule.registry_class}): kontrollfrasen finnes ikke lenger i kilden: "${rule.expected_phrase}"`);
     } else {
@@ -65,11 +76,25 @@ for (const rule of monitoredRules) {
   }
 }
 
+for (const rate of rateRegistry.rates ?? []) {
+  try {
+    const text = await fetchNormalized(rate.source_url);
+    const expected = expectedPhrase(rate.expected_phrase);
+    if (!text.includes(expected)) {
+      failures.push(`${rate.id} (controlled_rate): kontrollfrasen finnes ikke lenger i kilden: "${rate.expected_phrase}"`);
+    } else {
+      console.log(`OK ${rate.id} · controlled_rate · ${rate.effective_from}–${rate.effective_to}`);
+    }
+  } catch (error) {
+    failures.push(`${rate.id} (controlled_rate): kildekontroll feilet: ${error.message}`);
+  }
+}
+
 for (const transition of transitions.transitions ?? []) {
   if (transition.status !== 'awaiting_commencement') continue;
   try {
     const currentText = await fetchNormalized(transition.current_source_url);
-    const pending = transition.expected_pending_phrase.toLowerCase().replace(/\s+/g, ' ').trim();
+    const pending = expectedPhrase(transition.expected_pending_phrase);
     if (!currentText.includes(pending)) {
       failures.push(`${transition.id}: overgangsfrasen er endret eller borte. Mulig ikrafttredelse/endring må kontrolleres straks. ${transition.action_when_changed}`);
     } else {
@@ -83,7 +108,7 @@ for (const transition of transitions.transitions ?? []) {
 }
 
 if (failures.length) {
-  console.error('\nFAIL-CLOSED: Minst én overvåket rettskilde, preaktiveringskandidat eller lovovergang må kontrolleres manuelt før berørte regler kan anses som ferske.');
+  console.error('\nFAIL-CLOSED: Minst én overvåket rettskilde, kontrollert sats, preaktiveringskandidat eller lovovergang må kontrolleres manuelt før berørte regler/satser kan anses som ferske.');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
@@ -91,4 +116,5 @@ if (failures.length) {
 const activeCount = registry.rules.filter(r => r.status === 'active').length;
 const candidateCount = registry.rules.filter(r => r.status === 'candidate').length;
 const preactivationCount = preactivationRules.length;
-console.log(`\nOK: ${activeCount} aktive runtime-regler, ${candidateCount} runtime-kandidat(er), ${preactivationCount} isolerte preaktiveringskandidat(er) og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
+const rateCount = rateRegistry.rates?.length ?? 0;
+console.log(`\nOK: ${activeCount} aktive runtime-regler, ${candidateCount} runtime-kandidat(er), ${preactivationCount} isolerte preaktiveringskandidat(er), ${rateCount} kontrollerte satser og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
