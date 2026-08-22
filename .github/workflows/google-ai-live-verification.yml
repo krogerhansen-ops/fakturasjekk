@@ -1,0 +1,115 @@
+name: Fakturasjekk Google AI live verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Synthetic provider test to run'
+        required: true
+        type: choice
+        options:
+          - ocr-only
+          - ocr-and-structured-ai
+        default: ocr-only
+      confirm_project_id:
+        description: 'Type the reviewed dedicated Fakturasjekk Google Cloud project id'
+        required: true
+        type: string
+      cost_mode:
+        description: 'Keep zero unless this one synthetic provider test is explicitly funded'
+        required: true
+        type: choice
+        options:
+          - zero
+          - funded
+        default: zero
+      paid_services_approved:
+        description: 'Type approved only when paid external service calls are explicitly approved'
+        required: true
+        type: string
+        default: 'no'
+      confirm_paid_network_calls:
+        description: 'Type I_APPROVE_SYNTHETIC_GOOGLE_NETWORK_CALLS to permit the synthetic Google request(s)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  GOOGLE_CLOUD_LOCATION: eu
+  GOOGLE_STRUCTURED_AI_MODEL: gemini-3.1-flash-lite
+
+jobs:
+  synthetic-google-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse unapproved provider network calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.cost_mode }}" != "funded" ]]; then
+            echo 'Google live verification blocked: cost mode must be funded for this explicit synthetic provider test.' >&2
+            exit 2
+          fi
+          if [[ "${{ inputs.paid_services_approved }}" != "approved" ]]; then
+            echo 'Google live verification blocked: paid services are not explicitly approved.' >&2
+            exit 3
+          fi
+          if [[ "${{ inputs.confirm_paid_network_calls }}" != "I_APPROVE_SYNTHETIC_GOOGLE_NETWORK_CALLS" ]]; then
+            echo 'Google live verification blocked: exact synthetic network-call approval phrase is missing.' >&2
+            exit 4
+          fi
+          if [[ -z "${{ inputs.confirm_project_id }}" ]]; then
+            echo 'Google live verification blocked: reviewed project id confirmation is required.' >&2
+            exit 5
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Verify reviewed Google target exists before reading credentials
+        shell: bash
+        env:
+          CONFIRMED_PROJECT_ID: ${{ inputs.confirm_project_id }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { validateGoogleLiveTarget } from './scripts/verify-google-ai-live.mjs';
+          const target = JSON.parse(fs.readFileSync('./config/google-cloud-target.json', 'utf8'));
+          validateGoogleLiveTarget(target, process.env.CONFIRMED_PROJECT_ID);
+          console.log('OK: reviewed Fakturasjekk-only Google project target is configured and matches manual confirmation.');
+          NODE
+
+      - name: Run synthetic EU Google OCR / structured AI verification
+        env:
+          FAKTURASJEKK_COST_MODE: ${{ inputs.cost_mode }}
+          FAKTURASJEKK_PAID_SERVICES_APPROVED: ${{ inputs.paid_services_approved }}
+          FAKTURASJEKK_GOOGLE_SYNTHETIC_E2E_APPROVED: ${{ inputs.confirm_paid_network_calls }}
+          GOOGLE_LIVE_E2E_MODE: ${{ inputs.mode }}
+          GOOGLE_CLOUD_PROJECT_ID: ${{ inputs.confirm_project_id }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_STRUCTURED_AI_MODEL: ${{ env.GOOGLE_STRUCTURED_AI_MODEL }}
+        run: node scripts/verify-google-ai-live.mjs
+
+      - name: Customer processing remains disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const target = JSON.parse(fs.readFileSync('./config/google-cloud-target.json', 'utf8'));
+          if (target.customer_data_live_enabled !== false) {
+            console.error('Google customer-data processing unexpectedly enabled.');
+            process.exit(6);
+          }
+          console.log('OK: Google workflow remains synthetic-only; customer data live processing is disabled.');
+          NODE
