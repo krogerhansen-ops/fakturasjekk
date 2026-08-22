@@ -12,6 +12,7 @@ const prepared = [
   'dsb_elvirksomhet',
   'vegvesen_workshop',
   'vegvesen_control_body',
+  'reisegarantifondet_members',
   'fgas_certification'
 ];
 for (const id of prepared) {
@@ -54,10 +55,19 @@ assert.match(parking.machine_source_url, /^https:\/\/www\.vegvesen\.no\/ws\//);
 assert.deepEqual(parking.applicable_industries, ['parking']);
 assert.match(parking.notes, /historisk relevans/i);
 
+const travel = config.registers.reisegarantifondet_members;
+assert.equal(travel.official_export_available, false);
+assert.equal('machine_source_url' in travel, false);
+assert.deepEqual(travel.applicable_industries, ['package_travel']);
+assert.match(travel.landing_url, /^https:\/\/reisegarantifondet\.no\/medlemmer\/$/);
+assert.match(travel.notes, /skjult scraping/i);
+assert.match(travel.notes, /runtime forblir stengt/i);
+assert.match(travel.notes, /[Mm]anglende treff.*ikke.*negativt bevis/i);
+
 for (const item of Object.values(config.registers)) {
   assert.notEqual(item.status, 'live', 'no specialist register may become live through source-verification metadata alone');
 }
 assert.match(config.registers.vegvesen_control_body.notes, /vanlig verkstedgodkjenning er ikke tilstrekkelig/i);
 assert.match(config.registers.fgas_certification.notes, /ikke.*negativt funn/i);
 
-console.log('OK specialist registers distinguish verified source metadata from live runtime use and remain fail closed.');
+console.log('OK specialist registers distinguish verified sources from manual-only sources and remain fail closed.');
