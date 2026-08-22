@@ -7,7 +7,7 @@ import { createValidatedOcrAiAdapters } from '../server/ai-adapter-factory.mjs';
 import { createPaymentWebhookService } from '../server/payment-webhook-service.mjs';
 import { createMemoryPaymentEventStore } from '../server/payment-event-store.mjs';
 import { createSupplierResponseService } from '../server/supplier-response-service.mjs';
-import { transitionCase } from '../engine/case-state.mjs';
+import { createOutboundDeliveryService } from '../server/outbound-delivery-service.mjs';
 
 const readJson = path => JSON.parse(fs.readFileSync(new URL(path, import.meta.url), 'utf8'));
 const registry = readJson('../rules/rules.json');
@@ -91,11 +91,13 @@ const { extractor, responseInterpreter } = createValidatedOcrAiAdapters({
   responseModel: 'gemini-3.1-flash-lite'
 });
 
-const services = createBackendServices({
+const backendServices = createBackendServices({
   registry, product, uploadPolicy, extractionPolicy, retentionPolicy,
   adapters: { caseStore, storage, extractor },
   clock
 });
+const outboundDeliveryService = createOutboundDeliveryService({ caseStore, clock });
+const services = { ...backendServices, markOutboundSent: outboundDeliveryService.markSent };
 const owner = 'synthetic-user';
 
 // 1) Case + private signed upload reservation.
@@ -181,10 +183,18 @@ const savedDraft = await services.saveGeneratedDraft({ case_id: created.id, owne
 assert.equal(savedDraft.case.state, 'draft_ready');
 assert.match(savedDraft.draft.text, /jeg ber|ber om/i);
 
-// 5) Simulate user sending the draft, then supplier response -> Svarrunde 2 -> follow-up.
-let caseData = await caseStore.getOwned(created.id, owner);
-caseData = transitionCase(caseData, 'sent_to_supplier', { clock });
-await caseStore.save(caseData);
+// 5) User confirms the objection was sent through the real lifecycle, then supplier response -> Svarrunde 2 -> follow-up.
+const sentDraft = await services.markOutboundSent({
+  case_id: created.id,
+  owner_id: owner,
+  kind: 'draft',
+  record_id: savedDraft.draft.id
+});
+assert.equal(sentDraft.sent, true);
+assert.equal(sentDraft.case.state, 'sent_to_supplier');
+assert.equal(sentDraft.case.events.at(-1).type, 'OUTBOUND_SENT');
+assert.equal(sentDraft.case.events.at(-1).data.record_id, savedDraft.draft.id);
+
 const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter, clock: () => new Date(now) });
 const supplier = await supplierResponseService.processText({
   case_id: created.id,
@@ -201,7 +211,18 @@ assert.match(responseRequest.input.response_text, /IGNORE ALL PREVIOUS INSTRUCTI
 assert.equal(responseRequest.security.legal_reasoning_allowed, false);
 assert.equal(JSON.stringify(responseRequest).includes('storage_key'), false);
 
+const followUpRecord = supplier.case.follow_ups.at(-1);
+assert.ok(followUpRecord?.id, 'Svarrunde 2 must persist a follow-up record before it can be sent');
+const sentFollowUp = await services.markOutboundSent({
+  case_id: created.id,
+  owner_id: owner,
+  kind: 'follow_up',
+  record_id: followUpRecord.id
+});
+assert.equal(sentFollowUp.case.state, 'sent_to_supplier');
+assert.equal(sentFollowUp.case.events.at(-1).data.kind, 'follow_up');
+
 // 6) Cross-user isolation remains enforced at end of journey.
 await assert.rejects(() => services.getFullResult({ case_id: created.id, owner_id: 'other-user' }), /not found|owned/i);
 
-console.log('OK full synthetic journey: private upload -> OCR/facts -> rules -> 29 NOK capture -> draft -> supplier response -> follow-up');
+console.log('OK full synthetic journey: private upload -> OCR/facts -> rules -> 29 NOK capture -> draft sent -> supplier response -> follow-up sent');
