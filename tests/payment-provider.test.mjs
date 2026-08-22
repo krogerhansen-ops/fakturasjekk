@@ -24,6 +24,35 @@ assert.equal(session.provider, 'dev-pay');
 assert.match(session.checkout_url, /^https:\/\//);
 await assert.rejects(() => gateway.createSession({ case_id: 'case-1', owner_id: 'u1', requirement: { amount_minor: 3000, currency: 'NOK' } }), /unexpected product price/i);
 await assert.rejects(() => gateway.verifyEvent({ headers: {}, raw_body: JSON.stringify({ signature: 'bad', case_id: 'case-1', amount_minor: 2900, currency: 'NOK', status: 'paid' }) }), /kunne ikke verifiseres/i);
+await assert.rejects(() => gateway.cancelPayment({ case_id: 'case-1' }), /does not support payment cancellation/i);
+await assert.rejects(() => gateway.refundPayment({ case_id: 'case-1' }), /does not support refunds/i);
+await assert.rejects(() => gateway.pollPaymentEvents({ case_id: 'case-1' }), /does not support payment event polling/i);
+await assert.rejects(() => gateway.reconcilePayment({ case_id: 'case-1' }), /does not support payment reconciliation/i);
+
+const operationCalls = [];
+const opsProvider = {
+  name: 'ops-pay',
+  async createPayment({ case_id }) { return { provider_reference: `ops-${case_id}`, checkout_url: 'https://pay.example.test' }; },
+  async verifyWebhook() { return { signature_valid: true, case_id: 'case-ops', provider_reference: 'psp-ops', amount_minor: 2900, currency: 'NOK', status: 'paid' }; },
+  async cancelPayment(args) { operationCalls.push(['cancel', args]); return { cancelled: true }; },
+  async refundPayment(args) { operationCalls.push(['refund', args]); return { refunded: true }; },
+  async getPayment(args) { operationCalls.push(['payment', args]); return { payment: { state: 'AUTHORIZED' } }; },
+  async getPaymentEvents(args) { operationCalls.push(['events', args]); return { events: [{ name: 'CAPTURED' }] }; },
+  async reconcilePayment(args) { operationCalls.push(['reconcile', args]); return { fully_captured: true }; }
+};
+const opsGateway = createPaymentProviderGateway({ provider: opsProvider, allowed_providers: ['ops-pay'] });
+assert.equal((await opsGateway.cancelPayment({ case_id: 'case-ops', cancel_transaction_only: true })).cancelled, true);
+assert.equal((await opsGateway.refundPayment({ case_id: 'case-ops', amount_minor: 1000, currency: 'NOK', refund_id: 'partial-1' })).refunded, true);
+assert.equal((await opsGateway.pollPayment({ case_id: 'case-ops' })).payment.state, 'AUTHORIZED');
+assert.equal((await opsGateway.pollPaymentEvents({ case_id: 'case-ops' })).events[0].name, 'CAPTURED');
+assert.equal((await opsGateway.reconcilePayment({ case_id: 'case-ops' })).fully_captured, true);
+assert.deepEqual(operationCalls, [
+  ['cancel', { case_id: 'case-ops', cancel_transaction_only: true }],
+  ['refund', { case_id: 'case-ops', amount_minor: 1000, currency: 'NOK', refund_id: 'partial-1' }],
+  ['payment', { case_id: 'case-ops' }],
+  ['events', { case_id: 'case-ops' }],
+  ['reconcile', { case_id: 'case-ops' }]
+]);
 
 const caseStore = createMemoryCaseStore();
 await caseStore.save({ id: 'case-1', owner_id: 'u1', state: 'analysis_ready', deleted_at: null });
@@ -59,4 +88,4 @@ assert.equal(conflict.paid, false);
 assert.equal(conflict.conflict, true);
 assert.equal(confirmCalls, 2, 'conflicted event must not mutate the other case');
 
-console.log('OK secure retry-safe payment provider boundary');
+console.log('OK secure retry-safe payment provider boundary with adjustment and reconciliation operations');
