@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "policy": {
     "default_max_age_hours": 48,
     "require_official_authority": true,
@@ -45,15 +45,19 @@
       "notes": "PKK krever kontrollorgan-godkjenning. Fakturasjekk skal kontrollere konkret KONTROLLORGAN-kategori; vanlig verkstedgodkjenning er ikke tilstrekkelig bevis."
     },
     "arbeidstilsynet_cleaning": {
-      "status": "prepared_not_live",
+      "status": "source_verified_not_live",
       "authority": "Arbeidstilsynet",
       "customer_label": "Arbeidstilsynet – Renholdsregisteret",
       "landing_url": "https://www.arbeidstilsynet.no/godkjenninger/renholdsregisteret/",
+      "dataset_catalog_url": "https://data.norge.no/nb/datasets/b3642673-6855-3af9-93b0-fe6f01fbaa5d/renholdsvirksomheter-godkjent-av-arbeidstilsynet",
+      "machine_source_url": "https://registerdata.arbeidstilsynet.no/renhold_register.xml",
+      "schema_url": "https://www.arbeidstilsynet.no/opendata/RegisterXML6.xsd",
       "official_export_available": true,
-      "machine_source_verified": false,
+      "machine_source_verified": true,
+      "source_update_frequency": "daily",
       "max_age_hours": 48,
       "applicable_industries": ["cleaning"],
-      "notes": "Arbeidstilsynet opplyser at registerdata finnes i andre formater via Felles datakatalog. Automatisk oppslag aktiveres først etter verifisert offisiell maskinkilde og korrekt tolkning av Godkjent/Søknad til behandling/HMS-kortbestilling/Ikke godkjent."
+      "notes": "Data.norge oppgir et daglig oppdatert, åpent XML-datasett fra Arbeidstilsynet med organisasjonsnummer og registerstatus. Runtime-oppslag er fortsatt stengt inntil XML-strukturen/XSD er implementert og testet, org.nr.-matching er entydig og gjeldende statusverdier håndteres konservativt. Manglende treff alene er aldri negativt bevis."
     },
     "fgas_certification": {
       "status": "prepared_not_live",
