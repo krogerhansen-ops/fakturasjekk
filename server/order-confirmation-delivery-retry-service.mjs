@@ -1,0 +1,120 @@
+function safeLimit(value, fallback = 25) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
+function latestConfirmation(caseData) {
+  const confirmations = caseData?.order_confirmations ?? [];
+  return Array.isArray(confirmations) && confirmations.length ? confirmations.at(-1) : null;
+}
+
+function safeErrorCode(error) {
+  const code = typeof error?.code === 'string' ? error.code.trim() : '';
+  return code && /^[a-z0-9_:-]{1,80}$/i.test(code) ? code : 'order_confirmation_retry_failed';
+}
+
+export function createOrderConfirmationDeliveryRetryService({
+  caseStore,
+  deliveryService,
+  audit = null,
+  defaultLimit = 25
+} = {}) {
+  if (typeof caseStore?.listPendingOrderConfirmationDeliveries !== 'function') {
+    throw new Error('Order confirmation retry requires listPendingOrderConfirmationDeliveries.');
+  }
+  if (typeof deliveryService?.deliverPrepared !== 'function') {
+    throw new Error('Order confirmation retry requires a delivery service.');
+  }
+  const boundedDefault = safeLimit(defaultLimit);
+
+  async function record({ case_id, confirmation_id, outcome, metadata = {} }) {
+    if (!audit?.record) return;
+    await audit.record({
+      actor_id: null,
+      case_id,
+      action: 'order_confirmation.retry',
+      outcome,
+      metadata: { confirmation_id, ...metadata }
+    });
+  }
+
+  async function run({ limit = boundedDefault } = {}) {
+    const batchLimit = safeLimit(limit, boundedDefault);
+    const candidates = await caseStore.listPendingOrderConfirmationDeliveries({ limit: batchLimit });
+    const summary = {
+      checked: candidates.length,
+      delivered: 0,
+      already_delivered: 0,
+      skipped: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const candidate of candidates) {
+      const confirmation = latestConfirmation(candidate);
+      const confirmationId = confirmation?.confirmation_id ?? null;
+      if (!candidate?.id || !candidate?.owner_id || !confirmationId || confirmation?.durable_medium_delivered === true) {
+        summary.skipped += 1;
+        continue;
+      }
+
+      try {
+        const result = await deliveryService.deliverPrepared({
+          case_id: candidate.id,
+          owner_id: candidate.owner_id,
+          confirmation_id: confirmationId
+        });
+        if (result?.delivered === true) {
+          if (result?.idempotent === true) summary.already_delivered += 1;
+          else summary.delivered += 1;
+          await record({
+            case_id: candidate.id,
+            confirmation_id: confirmationId,
+            outcome: 'success',
+            metadata: {
+              idempotent: result?.idempotent === true,
+              durable_medium: result?.medium ?? null
+            }
+          });
+        } else {
+          summary.failed += 1;
+          summary.errors.push({
+            case_id: candidate.id,
+            confirmation_id: confirmationId,
+            error_code: 'order_confirmation_delivery_unconfirmed'
+          });
+          await record({
+            case_id: candidate.id,
+            confirmation_id: confirmationId,
+            outcome: 'failed',
+            metadata: { error_code: 'order_confirmation_delivery_unconfirmed' }
+          });
+        }
+      } catch (error) {
+        const errorCode = safeErrorCode(error);
+        summary.failed += 1;
+        summary.errors.push({
+          case_id: candidate.id,
+          confirmation_id: confirmationId,
+          error_code: errorCode
+        });
+        await record({
+          case_id: candidate.id,
+          confirmation_id: confirmationId,
+          outcome: 'failed',
+          metadata: { error_code: errorCode }
+        });
+      }
+    }
+
+    return {
+      ...summary,
+      ok: summary.failed === 0,
+      limit: batchLimit,
+      has_more_possible: candidates.length === batchLimit
+    };
+  }
+
+  return { run };
+}
