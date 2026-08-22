@@ -1,6 +1,7 @@
 import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createProductionApp, startProductionApp } from './production-app.mjs';
 import { evaluateZeroCostMode } from './zero-cost-mode.mjs';
+import { evaluateRepositoryProtectionGate } from './repository-protection-gate.mjs';
 
 export function assertCustomerProductionFunding(env = process.env) {
   const cost = evaluateZeroCostMode(env);
@@ -23,8 +24,20 @@ export function createCustomerProductionApp(options = {}) {
   const launch = evaluateLaunchGate(options.launchGate);
   if (!launch.valid) throw new Error(`Launch gate is invalid: ${launch.errors.join('; ')}`);
   if (!launch.launch_allowed) throw new Error(`Customer launch is blocked by ${launch.blocking_count} gate(s): ${launch.blocking_ids.join(', ')}`);
+
+  // Repository governance is an independent production interlock. A green
+  // application checklist is insufficient if GitHub still permits direct or
+  // destructive changes to main without the required review/status controls.
+  const repositoryProtection = evaluateRepositoryProtectionGate(options.repositoryProtectionGate);
+  if (!repositoryProtection.valid) {
+    throw new Error(`Repository protection gate is invalid: ${repositoryProtection.errors.join('; ')}`);
+  }
+  if (!repositoryProtection.launch_allowed) {
+    throw new Error(`Customer launch is blocked by ${repositoryProtection.blocking_id}.`);
+  }
+
   const app = createProductionApp(options);
-  return { ...app, launch };
+  return { ...app, launch, repository_protection: repositoryProtection };
 }
 
 export async function startCustomerProductionApp(options = {}) {

@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "required": true,
+  "status": "todo",
+  "repository": "krogerhansen-ops/fakturasjekk",
+  "branch": "main",
+  "evidence": null,
+  "requirements": {
+    "protected": true,
+    "pull_request_required": true,
+    "quality_gate_required": true,
+    "codeowner_review_required": true,
+    "force_push_blocked": true,
+    "branch_deletion_blocked": true
+  },
+  "note": "Must remain incomplete until live GitHub branch-protection/ruleset read-back proves enforcement. CODEOWNERS or CI files alone are not evidence."
+}
