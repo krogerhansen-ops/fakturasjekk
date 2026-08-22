@@ -1,6 +1,6 @@
 # Fakturasjekk – databehandler- og overføringsregister
 
-Dato: 19.08.2026
+Dato: 22.08.2026
 Status: Levende launch-register. Leverandørvalg kan registreres før juridisk godkjenning; ekte kundedata er blokkert inntil DPA/underleverandører/overføringer er kontrollert.
 
 ## Leverandørkrav
@@ -32,7 +32,7 @@ Ingen produksjonsleverandør som behandler kundedata kan godkjennes før følgen
 | Faktatolk etter OCR | Google Vertex AI, `gemini-3.1-flash-lite` | databehandler forventet for OCR-tekst/saksinnhold; må bekreftes kontraktuelt | hardlåst `eu` multi-region, `aiplatform.eu.rep.googleapis.com` | kartlegges | nei | ikke godkjent | ukjent; support/underleverandørtilgang må kartlegges | ikke vurdert | SELECTED / CODE READY / BLOCKED FOR LIVE DATA |
 | Svarrunde 2-tolk | Google Vertex AI, `gemini-3.1-flash-lite` | databehandler forventet for leverandørsvar og eksisterende funn | hardlåst `eu` multi-region | kartlegges | nei | ikke godkjent | ukjent | ikke vurdert | SELECTED / CODE READY / BLOCKED FOR LIVE DATA |
 | Betaling | Vipps MobilePay ePayment | rolle må vurderes konkret; leverandøren kan være selvstendig behandlingsansvarlig for deler av betalingsbehandlingen | kartlegges fra avtale/providerinfo | kartlegges | nei | kontrakt/providerreview gjenstår | kartlegges | vurderes | SELECTED / CODE READY / BLOCKED FOR LIVE PAYMENT |
-| E-post/kvittering | [velges] | databehandler forventet for meldingsdata | EØS foretrekkes | [kartlegges] | nei | nei | ukjent | ikke vurdert | BLOCKED |
+| E-post/kvittering | Brevo transactional email | databehandler forventet for mottakeradresse og ordrebekreftelses-/kvitteringsinnhold | Brevo oppgir databasehosting i EU: OVH Frankrike/Tyskland og Google Cloud Belgia | må kartlegges kontraktuelt, inkludert support og konsern-/underleverandørtilgang | nei | Brevo oppgir DPA tilgjengelig; ikke gjennomgått/godkjent for Fakturasjekk | mulig via support/underleverandørkjede; må kartlegges selv om databasehosting er i EU | DPA, underleverandørliste og eventuell transfer-vurdering gjenstår | SELECTED / CODE READY / BLOCKED FOR LIVE EMAIL |
 | Sikkerhetslogging | Supabase/minimal egen audit foretrekkes fremfor ekstra SaaS | databehandler hvis ekstern | EØS foretrekkes | [kartlegges] | nei | vurderes | ukjent | ikke vurdert | BLOCKED UNTIL LIVE VERIFY |
 
 ## Supabase – kjent teknisk status
@@ -102,6 +102,26 @@ Implementert:
 
 Live er blokkert til Fakturasjekk har eget Vipps-salgssted/ePayment, merchant credentials, webhook-registrering, endelig selgeridentitet, testmiljø-E2E og provider-/personvernreview.
 
+## Brevo – ordrebekreftelse og betalingskvittering
+
+Brevo transactional email er valgt som kodeklar kandidat for levering av ordrebekreftelse/betalingskvittering på e-post. Brevo skal **ikke** motta faktura, tilbud, OCR-tekst, regelanalyse, innsigelsesutkast eller andre kundedokumenter. Den planlagte datamengden er begrenset til verifisert mottakeradresse og selve ordrebekreftelsen/kvitteringen, inkludert kjøps-/betalingsreferanse og versjonerte avtaleopplysninger.
+
+Implementert:
+
+- `server/brevo-order-confirmation-delivery.mjs`
+- `server/order-confirmation-delivery-webhook-service.mjs`
+- `config/brevo-delivery-target.json`
+- `scripts/verify-brevo-live.mjs`
+- mottakeradresse hentes server-side fra bekreftet Supabase Auth-konto; browseren får ikke velge kvitteringsadresse
+- provider-aksept og faktisk `delivered` er separate tilstander
+- bare autentisert `delivered`-webhook kan fullføre varig-medium-levering
+- provider-idempotens og lagret message-id hindrer dobbeltsending etter aksept
+- `contactPixelTrackingConsent:false` brukes. Brevo opplyser per 21.07.2026 at dette anonymiserer open-pixel-hendelser; det betyr **ikke** at all teknisk leveringslogging er deaktivert
+- webhook krever egen Fakturasjekk custom secret-header og ikke-batched transactional events
+- den manuelle live-verifikatoren returnerer ikke e-postadresse, API-nøkkel, webhook-hemmelighet eller provider message-id
+
+Brevo oppgir at deres databasehosting er innen EU, med OVH i Frankrike/Tyskland og Google Cloud i Belgia. Brevo oppgir også at DPA er tilgjengelig i deres Terms of Service. Disse leverandøropplysningene er **ikke** Fakturasjekks juridiske godkjenning. Før live e-post må faktisk DPA, underleverandørliste/endringsvarsel, support-/fjernaksess, eventuell tredjelandstilgang, retention/logging, sletting/blocklist og sikkerhetshendelsesvilkår gjennomgås og dokumenteres. Senderdomene, webhook og syntetisk live send→`delivered` må også verifiseres.
+
 ## EØS-first beslutning
 
 V1 skal prioritere behandling og lagring i EØS. Dette er ikke i seg selv tilstrekkelig dersom leverandør-/supportstrukturen gir tilgang fra tredjeland; slik tilgang må kartlegges.
@@ -135,3 +155,8 @@ Produksjonsavtalen for OCR/KI/Svarrunde 2 skal kreve at kundedokumenter og saksi
 - Google multi-region endpoints: https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations
 - Google structured output: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/control-generated-output
 - Vipps ePayment: https://developer.vippsmobilepay.com/docs/APIs/epayment-api/
+- Brevo – transactional email API: https://developers.brevo.com/reference/send-transac-email
+- Brevo – transactional webhooks: https://developers.brevo.com/docs/transactional-webhooks
+- Brevo – secured webhooks: https://developers.brevo.com/docs/secured-webhooks
+- Brevo – data storage location: https://help.brevo.com/hc/en-us/articles/360001005510-Data-storage-location
+- Brevo – DPA location: https://help.brevo.com/hc/en-us/articles/15403782599570-Where-can-I-find-the-Data-Processing-Agreement-DPA
