@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "provider_target": "vipps_epayment",
   "provider_name": "vipps",
   "currency": "NOK",
@@ -15,13 +15,30 @@
   "captured_amount_required_minor": 2900,
   "capture_idempotent": true,
   "create_idempotent": true,
+  "required_operations": {
+    "create_payment": true,
+    "get_payment": true,
+    "get_payment_events": true,
+    "cancel_payment": true,
+    "capture_payment": true,
+    "refund_payment": true,
+    "reconcile_payment": true
+  },
+  "refund": {
+    "partial_supported": true,
+    "minimum_amount_minor": 100,
+    "maximum_amount_minor": 2900,
+    "idempotency_key_required": true,
+    "explicit_refund_id_required_for_partial": true
+  },
   "webhook": {
     "raw_body_required": true,
     "hmac_sha256_required": true,
     "content_sha256_required": true,
     "merchant_serial_number_must_match": true,
     "acknowledge_valid_nonpayable_events": true,
-    "polling_fallback_required_before_live": true
+    "polling_fallback_required_before_live": true,
+    "event_log_reconciliation_required": true
   },
   "accepted_event_names": [
     "CREATED",
