@@ -24,17 +24,35 @@ for (const id of prepared) {
   assert.ok(Number(item.max_age_hours) <= Number(config.policy.default_max_age_hours));
 }
 
+const verified = ['arbeidstilsynet_cleaning', 'finanstilsynet_registry', 'vegvesen_parking'];
+for (const id of verified) {
+  const item = config.registers[id];
+  assert.ok(item, `missing source-verified register ${id}`);
+  assert.equal(item.status, 'source_verified_not_live', `${id}: source verification must not activate runtime`);
+  assert.equal(item.machine_source_verified, true);
+  assert.match(item.machine_source_url, /^https:\/\//);
+  assert.ok(Number(item.max_age_hours) <= Number(config.policy.default_max_age_hours));
+  assert.match(item.notes, /Runtime.*stengt/i);
+  assert.match(item.notes, /[Mm]anglende treff.*(?:aldri|ikke).*negativt bevis/i);
+}
+
 const cleaning = config.registers.arbeidstilsynet_cleaning;
-assert.ok(cleaning);
-assert.equal(cleaning.status, 'source_verified_not_live', 'verified source must still remain disconnected from runtime');
-assert.equal(cleaning.machine_source_verified, true);
 assert.equal(cleaning.source_update_frequency, 'daily');
 assert.match(cleaning.dataset_catalog_url, /^https:\/\/data\.norge\.no\//);
 assert.equal(cleaning.machine_source_url, 'https://registerdata.arbeidstilsynet.no/renhold_register.xml');
 assert.match(cleaning.schema_url, /RegisterXML6\.xsd$/);
-assert.ok(Number(cleaning.max_age_hours) <= Number(config.policy.default_max_age_hours));
-assert.match(cleaning.notes, /Runtime-oppslag er fortsatt stengt/i);
-assert.match(cleaning.notes, /Manglende treff.*aldri negativt bevis/i);
+
+const finance = config.registers.finanstilsynet_registry;
+assert.equal(finance.machine_source_url, 'https://api.finanstilsynet.no/registry/');
+assert.match(finance.schema_url, /swagger\/v2\/swagger\.json$/);
+assert.deepEqual(finance.applicable_industries, ['debt_collection', 'finance', 'insurance']);
+assert.match(finance.notes, /org\.nr\.-oppslag/i);
+assert.match(finance.notes, /pagineringsgrenser/i);
+
+const parking = config.registers.vegvesen_parking;
+assert.match(parking.machine_source_url, /^https:\/\/www\.vegvesen\.no\/ws\//);
+assert.deepEqual(parking.applicable_industries, ['parking']);
+assert.match(parking.notes, /historisk relevans/i);
 
 for (const item of Object.values(config.registers)) {
   assert.notEqual(item.status, 'live', 'no specialist register may become live through source-verification metadata alone');
