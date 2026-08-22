@@ -12,6 +12,11 @@ function latest(array = []) {
   return Array.isArray(array) && array.length ? array.at(-1) : null;
 }
 
+function shortString(value, name, max = 200) {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required.`);
+  return value.trim().slice(0, max);
+}
+
 function assertPaid(payment) {
   if (!payment || payment.status !== 'paid' || payment.verified_server_side !== true) {
     const error = new Error('Server-verified paid payment is required before order confirmation.');
@@ -85,6 +90,10 @@ export function buildOrderConfirmation({ confirmation_id, checkout_policy, check
     document_type: 'order_confirmation_and_payment_receipt',
     confirmation_id,
     issued_at,
+    delivery_provider_accepted: false,
+    delivery_provider_accepted_at: null,
+    delivery_provider: null,
+    delivery_reference: null,
     durable_medium_delivered: false,
     durable_medium_delivered_at: null,
     durable_medium: null,
@@ -185,7 +194,54 @@ export function createOrderConfirmationService({ caseStore, checkoutPolicy, cloc
     return { confirmation: structuredClone(confirmation), case: caseData };
   }
 
-  async function markDelivered({ case_id, owner_id, confirmation_id, medium, delivery_reference = null }) {
+  async function markProviderAccepted({ case_id, owner_id, confirmation_id, medium, provider, delivery_reference }) {
+    if (!ALLOWED_DURABLE_MEDIA.has(medium)) {
+      const error = new Error('Unsupported durable medium.');
+      error.code = 'invalid_durable_medium';
+      throw error;
+    }
+    const providerName = shortString(provider, 'delivery provider', 80);
+    const reference = shortString(delivery_reference, 'delivery reference', 200);
+    let caseData = await caseStore.getOwned(case_id, owner_id);
+    const index = (caseData.order_confirmations ?? []).findIndex(item => item.confirmation_id === confirmation_id);
+    if (index < 0) throw new Error('Order confirmation not found.');
+    const current = caseData.order_confirmations[index];
+    if (current.durable_medium_delivered === true) return { confirmation: structuredClone(current), case: caseData, updated: false };
+    if (current.delivery_provider_accepted === true) {
+      if (current.delivery_reference !== reference || current.delivery_provider !== providerName || current.durable_medium !== medium) {
+        const error = new Error('Order confirmation was already accepted by a different provider delivery.');
+        error.code = 'order_confirmation_delivery_conflict';
+        throw error;
+      }
+      return { confirmation: structuredClone(current), case: caseData, updated: false };
+    }
+
+    const accepted_at = nowIso(clock);
+    const updatedConfirmation = {
+      ...current,
+      delivery_provider_accepted: true,
+      delivery_provider_accepted_at: accepted_at,
+      delivery_provider: providerName,
+      delivery_reference: reference,
+      durable_medium: medium
+    };
+    const order_confirmations = [...caseData.order_confirmations];
+    order_confirmations[index] = updatedConfirmation;
+    caseData = {
+      ...caseData,
+      order_confirmations,
+      updated_at: accepted_at,
+      events: [...(caseData.events ?? []), {
+        type: 'ORDER_CONFIRMATION_PROVIDER_ACCEPTED',
+        at: accepted_at,
+        data: { confirmation_id, medium, provider: providerName }
+      }]
+    };
+    await caseStore.save(caseData);
+    return { confirmation: structuredClone(updatedConfirmation), case: caseData, updated: true };
+  }
+
+  async function markDelivered({ case_id, owner_id, confirmation_id, medium, delivery_reference = null, provider = null }) {
     if (!ALLOWED_DURABLE_MEDIA.has(medium)) {
       const error = new Error('Unsupported durable medium.');
       error.code = 'invalid_durable_medium';
@@ -198,14 +254,29 @@ export function createOrderConfirmationService({ caseStore, checkoutPolicy, cloc
     if (current.durable_medium_delivered === true) {
       return { confirmation: structuredClone(current), case: caseData, updated: false };
     }
+    const reference = delivery_reference == null ? current.delivery_reference : String(delivery_reference).slice(0, 200);
+    if (current.delivery_reference && reference !== current.delivery_reference) {
+      const error = new Error('Delivered receipt reference does not match the provider-accepted message.');
+      error.code = 'order_confirmation_delivery_reference_mismatch';
+      throw error;
+    }
+    const providerName = provider == null ? current.delivery_provider : String(provider).slice(0, 80);
+    if (current.delivery_provider && providerName !== current.delivery_provider) {
+      const error = new Error('Delivered receipt provider does not match the provider-accepted message.');
+      error.code = 'order_confirmation_delivery_provider_mismatch';
+      throw error;
+    }
 
     const delivered_at = nowIso(clock);
     const updatedConfirmation = {
       ...current,
+      delivery_provider_accepted: current.delivery_provider_accepted === true || Boolean(reference),
+      delivery_provider_accepted_at: current.delivery_provider_accepted_at ?? delivered_at,
+      delivery_provider: providerName ?? null,
       durable_medium_delivered: true,
       durable_medium_delivered_at: delivered_at,
       durable_medium: medium,
-      delivery_reference: delivery_reference == null ? null : String(delivery_reference).slice(0, 200)
+      delivery_reference: reference ?? null
     };
     const order_confirmations = [...caseData.order_confirmations];
     order_confirmations[index] = updatedConfirmation;
@@ -222,14 +293,14 @@ export function createOrderConfirmationService({ caseStore, checkoutPolicy, cloc
       events: [...(caseData.events ?? []), {
         type: 'ORDER_CONFIRMATION_DELIVERED',
         at: delivered_at,
-        data: { confirmation_id, medium }
+        data: { confirmation_id, medium, provider: providerName ?? null }
       }]
     };
     await caseStore.save(caseData);
     return { confirmation: structuredClone(updatedConfirmation), case: caseData, updated: true };
   }
 
-  return { prepare, getLatestPrepared, markDelivered };
+  return { prepare, getLatestPrepared, markProviderAccepted, markDelivered };
 }
 
 export const ORDER_CONFIRMATION_DURABLE_MEDIA = Object.freeze([...ALLOWED_DURABLE_MEDIA]);
