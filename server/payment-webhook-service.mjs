@@ -1,4 +1,12 @@
-export function createPaymentWebhookService({ caseStore, services, gateway, eventStore, audit = null, orderConfirmationService = null } = {}) {
+export function createPaymentWebhookService({
+  caseStore,
+  services,
+  gateway,
+  eventStore,
+  audit = null,
+  orderConfirmationService = null,
+  orderConfirmationDeliveryService = null
+} = {}) {
   if (!caseStore?.getForSystem) throw new Error('Case store requires getForSystem for payment webhooks.');
   if (!services?.confirmPayment) throw new Error('Backend services require confirmPayment.');
   if (!gateway?.verifyEvent) throw new Error('Payment gateway requires verifyEvent.');
@@ -58,27 +66,74 @@ export function createPaymentWebhookService({ caseStore, services, gateway, even
       const result = await services.confirmPayment({ case_id: confirmation.case_id, owner_id: caseData.owner_id, confirmation });
       let orderConfirmationPrepared = false;
       let orderConfirmationId = null;
+      let orderConfirmationDelivered = false;
+      let orderConfirmationDeliveryPending = false;
+      let orderConfirmationDeliveryMedium = null;
 
       // Preparing the durable-medium payload is provider-neutral and idempotent.
-      // Actual delivery is a separate, explicit step; this must never be confused
-      // with proof that an email/document was delivered to the customer.
       if (result.paid === true && orderConfirmationService?.prepare) {
         const prepared = await orderConfirmationService.prepare({ case_id: confirmation.case_id, owner_id: caseData.owner_id });
         orderConfirmationPrepared = Boolean(prepared?.confirmation);
         orderConfirmationId = prepared?.confirmation?.confirmation_id ?? null;
+
+        // Actual delivery is an explicit provider-confirmed step. A delivery error
+        // must never roll back or hide a verified payment; instead it remains
+        // pending and may safely retry on a duplicate authenticated CAPTURED event.
+        if (orderConfirmationPrepared && orderConfirmationDeliveryService?.deliverPrepared) {
+          try {
+            const delivery = await orderConfirmationDeliveryService.deliverPrepared({
+              case_id: confirmation.case_id,
+              owner_id: caseData.owner_id,
+              confirmation_id: orderConfirmationId
+            });
+            orderConfirmationDelivered = delivery?.delivered === true;
+            orderConfirmationDeliveryMedium = delivery?.medium ?? null;
+            await record({
+              confirmation,
+              action: 'order_confirmation.delivery',
+              outcome: orderConfirmationDelivered ? 'success' : 'rejected',
+              metadata: {
+                duplicate,
+                confirmation_id: orderConfirmationId,
+                durable_medium: orderConfirmationDeliveryMedium,
+                idempotent: delivery?.idempotent === true
+              }
+            });
+          } catch (error) {
+            await record({
+              confirmation,
+              action: 'order_confirmation.delivery',
+              outcome: 'failed',
+              metadata: {
+                duplicate,
+                confirmation_id: orderConfirmationId,
+                error_code: typeof error?.code === 'string' ? error.code : 'order_confirmation_delivery_failed'
+              }
+            });
+          }
+        }
+        orderConfirmationDeliveryPending = orderConfirmationPrepared && !orderConfirmationDelivered;
       }
 
       await record({
         confirmation,
         outcome: result.paid ? 'success' : 'rejected',
-        metadata: { duplicate, order_confirmation_prepared: orderConfirmationPrepared }
+        metadata: {
+          duplicate,
+          order_confirmation_prepared: orderConfirmationPrepared,
+          order_confirmation_delivered: orderConfirmationDelivered,
+          order_confirmation_delivery_pending: orderConfirmationDeliveryPending
+        }
       });
       return {
         accepted: true,
         paid: result.paid === true,
         duplicate,
         order_confirmation_prepared: orderConfirmationPrepared,
-        order_confirmation_id: orderConfirmationId
+        order_confirmation_id: orderConfirmationId,
+        order_confirmation_delivered: orderConfirmationDelivered,
+        order_confirmation_delivery_pending: orderConfirmationDeliveryPending,
+        order_confirmation_delivery_medium: orderConfirmationDeliveryMedium
       };
     }
 
