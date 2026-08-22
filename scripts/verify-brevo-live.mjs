@@ -39,12 +39,27 @@ function canonicalWebhookUrl(value) {
   return `${url.origin}/v1/webhooks/order-confirmation/brevo`;
 }
 
+function reviewedPrivacySettings(target) {
+  if (Number(target.transactional_log_retention_months) !== 1) {
+    throw new Error('Brevo transactional log retention must be manually verified at exactly 1 month before live verification.');
+  }
+  if (target.email_previews_enabled !== false) {
+    throw new Error('Brevo stored transactional email previews must be disabled before live verification.');
+  }
+  const verifiedAt = required(target.privacy_settings_verified_at, 'Brevo privacy settings verification timestamp', 100);
+  const timestamp = Date.parse(verifiedAt);
+  if (!Number.isFinite(timestamp)) throw new Error('Brevo privacy settings verification timestamp must be a valid date-time.');
+  if (timestamp > Date.now() + 5 * 60 * 1000) throw new Error('Brevo privacy settings verification timestamp cannot be in the future.');
+  return new Date(timestamp).toISOString();
+}
+
 export function validateBrevoLiveTarget(target, confirmedWebhookUrl = null) {
   if (!target || typeof target !== 'object' || Array.isArray(target)) throw new Error('Brevo delivery target config is required.');
   if (target.provider !== 'brevo') throw new Error('Brevo delivery target must use provider brevo.');
   if (target.transactional_only !== true) throw new Error('Brevo delivery target must remain transactional-only.');
   if (target.customer_data_live_enabled !== false) throw new Error('Synthetic Brevo verification requires customer-data live processing to remain disabled.');
   if (target.webhook_batched !== false) throw new Error('Brevo order-confirmation webhook must remain non-batched.');
+  const privacySettingsVerifiedAt = reviewedPrivacySettings(target);
   const webhookUrl = canonicalWebhookUrl(target.webhook_url);
   if (confirmedWebhookUrl != null && canonicalWebhookUrl(confirmedWebhookUrl) !== webhookUrl) {
     throw new Error('Manual Brevo webhook URL confirmation does not match the reviewed target.');
@@ -65,7 +80,10 @@ export function validateBrevoLiveTarget(target, confirmedWebhookUrl = null) {
     sender_email: senderEmail,
     sender_domain: senderDomain,
     webhook_header_name: headerName,
-    required_events: requiredEvents
+    required_events: requiredEvents,
+    transactional_log_retention_months: 1,
+    email_previews_enabled: false,
+    privacy_settings_verified_at: privacySettingsVerifiedAt
   };
 }
 
@@ -166,8 +184,8 @@ export async function runBrevoLiveVerification({
     syntheticSendEnabled: reviewedTarget.synthetic_send_enabled
   });
 
-  // Credentials are read only after the version-controlled fail-closed target and
-  // manual network approval have both been validated.
+  // Credentials are read only after the version-controlled fail-closed target,
+  // privacy account settings and manual network approval have all been validated.
   const apiKey = required(env.BREVO_API_KEY, 'BREVO_API_KEY', 500);
   const webhookSecret = required(env.BREVO_WEBHOOK_SECRET, 'BREVO_WEBHOOK_SECRET', 200);
   const webhookPayload = await fetchBrevoWebhookConfiguration({ apiKey, fetchImpl });
@@ -208,6 +226,7 @@ export async function runBrevoLiveVerification({
     customer_data_live_enabled: false,
     mode,
     target_verified: true,
+    privacy_account_settings_reviewed: true,
     ...webhookResult,
     synthetic_send_accepted: sendAccepted,
     durable_medium_delivered: false,
