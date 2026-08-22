@@ -3,7 +3,9 @@ function clone(value) { return structuredClone(value); }
 function hasPendingOrderConfirmation(caseData) {
   const confirmations = caseData?.order_confirmations ?? [];
   const latest = Array.isArray(confirmations) && confirmations.length ? confirmations.at(-1) : null;
-  return latest?.document_type === 'order_confirmation_and_payment_receipt' && latest?.durable_medium_delivered !== true;
+  return latest?.document_type === 'order_confirmation_and_payment_receipt'
+    && latest?.durable_medium_delivered !== true
+    && latest?.delivery_provider_accepted !== true;
 }
 
 export function createMemoryCaseStore() {
