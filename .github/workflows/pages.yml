@@ -67,6 +67,23 @@ jobs:
 
           sed -i 's/Launch Candidate/Offentlig beta/g' _site/index.html _site/site/index-launch-candidate.html
           sed -i 's/Prøv en full fakturasjekk/Prøv fakturasjekk-demoen/g' _site/index.html _site/site/index-launch-candidate.html
+
+          # GitHub Pages cannot set arbitrary response security headers. Inject
+          # a browser policy into the public synthetic demo at build time.
+          python3 - <<'PY'
+          from pathlib import Path
+          policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
+          tags = f'<meta http-equiv="Content-Security-Policy" content="{policy}">\n<meta name="referrer" content="no-referrer">\n'
+          for filename in ('_site/index.html', '_site/site/index-launch-candidate.html'):
+              path = Path(filename)
+              text = path.read_text(encoding='utf-8')
+              if 'http-equiv="Content-Security-Policy"' in text:
+                  raise SystemExit(f'CSP unexpectedly already exists in {filename}; review build policy instead of duplicating it.')
+              if '<head>' not in text:
+                  raise SystemExit(f'Missing <head> in {filename}')
+              path.write_text(text.replace('<head>\n', '<head>\n' + tags, 1), encoding='utf-8')
+          PY
+
           touch _site/.nojekyll
 
       - name: Verify public artifact boundaries and demo dependencies
@@ -94,6 +111,10 @@ jobs:
 
           grep -q 'Offentlig beta' _site/index.html
           grep -q 'Prøv fakturasjekk-demoen' _site/index.html
+          grep -q 'Content-Security-Policy' _site/index.html
+          grep -q "connect-src 'self'" _site/index.html
+          grep -q "object-src 'none'" _site/index.html
+          grep -q 'name="referrer" content="no-referrer"' _site/index.html
           grep -q 'Bildet forlater ikke enheten din' _site/site/camera-local-test.html
           grep -q "connect-src 'none'" _site/site/camera-local-test.html
           grep -q 'SYNTETISK TEST' _site/site/camera-test-sheet.html
