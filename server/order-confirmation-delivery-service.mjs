@@ -49,6 +49,10 @@ export function createOrderConfirmationDeliveryService({ orderConfirmationServic
         case_id: caseId,
         owner_id: ownerId,
         confirmation_id: confirmation.confirmation_id,
+        // Provider adapters must use this stable key for send-side idempotency. It
+        // protects against duplicate delivery if the provider accepted a message
+        // but persistence of ORDER_CONFIRMATION_DELIVERED failed afterwards.
+        idempotency_key: confirmation.confirmation_id,
         subject: 'Fakturasjekk – ordrebekreftelse og betalingskvittering',
         text: textDocument.body,
         html: htmlDocument.body,
