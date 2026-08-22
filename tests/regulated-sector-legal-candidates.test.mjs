@@ -46,6 +46,7 @@ assert.ok(fgas, 'f-gas transition watch missing');
 assert.equal(fgas.status, 'awaiting_commencement');
 assert.match(fgas.current_source_url, /^https:\/\/www\.regjeringen\.no\//);
 assert.match(fgas.expected_pending_phrase, /ikke innlemmet i EØS-avtalen/);
-assert.match(fgas.action_when_changed, /manual review/i);
+assert.match(fgas.action_when_changed, /manual(?: legal)? review/i);
+assert.match(fgas.action_when_changed, /review_required/i);
 
 console.log('OK regulated-sector legal anchors remain non-runtime and f-gas transition is fail-closed.');
