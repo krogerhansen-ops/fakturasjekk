@@ -60,7 +60,7 @@ assert.throws(
 assert.throws(
   () => createCustomerProductionApp({
     env: {
-      FAKTURASJEKK_COST_MODE: 'zero_cost',
+      FAKTURASJEKK_COST_MODE: 'zero',
       FAKTURASJEKK_PAID_SERVICES_APPROVED: 'false'
     },
     launchGate,
