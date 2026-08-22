@@ -47,6 +47,20 @@ assert.equal(app.launch_gate.launch_allowed, true);
 assert.equal(typeof app.handler, 'function');
 assert.equal(typeof app.fetchHandler, 'function');
 assert.equal(typeof app.api.invoke, 'function');
+assert.equal(app.orderConfirmationDeliveryService, null, 'delivery service is not fabricated without an explicit provider adapter');
+
+const commerceApp = createProductionApp({
+  ...input,
+  checkoutPolicy: {},
+  adapters: {
+    ...adapters,
+    orderConfirmationDeliveryAdapter: {
+      async deliverOrderConfirmation() { return { delivered: true, medium: 'email', delivery_reference: 'test-message' }; }
+    }
+  }
+});
+assert.equal(typeof commerceApp.orderConfirmationService?.prepare, 'function');
+assert.equal(typeof commerceApp.orderConfirmationDeliveryService?.deliverPrepared, 'function', 'production composition must wire an explicit durable delivery adapter');
 
 const edgeHealth = await app.fetchHandler(new Request('https://jxmkaxwflouacuboaetg.supabase.co/functions/v1/fakturasjekk-api/health'));
 assert.equal(edgeHealth.status, 200);
@@ -73,4 +87,4 @@ assert.throws(
   /Production readiness failed: product.price/
 );
 
-console.log('OK production app composition exposes Node and Fetch runtimes');
+console.log('OK production app composition exposes Node/Fetch runtimes and optional durable delivery provider wiring');
