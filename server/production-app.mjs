@@ -7,6 +7,7 @@ import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { createCheckoutConsentService } from './checkout-consent-service.mjs';
 import { createOrderConfirmationService } from './order-confirmation-service.mjs';
 import { createOrderConfirmationDeliveryService } from './order-confirmation-delivery-service.mjs';
+import { createOrderConfirmationDeliveryWebhookService } from './order-confirmation-delivery-webhook-service.mjs';
 import { createOrderConfirmationDeliveryRetryService } from './order-confirmation-delivery-retry-service.mjs';
 import { createOutboundDeliveryService } from './outbound-delivery-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
@@ -74,6 +75,13 @@ export function createProductionApp({
         deliveryAdapter: adapters.orderConfirmationDeliveryAdapter
       })
     : null;
+  const orderConfirmationDeliveryWebhookService = orderConfirmationService && adapters.orderConfirmationDeliveryAdapter?.verifyWebhook
+    ? createOrderConfirmationDeliveryWebhookService({
+        deliveryAdapter: adapters.orderConfirmationDeliveryAdapter,
+        orderConfirmationService,
+        audit
+      })
+    : null;
   const orderConfirmationDeliveryRetryService = orderConfirmationDeliveryService && typeof caseStore.listPendingOrderConfirmationDeliveries === 'function'
     ? createOrderConfirmationDeliveryRetryService({
         caseStore,
@@ -118,6 +126,8 @@ export function createProductionApp({
     checkoutConsentService,
     deliveryContactResolver,
     orderConfirmationService,
+    orderConfirmationDeliveryWebhookService,
+    orderConfirmationDeliveryProviderName: adapters.orderConfirmationDeliveryAdapter?.name ?? null,
     allowedReturnOrigins: [config.app_origin],
     readiness,
     version: product.version,
@@ -140,6 +150,7 @@ export function createProductionApp({
     management,
     orderConfirmationService,
     orderConfirmationDeliveryService,
+    orderConfirmationDeliveryWebhookService,
     orderConfirmationDeliveryRetryService,
     outboundDeliveryService,
     readiness: readinessResult,
