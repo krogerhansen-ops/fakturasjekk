@@ -73,6 +73,7 @@ export function createApiClient({ baseUrl, getToken, fetchImpl = globalThis.fetc
     getResult: caseId => request(`/v1/cases/${encodeURIComponent(caseId)}/result`),
     getOrderConfirmation: (caseId, format = 'html') => request(`/v1/cases/${encodeURIComponent(caseId)}/order-confirmation/${encodeURIComponent(format)}`),
     createDraft: (caseId, mode = 'request') => request(`/v1/cases/${encodeURIComponent(caseId)}/draft`, { method: 'POST', mutation: true, body: { mode } }),
+    markOutboundSent: (caseId, kind, record_id) => request(`/v1/cases/${encodeURIComponent(caseId)}/draft`, { method: 'POST', mutation: true, body: { action: 'mark_sent', kind, record_id } }),
     submitSupplierResponse: (caseId, response_text, invoice_reference = '') => request(`/v1/cases/${encodeURIComponent(caseId)}/supplier-response`, { method: 'POST', mutation: true, body: { response_text, invoice_reference } }),
     getRetention: caseId => request(`/v1/cases/${encodeURIComponent(caseId)}/retention`),
     health: () => request('/health'),
