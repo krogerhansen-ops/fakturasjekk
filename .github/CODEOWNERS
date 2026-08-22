@@ -1,0 +1,12 @@
+# Fakturasjekk repository ownership baseline
+# Becomes enforceable when GitHub branch protection/rulesets require CODEOWNER review.
+
+* @krogerhansen-ops
+
+# Critical production/security surfaces
+/.github/workflows/ @krogerhansen-ops
+/server/ @krogerhansen-ops
+/supabase/ @krogerhansen-ops
+/rules/ @krogerhansen-ops
+/config/ @krogerhansen-ops
+/tests/ @krogerhansen-ops
