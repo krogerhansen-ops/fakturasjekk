@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "policy": {
     "default_max_age_hours": 48,
     "require_official_authority": true,
@@ -85,6 +85,17 @@
       "max_age_hours": 48,
       "applicable_industries": ["parking"],
       "notes": "Statens vegvesen dokumenterer et offentlig JSON-lesegrunnlag for parkeringsområder og parkeringstilbydere. Runtime er fortsatt stengt til responskontrakten, virksomhets-/områdematch og historisk relevans er testet. Manglende treff er ikke negativt bevis."
+    },
+    "reisegarantifondet_members": {
+      "status": "prepared_not_live",
+      "authority": "Reisegarantifondet",
+      "customer_label": "Reisegarantifondet – arrangører med garanti",
+      "landing_url": "https://reisegarantifondet.no/medlemmer/",
+      "official_export_available": false,
+      "machine_source_verified": false,
+      "max_age_hours": 48,
+      "applicable_industries": ["package_travel"],
+      "notes": "Reisegarantifondet har en offentlig medlemsliste som kan søkes på foretaksnavn og organisasjonsnummer. Ingen stabil, dokumentert maskin-API er verifisert. Fakturasjekk skal ikke automatisere denne kilden via skjult scraping; runtime forblir stengt til en autoritativ maskinkilde eller eksplisitt integrasjonsavtale finnes. Manglende treff i manuell søkeflate er ikke alene negativt bevis."
     },
     "fgas_certification": {
       "status": "prepared_not_live",
