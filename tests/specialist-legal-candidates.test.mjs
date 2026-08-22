@@ -48,8 +48,12 @@ const required = [
 for (const id of required) assert.ok(specialistIds.has(id), `missing audited preactivation rule ${id}`);
 
 const sourceCheck = fs.readFileSync(new URL('../scripts/legal-source-check.mjs', import.meta.url), 'utf8');
-assert.match(sourceCheck, /specialist-candidates\.json/);
-assert.match(sourceCheck, /preactivation_candidate/);
-assert.match(sourceCheck, /runtime !== false/);
+const discovery = fs.readFileSync(new URL('../scripts/legal-candidate-discovery.mjs', import.meta.url), 'utf8');
+assert.match(sourceCheck, /discoverPreactivationRegistries/);
+assert.match(sourceCheck, /preactivation:\$\{rule\.registry_file\}/);
+assert.equal(sourceCheck.includes("../rules/specialist-candidates.json"), false, 'legal source watch must not hard-code a single candidate registry');
+assert.match(discovery, /endsWith\('-candidates\.json'\)/);
+assert.match(discovery, /preactivation_candidate/);
+assert.match(discovery, /runtime !== false/);
 
-console.log(`OK ${specialist.rules.length} specialist legal candidates are source-monitored but isolated from every runtime rule package.`);
+console.log(`OK ${specialist.rules.length} specialist legal candidates remain isolated while every *-candidates.json registry is auto-discovered for source monitoring.`);

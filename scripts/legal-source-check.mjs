@@ -1,30 +1,26 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { assertLegalRateRegistry } from '../engine/legal-rates.mjs';
+import { discoverPreactivationRegistries } from './legal-candidate-discovery.mjs';
 
-const registry = JSON.parse(fs.readFileSync(new URL('../rules/rules.json', import.meta.url), 'utf8'));
-const specialistRegistry = JSON.parse(fs.readFileSync(new URL('../rules/specialist-candidates.json', import.meta.url), 'utf8'));
-const transitions = JSON.parse(fs.readFileSync(new URL('../rules/transitions.json', import.meta.url), 'utf8'));
-const rateRegistry = JSON.parse(fs.readFileSync(new URL('../rules/dynamic-rates.json', import.meta.url), 'utf8'));
+const rulesDir = fileURLToPath(new URL('../rules/', import.meta.url));
+const registry = JSON.parse(fs.readFileSync(path.join(rulesDir, 'rules.json'), 'utf8'));
+const transitions = JSON.parse(fs.readFileSync(path.join(rulesDir, 'transitions.json'), 'utf8'));
+const rateRegistry = JSON.parse(fs.readFileSync(path.join(rulesDir, 'dynamic-rates.json'), 'utf8'));
+const { registries: preactivationRegistries, rules: preactivationRules } = discoverPreactivationRegistries(rulesDir);
 
-if (specialistRegistry.runtime !== false || specialistRegistry.purpose !== 'preactivation_only') {
-  throw new Error('Specialist legal registry must remain isolated from runtime.');
-}
 assertLegalRateRegistry(rateRegistry);
 
 const runtimeMonitoredRules = registry.rules.filter(r => ['active', 'candidate'].includes(r.status));
-const preactivationRules = specialistRegistry.rules ?? [];
 const allIds = [...runtimeMonitoredRules, ...preactivationRules].map(rule => rule.id);
 if (new Set(allIds).size !== allIds.length) {
-  throw new Error('Duplicate legal rule id exists across runtime and specialist preactivation registries.');
-}
-for (const rule of preactivationRules) {
-  if (rule.status !== 'preactivation_candidate') throw new Error(`${rule.id}: specialist rule must remain preactivation_candidate.`);
-  if (!Array.isArray(rule.conditions) || !rule.conditions.length) throw new Error(`${rule.id}: specialist rule must document activation conditions.`);
+  throw new Error('Duplicate legal rule id exists across runtime and preactivation registries.');
 }
 
 const monitoredRules = [
   ...runtimeMonitoredRules.map(rule => ({ ...rule, registry_class: 'runtime' })),
-  ...preactivationRules.map(rule => ({ ...rule, registry_class: 'preactivation' }))
+  ...preactivationRules.map(rule => ({ ...rule, registry_class: `preactivation:${rule.registry_file}` }))
 ];
 
 function normalizeHtml(html) {
@@ -47,7 +43,7 @@ async function fetchNormalized(url) {
   if (sourceCache.has(url)) return sourceCache.get(url);
   const response = await fetch(url, {
     redirect: 'follow',
-    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.31 (+https://fakturasjekk.no)' },
+    headers: { 'user-agent': 'Fakturasjekk-LegalSourceWatch/0.32 (+https://fakturasjekk.no)' },
     signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -117,4 +113,4 @@ const activeCount = registry.rules.filter(r => r.status === 'active').length;
 const candidateCount = registry.rules.filter(r => r.status === 'candidate').length;
 const preactivationCount = preactivationRules.length;
 const rateCount = rateRegistry.rates?.length ?? 0;
-console.log(`\nOK: ${activeCount} aktive runtime-regler, ${candidateCount} runtime-kandidat(er), ${preactivationCount} isolerte preaktiveringskandidat(er), ${rateCount} kontrollerte satser og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
+console.log(`\nOK: ${activeCount} aktive runtime-regler, ${candidateCount} runtime-kandidat(er), ${preactivationCount} isolerte preaktiveringskandidat(er) i ${preactivationRegistries.length} registerfil(er), ${rateCount} kontrollerte satser og ${(transitions.transitions ?? []).length} lovovergang(er) er kontrollert.`);
