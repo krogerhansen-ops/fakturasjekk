@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "policy": {
     "default_max_age_hours": 48,
     "require_official_authority": true,
@@ -58,6 +58,33 @@
       "max_age_hours": 48,
       "applicable_industries": ["cleaning"],
       "notes": "Data.norge oppgir et daglig oppdatert, åpent XML-datasett fra Arbeidstilsynet med organisasjonsnummer og registerstatus. Runtime-oppslag er fortsatt stengt inntil XML-strukturen/XSD er implementert og testet, org.nr.-matching er entydig og gjeldende statusverdier håndteres konservativt. Manglende treff alene er aldri negativt bevis."
+    },
+    "finanstilsynet_registry": {
+      "status": "source_verified_not_live",
+      "authority": "Finanstilsynet",
+      "customer_label": "Finanstilsynet – Virksomhetsregisteret",
+      "landing_url": "https://www.finanstilsynet.no/virksomhetsregisteret/",
+      "dataset_catalog_url": "https://data.norge.no/en/data-services/71714342-89e3-3f0b-9ffd-94cd5952f287/api-for-finanstilsynets-registry",
+      "machine_source_url": "https://api.finanstilsynet.no/registry/",
+      "schema_url": "https://api.finanstilsynet.no/registry/swagger/v2/swagger.json",
+      "official_export_available": true,
+      "machine_source_verified": true,
+      "max_age_hours": 48,
+      "applicable_industries": ["debt_collection", "finance", "insurance"],
+      "notes": "Finanstilsynets offisielle v2-API gir virksomheter og tillatelser. Runtime er fortsatt stengt til Fakturasjekk har testet eksakt org.nr.-oppslag, relevant tillatelsestype og pagineringsgrenser. Bredt navnesøk eller manglende treff skal aldri alene bli negativt bevis."
+    },
+    "vegvesen_parking": {
+      "status": "source_verified_not_live",
+      "authority": "Statens vegvesen",
+      "customer_label": "Statens vegvesen – Parkeringsregisteret",
+      "landing_url": "https://www.vegvesen.no/trafikkinformasjon/reiseinformasjon/parkeringsregisteret",
+      "dataset_catalog_url": "https://data.norge.no/nb/datasets/16d51e6e-bd78-44d9-b1b2-5988cb67ce33/parkeringsregisteret",
+      "machine_source_url": "https://www.vegvesen.no/ws/no/vegvesen/veg/parkeringsomraade/parkeringsregisteret/v1/",
+      "official_export_available": true,
+      "machine_source_verified": true,
+      "max_age_hours": 48,
+      "applicable_industries": ["parking"],
+      "notes": "Statens vegvesen dokumenterer et offentlig JSON-lesegrunnlag for parkeringsområder og parkeringstilbydere. Runtime er fortsatt stengt til responskontrakten, virksomhets-/områdematch og historisk relevans er testet. Manglende treff er ikke negativt bevis."
     },
     "fgas_certification": {
       "status": "prepared_not_live",
