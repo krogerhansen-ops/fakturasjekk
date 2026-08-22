@@ -23,8 +23,13 @@ await api.getPaymentRequirement('case 1');
 assert.match(calls[1].url, /case%201\/payment$/);
 assert.equal('idempotency-key' in calls[1].options.headers, false);
 
+await api.getOrderConfirmation('case 1', 'text');
+assert.match(calls[2].url, /case%201\/order-confirmation\/text$/);
+assert.equal(calls[2].options.method, 'GET');
+assert.equal('idempotency-key' in calls[2].options.headers, false, 'receipt download must remain read-only');
+
 await api.confirmFacts('case 1', [{ field: 'invoice_total', value: 1000, source_document_id: 'doc-1', source_page: 1, confirmed_by_user: true }]);
-const confirmationCall = calls[2];
+const confirmationCall = calls[3];
 assert.match(confirmationCall.url, /case%201\/facts\/confirm$/);
 assert.equal(confirmationCall.options.method, 'POST');
 assert.ok(confirmationCall.options.headers['idempotency-key']);
@@ -48,4 +53,4 @@ const errorApi = createApiClient({
 });
 await assert.rejects(() => errorApi.getResult('case-1'), error => error instanceof FakturasjekkApiError && error.status === 402 && error.code === 'payment_required' && error.request_id === 'req-pay');
 
-console.log('OK browser API client and privacy-safe upload metadata');
+console.log('OK browser API client, order-confirmation download request and privacy-safe upload metadata');
