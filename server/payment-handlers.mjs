@@ -1,7 +1,8 @@
 import { ApiError } from './api-errors.mjs';
+import { bearerToken } from './auth-adapter.mjs';
 import { requireUser, requireCaseId, requireBodyObject } from './auth-policy.mjs';
 
-export function createPaymentHandlers({ services, gateway = null, checkoutConsentService = null, idempotency = null, allowedReturnOrigins = [] } = {}) {
+export function createPaymentHandlers({ services, gateway = null, checkoutConsentService = null, deliveryContactResolver = null, idempotency = null, allowedReturnOrigins = [] } = {}) {
   async function mutate(request, operation, fn) {
     if (!idempotency) return fn();
     const key = request?.headers?.['idempotency-key'] ?? request?.headers?.['Idempotency-Key'];
@@ -30,16 +31,25 @@ export function createPaymentHandlers({ services, gateway = null, checkoutConsen
       }
       return mutate(request, `payment_session:${case_id}`, async () => {
         const requirement = await services.getPaymentRequirement({ case_id, owner_id: user.id });
+        let delivery_contact = null;
+        if (deliveryContactResolver) {
+          const token = bearerToken(request?.headers ?? {});
+          delivery_contact = await deliveryContactResolver({ token, user_id: user.id });
+          if (!delivery_contact) {
+            throw new ApiError(409, 'checkout_delivery_contact_required', 'Bekreft e-postadressen på kontoen før du betaler.');
+          }
+        }
         let accepted;
         try {
           accepted = await checkoutConsentService.acceptForPaymentSession({
             case_id,
             owner_id: user.id,
             consent: body.checkout_consent ?? {},
-            requirement
+            requirement,
+            delivery_contact
           });
         } catch (error) {
-          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state'].includes(error?.code)) {
+          if (['checkout_not_ready','checkout_consent_required','checkout_version_mismatch','checkout_price_mismatch','checkout_invalid_case_state','checkout_delivery_contact_required','checkout_delivery_contact_invalid'].includes(error?.code)) {
             throw new ApiError(409, error.code, error.message);
           }
           throw error;
