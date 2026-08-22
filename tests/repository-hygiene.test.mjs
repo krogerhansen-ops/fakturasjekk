@@ -39,7 +39,7 @@ const patterns = [
   ['Anthropic domain', new RegExp(['anthropic', 'com'].join('\\.'), 'i')]
 ];
 
-const sensitiveAssignments = /^(SUPABASE_(?:SECRET_KEY|SERVICE_ROLE_KEY)|GOOGLE_SERVICE_ACCOUNT_JSON|VIPPS_(?:CLIENT_SECRET|SUBSCRIPTION_KEY|WEBHOOK_SECRET)|SUPABASE_DB_PASSWORD)\s*=\s*(.+)$/gm;
+const sensitiveAssignments = /^(SUPABASE_(?:SECRET_KEY|SERVICE_ROLE_KEY)|GOOGLE_SERVICE_ACCOUNT_JSON|VIPPS_(?:CLIENT_SECRET|SUBSCRIPTION_KEY|WEBHOOK_SECRET)|BREVO_(?:API_KEY|WEBHOOK_SECRET)|SUPABASE_DB_PASSWORD)\s*=\s*(.+)$/gm;
 const safeAssignmentPrefixes = ['SET_', '${{', '${', '<', 'REDACTED', 'EXAMPLE', 'TEST_ONLY'];
 
 for (const { full, rel } of files) {
@@ -64,7 +64,7 @@ for (const { full, rel } of files) {
 const workflows = fs.readdirSync(path.join(root, '.github', 'workflows')).filter(name => /\.ya?ml$/i.test(name)).sort();
 assert.deepEqual(
   workflows,
-  ['backup-restore-synthetic-verification.yml', 'google-ai-live-verification.yml', 'legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
+  ['backup-restore-synthetic-verification.yml', 'brevo-live-verification.yml', 'google-ai-live-verification.yml', 'legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
   'Unexpected GitHub Actions workflow added; review explicitly before allowlisting.'
 );
 
@@ -79,6 +79,35 @@ assert.equal(backupWorkflow.includes('secrets.'), false, 'Synthetic backup workf
 assert.equal(backupWorkflow.includes('actions/upload-artifact'), false, 'Synthetic backup files must never be published as GitHub artifacts.');
 assert.match(backupWorkflow, /validate-isolated-restore-target\.mjs/, 'Production restore target guard must remain part of the synthetic round-trip.');
 assert.match(backupWorkflow, /db\.jxmkaxwflouacuboaetg\.supabase\.co/, 'Synthetic round-trip must explicitly prove the production project is rejected as a restore target.');
+
+// Brevo verification is allowlisted only while it remains manual, synthetic-only and fail-closed.
+// Read-only config verification may operate in zero-cost mode, but an email send requires independent
+// funded + paid-services approval and an unmistakably synthetic recipient stored only as a secret.
+const brevoWorkflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'brevo-live-verification.yml'), 'utf8');
+assert.match(brevoWorkflow, /workflow_dispatch:/, 'Brevo live verification must remain manually dispatched.');
+assert.equal(/\n\s*push:/.test(brevoWorkflow), false, 'Brevo live verification must not run on push.');
+assert.equal(/\n\s*pull_request:/.test(brevoWorkflow), false, 'Brevo live verification must not run on pull requests.');
+assert.equal(/\n\s*schedule:/.test(brevoWorkflow), false, 'Brevo live verification must not be scheduled.');
+assert.match(brevoWorkflow, /default:\s*config-only/, 'Brevo verification must default to config-only mode.');
+assert.match(brevoWorkflow, /default:\s*zero/, 'Brevo verification cost mode must default to zero.');
+assert.match(brevoWorkflow, /I_APPROVE_SYNTHETIC_BREVO_NETWORK_CALLS/, 'Brevo verification requires an exact synthetic network-call phrase.');
+assert.match(brevoWorkflow, /confirm_webhook_url/, 'Brevo verification must require reviewed webhook URL confirmation.');
+assert.match(brevoWorkflow, /validateBrevoLiveTarget/, 'Brevo verification must validate the version-controlled target before reading provider credentials.');
+assert.ok(
+  brevoWorkflow.indexOf('validateBrevoLiveTarget') < brevoWorkflow.indexOf('secrets.BREVO_API_KEY'),
+  'Brevo target validation must occur before provider credentials are exposed to a step.'
+);
+assert.match(brevoWorkflow, /secrets\.BREVO_API_KEY/, 'Brevo verification may use only a server-side API-key secret.');
+assert.match(brevoWorkflow, /secrets\.BREVO_WEBHOOK_SECRET/, 'Brevo verification must compare the live custom webhook authentication header to a server-side secret.');
+assert.match(brevoWorkflow, /secrets\.BREVO_SYNTHETIC_RECIPIENT_EMAIL/, 'Synthetic send recipient must be stored as a secret, never a workflow input.');
+assert.match(brevoWorkflow, /inputs\.mode == 'send-acceptance'/, 'Synthetic recipient secret must only be used in explicit send-acceptance mode.');
+assert.match(brevoWorkflow, /inputs\.cost_mode.*funded|cost_mode.*funded/s, 'Brevo send mode must require funded cost mode.');
+assert.match(brevoWorkflow, /paid_services_approved/, 'Brevo send mode must require explicit paid-services approval.');
+assert.equal(brevoWorkflow.includes('SUPABASE_SECRET_KEY'), false, 'Brevo verification must not receive Supabase server credentials.');
+assert.equal(brevoWorkflow.includes('GOOGLE_SERVICE_ACCOUNT_JSON'), false, 'Brevo verification must not receive Google credentials.');
+assert.equal(brevoWorkflow.includes('VIPPS_'), false, 'Brevo verification must not receive Vipps credentials.');
+assert.equal(brevoWorkflow.includes('actions/upload-artifact'), false, 'Brevo verification must not publish provider output as artifacts.');
+assert.match(brevoWorkflow, /customer_data_live_enabled/, 'Brevo verification must re-check that customer processing remains disabled.');
 
 // Google provider verification may incur external-service cost. It is allowlisted only while it remains
 // manual, synthetic-only, project-confirmed and protected by three independent cost/network confirmations.
