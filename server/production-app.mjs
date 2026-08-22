@@ -90,7 +90,16 @@ export function createProductionApp({
     orderConfirmationService,
     orderConfirmationDeliveryService
   });
-  const checkoutConsentService = checkoutPolicy ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy }) : null;
+  const requireDeliveryContact = Boolean(orderConfirmationDeliveryService);
+  const deliveryContactResolver = requireDeliveryContact
+    ? async ({ token, user_id }) => {
+        if (typeof authAdapter.getVerifiedDeliveryContact !== 'function') return null;
+        return authAdapter.getVerifiedDeliveryContact(token, user_id);
+      }
+    : null;
+  const checkoutConsentService = checkoutPolicy
+    ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy, requireDeliveryContact })
+    : null;
   const readinessResult = evaluateReadiness({ product, registry, adapters: serviceAdapters, paymentGateway });
   if (!readinessResult.ready) {
     const failed = readinessResult.checks.filter(c => !c.ok).map(c => c.name).join(', ');
@@ -107,6 +116,7 @@ export function createProductionApp({
     paymentWebhookService,
     paymentProviderName: paymentGateway.provider_name ?? config.payment_provider,
     checkoutConsentService,
+    deliveryContactResolver,
     orderConfirmationService,
     allowedReturnOrigins: [config.app_origin],
     readiness,
