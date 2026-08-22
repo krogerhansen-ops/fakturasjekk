@@ -1,0 +1,111 @@
+{
+  "version": "0.2.0",
+  "jurisdiction": "NO",
+  "purpose": "preactivation_only",
+  "runtime": false,
+  "last_reviewed": "2026-08-22",
+  "rules": [
+    {
+      "id": "FIN_2_4_INVOICE_FEE_ACTUAL_COST",
+      "law": "finansavtaleloven",
+      "section": "§ 2-4",
+      "title": "Fakturagebyr kan ikke overstige faktisk kostnad",
+      "source_url": "https://lovdata.no/lov/2020-12-18-146/%C2%A72-4",
+      "expected_phrase": "faktiske kostnad ved å utstede og sende regningen",
+      "last_verified": "2026-08-22",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "invoice_fee", "goods", "service", "payment"],
+      "conditions": [
+        "Kravet må ligge innen bestemmelsens forbrukervern og gebyret må faktisk gjelde utstedelse eller sending av regning.",
+        "Fakturagebyret må være sikkert identifisert i dokumentasjonen.",
+        "Fakturasjekk skal ikke gjette virksomhetens faktiske kostnad. Automatisk avvik krever et dokumentert eller på annen kontrollert måte verifiserbart kostnadsgrunnlag."
+      ],
+      "notes": "Ikke runtime-aktiv. Kandidaten skal ikke brukes som generell regel om at ethvert fakturagebyr er ulovlig."
+    },
+    {
+      "id": "HTJL_37_PAYMENT_AFTER_ITEMIZED_INVOICE",
+      "law": "håndverkertjenesteloven",
+      "section": "§ 37",
+      "title": "Betalingstid ved krav om spesifisert regning",
+      "source_url": "https://lovdata.no/lov/1989-06-16-63/%C2%A737",
+      "expected_phrase": "plikter forbrukeren ikke å betale før regningen er mottatt",
+      "last_verified": "2026-08-22",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "handcraft_service", "itemized_invoice", "payment_due"],
+      "conditions": [
+        "Saken må omfattes av håndverkertjenesteloven.",
+        "Det må dokumenteres at forbrukeren krevde spesifisert regning i tilstrekkelig tid før forfall.",
+        "Tidspunkt for kravet, opprinnelig forfall og mottatt spesifisert regning må være dokumentert. Fakturasjekk skal ikke oppfinne en fast daggrense for uttrykket tilstrekkelig tid."
+      ],
+      "notes": "Ikke runtime-aktiv før tidslinjen kan dokumenteres sikkert fra kilder med riktig rolle."
+    },
+    {
+      "id": "FKJL_38_PAYMENT_TIMING",
+      "law": "forbrukerkjøpsloven",
+      "section": "§ 38",
+      "title": "Tidspunkt for betaling ved forbrukerkjøp",
+      "source_url": "https://lovdata.no/lov/2002-06-21-34/%C2%A738",
+      "expected_phrase": "ikke plikt til å betale kjøpesummen uten at tingen blir overlevert",
+      "last_verified": "2026-08-22",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "goods", "payment_due", "delivery"],
+      "conditions": [
+        "Saken må være et forbrukerkjøp og ikke et tjeneste-, kreditt- eller annet særspor.",
+        "Leveringsstatus og relevant betalingsvilkår må være dokumentert.",
+        "Regelen skal ikke brukes automatisk dersom avtalen eller særregler lovlig regulerer betalingstidspunktet på en annen måte."
+      ],
+      "notes": "Ikke runtime-aktiv. Relevant for faktura før levering, men krever sikker tidslinje og avtalegrunnlag."
+    },
+    {
+      "id": "FKJL_41_CANCELLATION_BEFORE_DELIVERY",
+      "law": "forbrukerkjøpsloven",
+      "section": "§ 41",
+      "title": "Avbestilling før levering",
+      "source_url": "https://lovdata.no/lov/2002-06-21-34/%C2%A741",
+      "expected_phrase": "kan selgeren ikke fastholde kjøpet og kreve betaling",
+      "last_verified": "2026-08-22",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "goods", "cancellation", "before_delivery"],
+      "conditions": [
+        "Avbestillingen og tidspunktet for den må være dokumentert og ha skjedd før levering.",
+        "Krav om selve kjøpesummen må skilles fra et eventuelt lovlig erstatningskrav, avtalt avbestillingsbeløp eller andre poster.",
+        "Fakturasjekk skal ikke anta at avbestilling er kostnadsfri."
+      ],
+      "notes": "Ikke runtime-aktiv før tidslinje, levering og kravstype kan skilles deterministisk."
+    },
+    {
+      "id": "ANGRL_23_WITHDRAWAL_EFFECT",
+      "law": "angrerettloven",
+      "section": "§ 23",
+      "title": "Virkninger av dokumentert bruk av angreretten",
+      "source_url": "https://lovdata.no/lov/2014-06-20-27/%C2%A723",
+      "expected_phrase": "bortfaller partenes forpliktelser til å oppfylle avtalen",
+      "last_verified": "2026-08-22",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "distance_sale", "withdrawal", "payment_obligation"],
+      "conditions": [
+        "Avtalen må være innen angrerettlovens virkeområde og aktuelle unntak må være vurdert.",
+        "Forbrukerens melding om bruk av angreretten og relevant dato/fristsituasjon må være dokumentert.",
+        "Påbegynte tjenester, digitalt innhold og andre særtilfeller må holdes utenfor automatisk konklusjon til nødvendige samtykke- og opplysningsfakta er dokumentert."
+      ],
+      "notes": "Ikke runtime-aktiv. Skal aldri aktiveres bare fordi brukeren opplyser at vedkommende ombestemte seg."
+    },
+    {
+      "id": "ANGRL_24_REFUND",
+      "law": "angrerettloven",
+      "section": "§ 24",
+      "title": "Tilbakebetaling etter dokumentert gyldig angrerett",
+      "source_url": "https://lovdata.no/lov/2014-06-20-27/%C2%A724",
+      "expected_phrase": "senest 14 dager fra da den næringsdrivende fikk melding",
+      "last_verified": "2026-08-22",
+      "status": "preactivation_candidate",
+      "scope": ["consumer", "distance_sale", "withdrawal", "refund"],
+      "conditions": [
+        "Gyldig bruk av angreretten må først være dokumentert.",
+        "Mottaksdato for melding til den næringsdrivende må være dokumentert.",
+        "For varer må eventuelle regler om tilbakehold av tilbakebetaling frem til mottatt vare eller returdokumentasjon vurderes før avvik konkluderes."
+      ],
+      "notes": "Ikke runtime-aktiv. Kandidat for refusjonskontroll etter dokumentert angrerett, ikke en generell fakturabetalingsregel."
+    }
+  ]
+}
