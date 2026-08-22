@@ -1,4 +1,5 @@
 const ALLOWED_DURABLE_MEDIA = new Set(['email', 'downloadable_document', 'account_document']);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function nowIso(clock) {
   const value = typeof clock === 'function' ? clock() : new Date();
@@ -39,6 +40,30 @@ function assertConsent(consent) {
   }
 }
 
+function deliveryContact(consent) {
+  const contact = consent?.delivery_contact;
+  if (!contact) return null;
+  if (
+    contact.medium !== 'email' ||
+    contact.verified_provider !== 'supabase_auth' ||
+    typeof contact.address !== 'string' ||
+    contact.address.length > 320 ||
+    !EMAIL_RE.test(contact.address) ||
+    typeof contact.verified_at !== 'string' ||
+    Number.isNaN(Date.parse(contact.verified_at))
+  ) {
+    const error = new Error('Stored checkout delivery contact is invalid.');
+    error.code = 'checkout_delivery_contact_invalid';
+    throw error;
+  }
+  return {
+    medium: 'email',
+    address: contact.address.toLowerCase(),
+    verified_provider: 'supabase_auth',
+    verified_at: new Date(contact.verified_at).toISOString()
+  };
+}
+
 function assertPolicy(policy) {
   if (!policy?.seller?.ready || !policy.seller.legal_name || !policy.seller.postal_address || !policy.seller.support_email || !policy.seller.privacy_email) {
     const error = new Error('Seller identity must be complete before order confirmation can be prepared.');
@@ -53,6 +78,7 @@ export function buildOrderConfirmation({ confirmation_id, checkout_policy, check
   assertPolicy(checkout_policy);
   assertConsent(checkout_consent);
   assertPaid(payment);
+  const contact = deliveryContact(checkout_consent);
 
   return {
     version: 1,
@@ -62,6 +88,7 @@ export function buildOrderConfirmation({ confirmation_id, checkout_policy, check
     durable_medium_delivered: false,
     durable_medium_delivered_at: null,
     durable_medium: null,
+    delivery_contact: contact,
     seller: {
       legal_name: checkout_policy.seller.legal_name,
       organization_number: checkout_policy.seller.organization_number ?? null,
@@ -138,7 +165,7 @@ export function createOrderConfirmationService({ caseStore, checkoutPolicy, cloc
       events: [...(caseData.events ?? []), {
         type: 'ORDER_CONFIRMATION_PREPARED',
         at: issued_at,
-        data: { confirmation_id, amount_minor: 2900, currency: 'NOK' }
+        data: { confirmation_id, amount_minor: 2900, currency: 'NOK', delivery_contact_ready: Boolean(confirmation.delivery_contact) }
       }]
     };
     await caseStore.save(caseData);
