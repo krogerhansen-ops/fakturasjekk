@@ -7,6 +7,7 @@ import { buildEvidenceLedger, summarizeEvidence, assertEvidenceSafety } from './
 import { assessAssurance } from './assurance.mjs';
 import { buildDraft } from './draft.mjs';
 import { resolveRulePackage, assertRulePackageCompatibility } from './rule-packages.mjs';
+import { resolveRegulatedSectorGuard } from './regulated-sector-guard.mjs';
 import { resolveServiceLegalProfile } from './service-legal-router.mjs';
 
 function combineAnalysis(baseAnalysis, inkasso) {
@@ -81,6 +82,20 @@ export function runCase({
       ...base,
       status: intakeResult.status,
       draft: { allowed: false, reason: intakeResult.reason }
+    };
+  }
+
+  const regulatedProfile = resolveRegulatedSectorGuard(facts);
+  if (regulatedProfile) {
+    return {
+      ...base,
+      legal_profile: regulatedProfile,
+      status: 'needs_clarification',
+      intake: {
+        ...intakeResult,
+        questions: [...new Set([...(intakeResult.questions ?? []), ...(regulatedProfile.questions ?? [])])]
+      },
+      draft: { allowed: false, reason: regulatedProfile.reason }
     };
   }
 
