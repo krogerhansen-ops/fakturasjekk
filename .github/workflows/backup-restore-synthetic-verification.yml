@@ -1,0 +1,150 @@
+name: Fakturasjekk synthetic backup restore verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  roundtrip:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: synthetic-postgres-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Install age encryption tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends age
+          age --version
+          pg_dump --version
+          pg_restore --version
+          psql --version
+
+      - name: Create isolated synthetic source and restore databases
+        shell: bash
+        env:
+          PGPASSWORD: synthetic-postgres-only
+        run: |
+          set -euo pipefail
+          createdb -h 127.0.0.1 -U postgres fakturasjekk_source_synthetic
+          createdb -h 127.0.0.1 -U postgres fakturasjekk_restore_synthetic
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d fakturasjekk_source_synthetic <<'SQL'
+          create table synthetic_backup_probe (
+            id uuid primary key,
+            marker text not null,
+            amount_minor integer not null,
+            created_at timestamptz not null
+          );
+          insert into synthetic_backup_probe(id, marker, amount_minor, created_at)
+          values
+            ('11111111-2222-4333-8444-555555555555', 'SYNTHETIC_BACKUP_MARKER_ALPHA', 2900, '2026-08-22T09:40:00Z'),
+            ('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'SYNTHETIC_BACKUP_MARKER_BETA', 0, '2026-08-22T09:41:00Z');
+          SQL
+
+      - name: Create ephemeral age identity and encrypted backup
+        shell: bash
+        env:
+          DATABASE_URL: postgresql://postgres@127.0.0.1:5432/fakturasjekk_source_synthetic
+          PGPASSWORD: synthetic-postgres-only
+          BACKUP_MAX_DAYS: '1'
+        run: |
+          set -euo pipefail
+          identity="${RUNNER_TEMP}/fakturasjekk-synthetic-age-key.txt"
+          backup_dir="${RUNNER_TEMP}/fakturasjekk-synthetic-backups"
+          age-keygen -o "${identity}" >/dev/null 2>&1
+          recipient="$(age-keygen -y "${identity}")"
+          test -n "${recipient}"
+          AGE_RECIPIENT="${recipient}" BACKUP_DIR="${backup_dir}" ./scripts/backup-supabase-free.sh
+          mapfile -t backups < <(find "${backup_dir}" -maxdepth 1 -type f -name 'fakturasjekk-db-*.dump.age' -print)
+          if [[ "${#backups[@]}" -ne 1 ]]; then
+            echo "Expected exactly one encrypted synthetic backup, found ${#backups[@]}." >&2
+            exit 4
+          fi
+          backup="${backups[0]}"
+          test -s "${backup}"
+          if grep -a -q 'SYNTHETIC_BACKUP_MARKER_' "${backup}"; then
+            echo 'Synthetic marker was visible in encrypted backup bytes.' >&2
+            exit 5
+          fi
+          printf '%s\n' "${backup}" > "${RUNNER_TEMP}/fakturasjekk-synthetic-backup-path.txt"
+          chmod 600 "${identity}" "${RUNNER_TEMP}/fakturasjekk-synthetic-backup-path.txt"
+
+      - name: Prove production restore target is rejected before decryption
+        shell: bash
+        env:
+          RESTORE_DATABASE_URL: postgresql://postgres@db.jxmkaxwflouacuboaetg.supabase.co:5432/postgres
+          RESTORE_TARGET_PROJECT_REF: jxmkaxwflouacuboaetg
+          RESTORE_CONFIRMATION: I_UNDERSTAND_ISOLATED_RESTORE_ONLY
+        run: |
+          set -euo pipefail
+          if node ./scripts/validate-isolated-restore-target.mjs; then
+            echo 'Production restore target was unexpectedly accepted.' >&2
+            exit 6
+          fi
+          echo 'OK: production restore target remains fail-closed.'
+
+      - name: Restore encrypted backup into isolated localhost database
+        shell: bash
+        env:
+          RESTORE_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/fakturasjekk_restore_synthetic
+          RESTORE_CONFIRMATION: I_UNDERSTAND_ISOLATED_RESTORE_ONLY
+          AGE_IDENTITY_FILE: ${{ runner.temp }}/fakturasjekk-synthetic-age-key.txt
+          PGPASSWORD: synthetic-postgres-only
+        run: |
+          set -euo pipefail
+          backup="$(cat "${RUNNER_TEMP}/fakturasjekk-synthetic-backup-path.txt")"
+          ./scripts/restore-backup-isolated.sh "${backup}" | tee "${RUNNER_TEMP}/restore-output.txt"
+          grep -q 'TARGET REMAINS QUARANTINED' "${RUNNER_TEMP}/restore-output.txt"
+          grep -q 'Do NOT expose this database' "${RUNNER_TEMP}/restore-output.txt"
+
+      - name: Verify restored synthetic data integrity
+        shell: bash
+        env:
+          PGPASSWORD: synthetic-postgres-only
+        run: |
+          set -euo pipefail
+          source_digest="$(psql -At -h 127.0.0.1 -U postgres -d fakturasjekk_source_synthetic -c "select md5(string_agg(id::text || '|' || marker || '|' || amount_minor::text || '|' || to_char(created_at at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS'), E'\\n' order by id)) from synthetic_backup_probe;")"
+          restore_digest="$(psql -At -h 127.0.0.1 -U postgres -d fakturasjekk_restore_synthetic -c "select md5(string_agg(id::text || '|' || marker || '|' || amount_minor::text || '|' || to_char(created_at at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS'), E'\\n' order by id)) from synthetic_backup_probe;")"
+          test -n "${source_digest}"
+          if [[ "${source_digest}" != "${restore_digest}" ]]; then
+            echo 'Restored synthetic database digest differs from source.' >&2
+            exit 7
+          fi
+          restored_count="$(psql -At -h 127.0.0.1 -U postgres -d fakturasjekk_restore_synthetic -c 'select count(*) from synthetic_backup_probe;')"
+          test "${restored_count}" = '2'
+          echo 'OK: encrypted synthetic backup restored with identical probe data while target remains quarantined.'
+
+      - name: Remove ephemeral backup and encryption identity
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf \
+            "${RUNNER_TEMP}/fakturasjekk-synthetic-backups" \
+            "${RUNNER_TEMP}/fakturasjekk-synthetic-age-key.txt" \
+            "${RUNNER_TEMP}/fakturasjekk-synthetic-backup-path.txt" \
+            "${RUNNER_TEMP}/restore-output.txt"

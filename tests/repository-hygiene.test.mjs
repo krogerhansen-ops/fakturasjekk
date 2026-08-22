@@ -64,9 +64,21 @@ for (const { full, rel } of files) {
 const workflows = fs.readdirSync(path.join(root, '.github', 'workflows')).filter(name => /\.ya?ml$/i.test(name)).sort();
 assert.deepEqual(
   workflows,
-  ['legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
+  ['backup-restore-synthetic-verification.yml', 'legal-source-watch.yml', 'pages.yml', 'quality.yml', 'rate-limit-production-verification.yml', 'supabase-production.yml'],
   'Unexpected GitHub Actions workflow added; review explicitly before allowlisting.'
 );
+
+// The synthetic backup/restore workflow is explicitly allowlisted only while it remains local-only,
+// manually dispatched and unable to receive production credentials or publish backup artifacts.
+const backupWorkflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'backup-restore-synthetic-verification.yml'), 'utf8');
+assert.match(backupWorkflow, /workflow_dispatch:/, 'Synthetic backup workflow must remain manually dispatched.');
+assert.equal(/\n\s*push:/.test(backupWorkflow), false, 'Synthetic backup workflow must not run on push.');
+assert.equal(/\n\s*pull_request:/.test(backupWorkflow), false, 'Synthetic backup workflow must not run on pull requests.');
+assert.match(backupWorkflow, /postgres:16-alpine/, 'Synthetic backup workflow must keep an isolated local PostgreSQL service.');
+assert.equal(backupWorkflow.includes('secrets.'), false, 'Synthetic backup workflow must not receive repository or production secrets.');
+assert.equal(backupWorkflow.includes('actions/upload-artifact'), false, 'Synthetic backup files must never be published as GitHub artifacts.');
+assert.match(backupWorkflow, /validate-isolated-restore-target\.mjs/, 'Production restore target guard must remain part of the synthetic round-trip.');
+assert.match(backupWorkflow, /db\.jxmkaxwflouacuboaetg\.supabase\.co/, 'Synthetic round-trip must explicitly prove the production project is rejected as a restore target.');
 
 // The production Supabase workflow is intentionally special-cased here because it can mutate infrastructure.
 // Keep this defense in depth even though tests/supabase-production-workflow.test.mjs performs deeper checks.
