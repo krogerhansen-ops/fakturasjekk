@@ -21,12 +21,25 @@ const jwtVerifier = { async verify() { return { signature_valid: true, claims: {
 const extractor = { async extract() { return { fields: {} }; } };
 const responseInterpreter = { async interpret() { return { items: [] }; } };
 const paymentGateway = { provider_name: 'provider-x', async createSession() { return {}; }, async verifyEvent() { return {}; } };
+const orderConfirmationDeliveryAdapter = { async deliverOrderConfirmation() { return { delivered: true, medium: 'email' }; } };
 const fetchImpl = async () => new Response(null, { status: 404 });
 
-const adapters = createCoreProductionAdapters({ config, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway, fetchImpl });
-for (const key of ['caseStore','storage','extractor','responseInterpreter','authAdapter','companyRegistry','paymentGateway','paymentEventStore','idempotencyStore','auditAdapter','rateLimiter']) {
+const adapters = createCoreProductionAdapters({
+  config,
+  db,
+  storageProvider,
+  storageScanner,
+  jwtVerifier,
+  extractor,
+  responseInterpreter,
+  paymentGateway,
+  orderConfirmationDeliveryAdapter,
+  fetchImpl
+});
+for (const key of ['caseStore','storage','extractor','responseInterpreter','authAdapter','companyRegistry','paymentGateway','paymentEventStore','idempotencyStore','auditAdapter','rateLimiter','orderConfirmationDeliveryAdapter']) {
   assert.ok(adapters[key], `missing ${key}`);
 }
+assert.equal(adapters.orderConfirmationDeliveryAdapter, orderConfirmationDeliveryAdapter, 'delivery adapter must reach production composition unchanged');
 assert.equal(typeof adapters.rateLimiter.check, 'function');
 assert.equal(typeof adapters.authAdapter.verifyBearer, 'function');
 assert.equal(typeof adapters.storage.reservePrivateObject, 'function');
@@ -36,6 +49,9 @@ assert.equal(typeof adapters.companyRegistry.lookupByOrganizationNumber, 'functi
 assert.equal(typeof adapters.companyRegistry.searchByExactName, 'function');
 assert.equal(adapters.companyRegistry.cache_policy, 'no-store');
 
+const preflightAdapters = createCoreProductionAdapters({ config, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway, fetchImpl });
+assert.equal(preflightAdapters.orderConfirmationDeliveryAdapter, undefined, 'preflight adapter composition must remain possible without paid delivery provider');
+
 assert.throws(
   () => createCoreProductionAdapters({ config: { environment: 'development' }, db, storageProvider, storageScanner, jwtVerifier, extractor, responseInterpreter, paymentGateway }),
   /production config/i
@@ -43,6 +59,20 @@ assert.throws(
 assert.throws(
   () => createCoreProductionAdapters({ config, db, storageProvider, storageScanner, jwtVerifier, extractor: null, responseInterpreter, paymentGateway }),
   /extractor/i
+);
+assert.throws(
+  () => createCoreProductionAdapters({
+    config,
+    db,
+    storageProvider,
+    storageScanner,
+    jwtVerifier,
+    extractor,
+    responseInterpreter,
+    paymentGateway,
+    orderConfirmationDeliveryAdapter: {}
+  }),
+  /deliverOrderConfirmation/i
 );
 assert.throws(
   () => createCoreProductionAdapters({
@@ -58,4 +88,4 @@ assert.throws(
   /putObject|listPrefix|getObject/i
 );
 
-console.log('OK production adapter composition includes no-store Brreg company check and restore-safe storage contract');
+console.log('OK production adapter composition includes no-store Brreg, restore-safe storage and optional durable-delivery pass-through');
