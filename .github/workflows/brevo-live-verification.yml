@@ -1,0 +1,127 @@
+name: Fakturasjekk Brevo live verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Synthetic Brevo verification to run'
+        required: true
+        type: choice
+        options:
+          - config-only
+          - send-acceptance
+        default: config-only
+      confirm_webhook_url:
+        description: 'Type the reviewed Fakturasjekk Brevo webhook URL exactly'
+        required: true
+        type: string
+      cost_mode:
+        description: 'Keep zero unless one synthetic email send is explicitly funded'
+        required: true
+        type: choice
+        options:
+          - zero
+          - funded
+        default: zero
+      paid_services_approved:
+        description: 'Type approved only when a synthetic external email send is explicitly approved'
+        required: true
+        type: string
+        default: 'no'
+      confirm_network_calls:
+        description: 'Type I_APPROVE_SYNTHETIC_BREVO_NETWORK_CALLS to permit the selected synthetic Brevo network verification'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-brevo-verification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse unapproved Brevo network calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirm_network_calls }}" != "I_APPROVE_SYNTHETIC_BREVO_NETWORK_CALLS" ]]; then
+            echo 'Brevo verification blocked: exact synthetic network-call approval phrase is missing.' >&2
+            exit 2
+          fi
+          if [[ -z "${{ inputs.confirm_webhook_url }}" ]]; then
+            echo 'Brevo verification blocked: reviewed webhook URL confirmation is required.' >&2
+            exit 3
+          fi
+          if [[ "${{ inputs.mode }}" == "send-acceptance" ]]; then
+            if [[ "${{ inputs.cost_mode }}" != "funded" ]]; then
+              echo 'Brevo synthetic send blocked: cost mode must be funded.' >&2
+              exit 4
+            fi
+            if [[ "${{ inputs.paid_services_approved }}" != "approved" ]]; then
+              echo 'Brevo synthetic send blocked: paid services are not explicitly approved.' >&2
+              exit 5
+            fi
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Verify reviewed Brevo target before reading credentials
+        shell: bash
+        env:
+          CONFIRMED_WEBHOOK_URL: ${{ inputs.confirm_webhook_url }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { validateBrevoLiveTarget } from './scripts/verify-brevo-live.mjs';
+          const target = JSON.parse(fs.readFileSync('./config/brevo-delivery-target.json', 'utf8'));
+          validateBrevoLiveTarget(target, process.env.CONFIRMED_WEBHOOK_URL);
+          console.log('OK: reviewed Fakturasjekk Brevo delivery target is complete and matches manual webhook confirmation.');
+          NODE
+
+      - name: Verify live Brevo webhook configuration
+        if: ${{ inputs.mode == 'config-only' }}
+        env:
+          BREVO_LIVE_E2E_MODE: config-only
+          BREVO_WEBHOOK_URL_CONFIRMATION: ${{ inputs.confirm_webhook_url }}
+          FAKTURASJEKK_BREVO_SYNTHETIC_E2E_APPROVED: ${{ inputs.confirm_network_calls }}
+          FAKTURASJEKK_COST_MODE: ${{ inputs.cost_mode }}
+          FAKTURASJEKK_PAID_SERVICES_APPROVED: ${{ inputs.paid_services_approved }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          BREVO_WEBHOOK_SECRET: ${{ secrets.BREVO_WEBHOOK_SECRET }}
+        run: node scripts/verify-brevo-live.mjs
+
+      - name: Verify synthetic Brevo send acceptance
+        if: ${{ inputs.mode == 'send-acceptance' }}
+        env:
+          BREVO_LIVE_E2E_MODE: send-acceptance
+          BREVO_WEBHOOK_URL_CONFIRMATION: ${{ inputs.confirm_webhook_url }}
+          FAKTURASJEKK_BREVO_SYNTHETIC_E2E_APPROVED: ${{ inputs.confirm_network_calls }}
+          FAKTURASJEKK_COST_MODE: ${{ inputs.cost_mode }}
+          FAKTURASJEKK_PAID_SERVICES_APPROVED: ${{ inputs.paid_services_approved }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          BREVO_WEBHOOK_SECRET: ${{ secrets.BREVO_WEBHOOK_SECRET }}
+          BREVO_SYNTHETIC_RECIPIENT_EMAIL: ${{ secrets.BREVO_SYNTHETIC_RECIPIENT_EMAIL }}
+        run: node scripts/verify-brevo-live.mjs
+
+      - name: Customer processing remains disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const target = JSON.parse(fs.readFileSync('./config/brevo-delivery-target.json', 'utf8'));
+          if (target.customer_data_live_enabled !== false) {
+            console.error('Brevo customer-data processing unexpectedly enabled.');
+            process.exit(6);
+          }
+          console.log('OK: Brevo verification remains synthetic-only; customer data live processing is disabled.');
+          NODE
