@@ -1,0 +1,100 @@
+{
+  "version": "0.2.0",
+  "jurisdiction": "NO",
+  "last_reviewed": "2026-08-22",
+  "runtime": false,
+  "purpose": "controlled_rate_registry_before_runtime_integration",
+  "policy": {
+    "select_by_relevant_event_date": true,
+    "never_apply_latest_rate_retroactively": true,
+    "primary_or_official_authority_source_required": true,
+    "consumer_ineligible_rates_must_be_explicitly_blocked": true,
+    "no_rate_conclusion_without_supported_event_date": true
+  },
+  "rates": [
+    {
+      "id": "LATE_INTEREST_2026_H1",
+      "type": "late_payment_interest_percent_pa",
+      "value": 12.0,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-06-30",
+      "runtime_for_consumer": true,
+      "source_authority": "Lovdata / Finanstilsynet",
+      "source_url": "https://lovdata.no/forskrift/2025-12-18-2658",
+      "expected_phrase": "12,00 prosent p.a.",
+      "notes": "Første halvår 2026. Må ikke brukes på perioder fra og med 1. juli 2026."
+    },
+    {
+      "id": "LATE_INTEREST_2026_H2",
+      "type": "late_payment_interest_percent_pa",
+      "value": 12.25,
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "runtime_for_consumer": true,
+      "source_authority": "Finanstilsynet",
+      "source_url": "https://www.finanstilsynet.no/analyser-og-statistikk/forsinkelsesrente-og-standardkompensasjon/forsinkelsesrente/",
+      "expected_phrase": "12,25 prosent fra 1. juli 2026",
+      "notes": "Andre halvår 2026. Fastsettes halvårlig."
+    },
+    {
+      "id": "STANDARD_COMPENSATION_2026_H1",
+      "type": "standard_collection_compensation_nok",
+      "value": 460,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-06-30",
+      "runtime_for_consumer": false,
+      "source_authority": "Lovdata / Finanstilsynet",
+      "source_url": "https://lovdata.no/forskrift/2025-12-18-2658",
+      "expected_phrase": "460 kroner",
+      "notes": "Ikke en generell forbrukersats. Skal aldri automatisk legges til et forbrukerkrav."
+    },
+    {
+      "id": "STANDARD_COMPENSATION_2026_H2",
+      "type": "standard_collection_compensation_nok",
+      "value": 430,
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "runtime_for_consumer": false,
+      "source_authority": "Finanstilsynet",
+      "source_url": "https://www.finanstilsynet.no/analyser-og-statistikk/forsinkelsesrente-og-standardkompensasjon/forsinkelsesrente/",
+      "expected_phrase": "Standardkompensasjon er fastsatt til 430 kroner",
+      "notes": "Ikke en generell forbrukersats. Skal aldri automatisk legges til et forbrukerkrav."
+    },
+    {
+      "id": "INKASSO_RATE_2026",
+      "type": "inkasso_rate_nok",
+      "value": 750,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "runtime_for_consumer": true,
+      "source_authority": "Finanstilsynet",
+      "source_url": "https://www.finanstilsynet.no/forbrukerinformasjon/inkassovirksomhet/oversikt-over-utenrettslige-inndrivingskostnader/",
+      "expected_phrase": "Inkassosatsen: 750 kroner",
+      "notes": "Beregningsgrunnlag for flere inkassokostnader. Vilkårene for den konkrete kostnaden må vurderes separat."
+    },
+    {
+      "id": "REMINDER_OR_NOTICE_FEE_2026",
+      "type": "reminder_or_collection_notice_fee_nok",
+      "value": 38,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "runtime_for_consumer": true,
+      "source_authority": "Finanstilsynet",
+      "source_url": "https://www.finanstilsynet.no/forbrukerinformasjon/inkassovirksomhet/oversikt-over-utenrettslige-inndrivingskostnader/",
+      "expected_phrase": "Purring: 38 kroner",
+      "notes": "Maksimal oppgitt sats for purring/inkassovarsel i 2026. Beløpet kan bare kreves når de øvrige vilkårene er oppfylt."
+    },
+    {
+      "id": "OWN_PAYMENT_REQUEST_FEE_2026",
+      "type": "creditor_payment_request_fee_nok",
+      "value": 113,
+      "effective_from": "2026-01-01",
+      "effective_to": "2026-12-31",
+      "runtime_for_consumer": true,
+      "source_authority": "Finanstilsynet",
+      "source_url": "https://www.finanstilsynet.no/forbrukerinformasjon/inkassovirksomhet/oversikt-over-utenrettslige-inndrivingskostnader/",
+      "expected_phrase": "Betalingsoppfordring (egeninkasso): 113 kroner",
+      "notes": "Må ikke forveksles med inkassators salær. Øvrige vilkår må vurderes separat."
+    }
+  ]
+}
