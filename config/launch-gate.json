@@ -1,5 +1,5 @@
 {
-  "version": "0.75.0",
+  "version": "0.76.0",
   "launch_mode": "blocked_until_all_required_complete",
   "checks": [
     { "id": "TECH_DEDICATED_SUPABASE_PROJECT", "category": "technical", "required": true, "status": "complete", "evidence": "Dedicated Fakturasjekk project fakturasjekk-prod was created in eu-north-1; project ref jxmkaxwflouacuboaetg is recorded in config/supabase-target.json and the deployment/runtime configuration is project-bound." },
@@ -37,10 +37,10 @@
     { "id": "LEGAL_ARTICLE9_FAIL_CLOSED", "category": "privacy", "required": true, "status": "complete", "evidence": "docs/GDPR-THIRD-PARTY-AND-ARTICLE9.md and config/privacy-security-policy.json block normal V1 analysis of special-category data and require separate review where necessary." },
     { "id": "LEGAL_ROPA", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/ROPA.md contains processing activities, purposes, categories, bases, retention and security measures and now explicitly records Brevo receipt delivery as a data-minimized activity. Controller identity, provider contracts/transfers and provider-specific retention must be completed before live." },
     { "id": "LEGAL_PRIVACY_NOTICE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Required privacy-notice contents are specified, including receipt-email purpose and selected Brevo processor disclosure if approved for live. Controller identity, final processors/transfers, provider retention and contact details remain." },
-    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase, Google Vision/Vertex AI, Vipps and Brevo transactional email are recorded as selected candidates in docs/PROCESSORS-AND-TRANSFERS.md. Brevo is explicitly limited to verified recipient + receipt content. DPA/subprocessor/support/transfer documentation still requires approval before live." },
-    { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "todo", "evidence": "docs/PROCESSORS-AND-TRANSFERS.md defines required DPA/subprocessor controls. Brevo states that a DPA is available, but the actual Brevo DPA and the agreements/terms for all selected processors have not been reviewed and approved for Fakturasjekk." },
-    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "todo", "evidence": "Supabase is eu-north-1, Google processing clients are hard-bound to eu endpoints, and Brevo states that database hosting is in the EU. Corporate support, subprocessors, remote-access and onward-transfer paths for Supabase, Google, Vipps and Brevo still require documented transfer review before live." },
-    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json defines 24h/7d/90d, 35-day backup cap and 45-day restore-safety deletion ledger. Brevo delivery/bounce/blocklist/provider-log retention must also be mapped. Final approval requires live provider/E2E validation and DPIA sign-off." },
+    { "id": "LEGAL_PROCESSOR_REGISTER", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Supabase, Google Vision/Vertex AI, Vipps and Brevo transactional email are recorded as selected candidates. docs/BREVO-PROVIDER-REVIEW-2026-08-22.md adds a primary-source review of Brevo's public DPA location, EU database-hosting statement, access controls, email-transport limits and unresolved subprocessors/retention/transfer questions. Live approval remains blocked." },
+    { "id": "LEGAL_PROCESSOR_AGREEMENTS", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Brevo's current help documentation confirms a DPA exists inside its Terms of Service, and docs/BREVO-PROVIDER-REVIEW-2026-08-22.md records the contract checks that remain. The actual account-applicable DPA has not been reviewed/accepted for Fakturasjekk's final legal entity, and Supabase/Google/Vipps processor terms also still require final approval." },
+    { "id": "LEGAL_TRANSFER_ASSESSMENT", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/BREVO-PROVIDER-REVIEW-2026-08-22.md documents Brevo's current public EU database-hosting statement and production-access controls, but deliberately refuses to treat an older Sendinblue DPA as today's subprocessor evidence. Current support/subprocessor countries, remote access, onward transfers and any required SCC/TIA/additional measures remain to be confirmed; equivalent review remains for the other selected providers." },
+    { "id": "LEGAL_RETENTION_APPROVAL", "category": "privacy", "required": true, "status": "in_progress", "evidence": "config/retention-policy.json defines 24h/7d/90d, 35-day backup cap and 45-day restore-safety deletion ledger. The Brevo provider review confirms account-closure behavior but identifies transactional message/log, bounce and blocklist retention as unresolved. Final approval requires provider-specific retention evidence, live E2E validation and DPIA sign-off." },
     { "id": "LEGAL_DATA_SUBJECT_WORKFLOW", "category": "privacy", "required": true, "status": "in_progress", "evidence": "Operational workflow drafted and now recognizes provider-held receipt/delivery metadata; final controller/privacy contact, provider-specific deletion/retention procedure and production end-to-end exercise remain." },
     { "id": "LEGAL_INCIDENT_RESPONSE", "category": "privacy", "required": true, "status": "in_progress", "evidence": "docs/NO-TRACKING-AND-INCIDENT-RESPONSE.md contains containment, risk assessment, 72-hour decision flow, evidence handling and post-incident actions; receipt-provider incidents must use the same process. Named responsible persons remain." },
 
@@ -55,7 +55,7 @@
     { "id": "LEGAL_RULE_REGISTRY_FULL_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "docs/LEGAL-REVIEW-2026-08-18.md – active V1 rules manually re-verified against Lovdata on 2026-08-18." },
     { "id": "LEGAL_INKASSO_TRANSITION_REVIEW", "category": "legal_engine", "required": true, "status": "complete", "evidence": "Lov 2026-05-22-19 remains 'Kongen bestemmer'; current 1988 law remains runtime-active. See docs/LEGAL-REVIEW-2026-08-18.md." },
 
-    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions quality gate run #619 passed on 22.08.2026 with all 159 test files green, including verified durable receipt delivery, Brevo fail-closed live-verifier/workflow, repository hygiene and all existing commerce/privacy regressions." },
+    { "id": "QA_FULL_CI_GREEN", "category": "quality", "required": true, "status": "complete", "evidence": "GitHub Actions quality gate run #621 passed on 22.08.2026 with all 159 test files green after the ROPA/DPIA/checkout/launch evidence sync, including launch-status checks that kept all live and legal Brevo blockers open." },
     { "id": "QA_EXTERNAL_TESTERS", "category": "quality", "required": true, "status": "todo", "evidence": null },
     { "id": "QA_REALISTIC_SYNTHETIC_CASE_LIBRARY", "category": "quality", "required": true, "status": "complete", "evidence": "Four public synthetic cases cover high-difficulty handcraft, service quote, goods/duplicate/fee and clean-result paths; tests/full-synthetic-e2e.test.mjs adds a complete synthetic private-upload -> OCR/facts -> deterministic rules -> captured 29 NOK -> draft -> supplier-response -> follow-up journey." }
   ],
@@ -83,6 +83,9 @@
     "https://developers.brevo.com/docs/transactional-webhooks",
     "https://developers.brevo.com/docs/secured-webhooks",
     "https://help.brevo.com/hc/en-us/articles/360001005510-Data-storage-location",
-    "https://help.brevo.com/hc/en-us/articles/15403782599570-Where-can-I-find-the-Data-Processing-Agreement-DPA"
+    "https://help.brevo.com/hc/en-us/articles/15403782599570-Where-can-I-find-the-Data-Processing-Agreement-DPA",
+    "https://help.brevo.com/hc/en-us/articles/360001005830-Access-to-data",
+    "https://help.brevo.com/hc/en-us/articles/115000202824-Email-encryption",
+    "https://help.brevo.com/hc/en-us/articles/208677629-Permanently-close-your-Brevo-account"
   ]
 }
