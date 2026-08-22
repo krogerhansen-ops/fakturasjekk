@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "provider": "brevo",
   "purpose": "synthetic_order_confirmation_delivery_verification",
   "transactional_only": true,
@@ -17,10 +17,15 @@
     "deferred"
   ],
   "webhook_batched": false,
+  "transactional_log_retention_months": null,
+  "email_previews_enabled": null,
+  "privacy_settings_verified_at": null,
   "customer_data_live_enabled": false,
   "synthetic_send_enabled": false,
   "notes": [
     "Populate webhook_url, sender_email and sender_domain only after a dedicated Fakturasjekk Brevo transactional setup exists and has been reviewed.",
+    "Before any Brevo network verification, manually set transactional email log retention to exactly 1 month, disable stored email previews, and record privacy_settings_verified_at after checking the live Brevo account.",
+    "Brevo stores transactional logs without a time limit by default; Fakturasjekk must never rely on that default.",
     "The webhook must point to the Fakturasjekk order-confirmation webhook route and use the configured custom secret header.",
     "Provider acceptance of a synthetic email is not proof of durable-medium delivery; delivered remains a separate live E2E gate.",
     "Never use customer email addresses or customer document data in this verifier."

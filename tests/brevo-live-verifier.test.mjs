@@ -15,7 +15,7 @@ const requiredEvents = ['delivered', 'hardBounce', 'softBounce', 'blocked', 'spa
 
 function validTarget(overrides = {}) {
   return {
-    version: 1,
+    version: 2,
     provider: 'brevo',
     purpose: 'synthetic_order_confirmation_delivery_verification',
     transactional_only: true,
@@ -25,6 +25,9 @@ function validTarget(overrides = {}) {
     webhook_header_name: 'x-fakturasjekk-brevo-secret',
     required_events: requiredEvents,
     webhook_batched: false,
+    transactional_log_retention_months: 1,
+    email_previews_enabled: false,
+    privacy_settings_verified_at: '2026-08-22T14:00:00.000Z',
     customer_data_live_enabled: false,
     synthetic_send_enabled: false,
     ...overrides
@@ -35,11 +38,20 @@ const reviewed = validateBrevoLiveTarget(validTarget(), webhookUrl);
 assert.equal(reviewed.webhook_url, webhookUrl);
 assert.equal(reviewed.sender_email, 'kvittering@fakturasjekk.no');
 assert.deepEqual(reviewed.required_events, requiredEvents);
+assert.equal(reviewed.transactional_log_retention_months, 1);
+assert.equal(reviewed.email_previews_enabled, false);
+assert.equal(reviewed.privacy_settings_verified_at, '2026-08-22T14:00:00.000Z');
 
 for (const [label, target] of [
   ['wrong provider', validTarget({ provider: 'other' })],
   ['customer data enabled', validTarget({ customer_data_live_enabled: true })],
   ['batched webhook', validTarget({ webhook_batched: true })],
+  ['unbounded retention', validTarget({ transactional_log_retention_months: null })],
+  ['long retention', validTarget({ transactional_log_retention_months: 12 })],
+  ['email previews enabled', validTarget({ email_previews_enabled: true })],
+  ['email previews unverified', validTarget({ email_previews_enabled: null })],
+  ['privacy review missing', validTarget({ privacy_settings_verified_at: null })],
+  ['privacy review invalid', validTarget({ privacy_settings_verified_at: 'not-a-date' })],
   ['external hostname', validTarget({ webhook_url: 'https://example.com/v1/webhooks/order-confirmation/brevo' })],
   ['wrong route', validTarget({ webhook_url: 'https://api.fakturasjekk.no/v1/webhooks/payment/brevo' })],
   ['url query', validTarget({ webhook_url: `${webhookUrl}?secret=no` })],
@@ -119,6 +131,7 @@ assert.throws(() => verifyBrevoWebhookConfiguration({ payload: { webhooks: [webh
   assert.equal(calls.length, 1);
   assert.equal(result.ok, true);
   assert.equal(result.synthetic_only, true);
+  assert.equal(result.privacy_account_settings_reviewed, true);
   assert.equal(result.webhook_configuration_verified, true);
   assert.equal(result.synthetic_send_accepted, false);
   assert.equal(result.durable_medium_delivered, false);
@@ -192,6 +205,9 @@ await assert.rejects(() => runBrevoLiveVerification({
   assert.equal(repositoryTarget.webhook_url, null);
   assert.equal(repositoryTarget.sender_email, null);
   assert.equal(repositoryTarget.sender_domain, null);
+  assert.equal(repositoryTarget.transactional_log_retention_months, null);
+  assert.equal(repositoryTarget.email_previews_enabled, null);
+  assert.equal(repositoryTarget.privacy_settings_verified_at, null);
   assert.equal(repositoryTarget.synthetic_send_enabled, false);
   let networkCalls = 0;
   await assert.rejects(() => runBrevoLiveVerification({
@@ -205,7 +221,7 @@ await assert.rejects(() => runBrevoLiveVerification({
     },
     fetchImpl: async () => { networkCalls += 1; throw new Error('must not reach network'); }
   }));
-  assert.equal(networkCalls, 0, 'incomplete reviewed target must fail before provider network access');
+  assert.equal(networkCalls, 0, 'incomplete reviewed target/privacy settings must fail before provider network access');
 }
 
-console.log('OK Brevo live verifier is target-bound, secret-minimized, zero-cost-safe for config reads, funded-only for sends and never confuses acceptance with delivery');
+console.log('OK Brevo live verifier is target-bound, privacy-retention-locked, secret-minimized, zero-cost-safe for config reads, funded-only for sends and never confuses acceptance with delivery');
