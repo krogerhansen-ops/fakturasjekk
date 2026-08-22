@@ -55,7 +55,7 @@ const replayAdapter = createBrevoOrderConfirmationDelivery({
   apiKey: 'xkeysib-synthetic-test-key',
   senderEmail: 'kvittering@fakturasjekk.no',
   webhookSecret,
-  fetchImpl: async (_url, options) => new Response(JSON.stringify({ messageId: '<same@relay>' }), { status: 201 })
+  fetchImpl: async () => new Response(JSON.stringify({ messageId: '<same@relay>' }), { status: 201 })
 });
 const replay = await replayAdapter.deliverOrderConfirmation({
   case_id: 'case-12345678', owner_id: ownerId, confirmation_id: 'confirmation-12345678',
@@ -82,13 +82,27 @@ assert.equal(verified.owner_id, ownerId);
 assert.equal(verified.confirmation_id, 'confirmation-12345678');
 assert.equal(verified.delivery_reference, '<receipt-1@relay.brevo.example>');
 
-const bounced = adapter.verifyWebhook({
-  headers: { 'x-fakturasjekk-brevo-secret': webhookSecret },
-  raw_body: JSON.stringify({ ...deliveredEvent, event: 'hardBounce' })
-});
-assert.equal(bounced.authenticated, true);
-assert.equal(bounced.delivered, false);
-assert.equal(bounced.terminal_failure, true);
+for (const event of ['hard_bounce', 'hardBounce', 'invalid_email', 'blocked', 'spam', 'error']) {
+  const failed = adapter.verifyWebhook({
+    headers: { 'x-fakturasjekk-brevo-secret': webhookSecret },
+    raw_body: JSON.stringify({ ...deliveredEvent, event })
+  });
+  assert.equal(failed.authenticated, true, `${event} webhook should authenticate`);
+  assert.equal(failed.delivered, false);
+  assert.equal(failed.terminal_failure, true, `${event} must be terminal`);
+  assert.equal(failed.retryable_failure, false);
+}
+
+for (const event of ['soft_bounce', 'softBounce', 'deferred']) {
+  const deferred = adapter.verifyWebhook({
+    headers: { 'x-fakturasjekk-brevo-secret': webhookSecret },
+    raw_body: JSON.stringify({ ...deliveredEvent, event })
+  });
+  assert.equal(deferred.authenticated, true, `${event} webhook should authenticate`);
+  assert.equal(deferred.delivered, false);
+  assert.equal(deferred.terminal_failure, false);
+  assert.equal(deferred.retryable_failure, true, `${event} must be retryable/provider-deferred`);
+}
 
 assert.deepEqual(adapter.verifyWebhook({ headers: { 'x-fakturasjekk-brevo-secret': 'wrong-secret-value-xxxxxxxxxxxxxxxx' }, raw_body: JSON.stringify(deliveredEvent) }), { authenticated: false });
 assert.deepEqual(adapter.verifyWebhook({ headers: { 'x-fakturasjekk-brevo-secret': webhookSecret }, raw_body: 'not-json' }), { authenticated: false });
@@ -97,4 +111,4 @@ assert.throws(() => createBrevoOrderConfirmationDelivery({ apiKey: 'xkeysib-test
 assert.equal(BREVO_ORDER_CONFIRMATION_POLICY.provider_acceptance_is_not_delivery, true);
 assert.equal(BREVO_ORDER_CONFIRMATION_POLICY.tracking_consent, false);
 
-console.log('OK Brevo receipt adapter is EU-provider-ready, tracking-minimized, idempotent and keeps provider acceptance separate from delivered webhook status');
+console.log('OK Brevo receipt adapter is tracking-minimized, idempotent, normalizes documented webhook events and keeps provider acceptance separate from delivery');
