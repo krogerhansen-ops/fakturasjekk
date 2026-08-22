@@ -43,7 +43,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          : "${PGPASSWORD:?Missing SUPABASE_DB_PASSWORD}"
+          if [[ -z "${PGPASSWORD:-}" ]]; then
+            echo '::error title=Live verification blocked::Repository secret SUPABASE_DB_PASSWORD is not configured. No production database connection was attempted.'
+            exit 2
+          fi
 
       - name: Ensure PostgreSQL client exists
         shell: bash
@@ -97,7 +100,7 @@ jobs:
           echo 'OK: 12 unique concurrent PostgreSQL backends produced exactly 12 atomic increments.'
 
       - name: Verify synthetic row cleanup
-        if: always()
+        if: always() && env.PGPASSWORD != ''
         shell: bash
         run: |
           set -euo pipefail
