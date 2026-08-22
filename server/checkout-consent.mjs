@@ -1,20 +1,12 @@
+import { checkoutPolicyReadiness } from './checkout-policy-readiness.mjs';
+
 function requireString(value, name) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required.`);
   return value.trim();
 }
 
 export function checkoutReadiness(policy = {}) {
-  const seller = policy.seller ?? {};
-  const missingSeller = ['legal_name','postal_address','support_email','privacy_email'].filter(key => !seller[key]);
-  const ready = policy.live_payment_session_enabled === true && seller.ready === true && missingSeller.length === 0;
-  return {
-    ready,
-    missing_seller_fields: missingSeller,
-    policy_version: policy.version ?? null,
-    terms_version: policy.terms_version ?? null,
-    privacy_notice_version: policy.privacy_notice_version ?? null,
-    withdrawal_information_version: policy.withdrawal_information_version ?? null
-  };
+  return checkoutPolicyReadiness(policy, { requireLivePaymentSession: true });
 }
 
 export function validateCheckoutConsent(consent = {}, policy = {}, requirement = {}) {
@@ -23,6 +15,7 @@ export function validateCheckoutConsent(consent = {}, policy = {}, requirement =
     const error = new Error('Checkout is not ready for live payment sessions.');
     error.code = 'checkout_not_ready';
     error.missing_seller_fields = readiness.missing_seller_fields;
+    error.readiness_errors = readiness.errors;
     throw error;
   }
 
@@ -80,7 +73,7 @@ export function agreementConfirmationPayload({ policy, consent_record, case_id, 
     created_at,
     seller: {
       legal_name: policy.seller.legal_name,
-      organization_number: policy.seller.organization_number ?? null,
+      organization_number: policy.seller.organization_number,
       postal_address: policy.seller.postal_address,
       support_email: policy.seller.support_email,
       privacy_email: policy.seller.privacy_email
