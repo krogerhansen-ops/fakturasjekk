@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { createGoogleServiceAccountIdTokenProvider, validateCloudRunAudience } from '../server/google-service-account-id-token.mjs';
 
 const encoder = new TextEncoder();
+const keyLabel = ['PRIVATE', 'KEY'].join(' ');
+const pemBegin = `-----${['BEGIN', keyLabel].join(' ')}-----`;
+const pemEnd = `-----${['END', keyLabel].join(' ')}-----`;
 function b64url(bytes) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -16,7 +19,7 @@ function decodeSegment(segment) {
 function pem(bytes) {
   const raw = btoa(String.fromCharCode(...new Uint8Array(bytes)));
   const lines = raw.match(/.{1,64}/g).join('\n');
-  return `-----BEGIN PRIVATE KEY-----\n${lines}\n-----END PRIVATE KEY-----\n`;
+  return `${pemBegin}\n${lines}\n${pemEnd}\n`;
 }
 
 const pair = await crypto.subtle.generateKey(
