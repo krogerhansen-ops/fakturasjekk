@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Choose verify for DB dry-run, verify-auth for synthetic Auth E2E, verify-storage for private Storage E2E, or deploy for migrations + safe preflight'
+        description: 'Choose verify for DB dry-run, verify-auth, verify-storage, verify-delete for synthetic live E2E checks, or deploy for migrations + safe preflight'
         required: true
         type: choice
         options:
           - verify
           - verify-auth
           - verify-storage
+          - verify-delete
           - deploy
         default: verify
       confirm_project_ref:
@@ -39,7 +40,7 @@ jobs:
             exit 2
           fi
           : "${SUPABASE_ACCESS_TOKEN:?Missing GitHub secret SUPABASE_ACCESS_TOKEN}"
-          if [[ "${{ inputs.action }}" != "verify-auth" && "${{ inputs.action }}" != "verify-storage" ]]; then
+          if [[ "${{ inputs.action }}" != "verify-auth" && "${{ inputs.action }}" != "verify-storage" && "${{ inputs.action }}" != "verify-delete" ]]; then
             : "${SUPABASE_DB_PASSWORD:?Missing GitHub secret SUPABASE_DB_PASSWORD}"
           fi
 
@@ -65,20 +66,26 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ env.EXPECTED_PROJECT_REF }}
         run: node scripts/verify-supabase-storage-live.mjs
 
+      - name: Run synthetic live deletion E2E
+        if: ${{ inputs.action == 'verify-delete' }}
+        env:
+          SUPABASE_PROJECT_REF: ${{ env.EXPECTED_PROJECT_REF }}
+        run: node scripts/verify-supabase-delete-live.mjs
+
       - name: Use reviewed Supabase CLI version
-        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' }}
+        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' && inputs.action != 'verify-delete' }}
         run: npx --yes supabase@2.111.0 --version
 
       - name: Link only dedicated Fakturasjekk project
-        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' }}
+        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' && inputs.action != 'verify-delete' }}
         run: npx --yes supabase@2.111.0 link --project-ref "${EXPECTED_PROJECT_REF}"
 
       - name: Show migration status
-        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' }}
+        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' && inputs.action != 'verify-delete' }}
         run: npx --yes supabase@2.111.0 migration list
 
       - name: Dry-run database migrations
-        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' }}
+        if: ${{ inputs.action != 'verify-auth' && inputs.action != 'verify-storage' && inputs.action != 'verify-delete' }}
         run: npx --yes supabase@2.111.0 db push --dry-run
 
       - name: Apply database migrations
