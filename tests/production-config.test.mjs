@@ -1,3 +1,4 @@
+// SECURITY_TEST_FIXTURE: this test intentionally uses fake credential-shaped PostgreSQL URLs to verify secret redaction and project locking.
 import assert from 'node:assert/strict';
 import { loadProductionConfig, publicProductionConfigSummary, assertPublicConfigSafe, PRODUCTION_SUPABASE_TARGET } from '../server/production-config.mjs';
 
