@@ -98,13 +98,18 @@ export function createProductionApp({
     orderConfirmationService,
     orderConfirmationDeliveryService
   });
+
   const requireDeliveryContact = Boolean(orderConfirmationDeliveryService);
-  const deliveryContactResolver = requireDeliveryContact
-    ? async ({ token, user_id }) => {
-        if (typeof authAdapter.getVerifiedDeliveryContact !== 'function') return null;
-        return authAdapter.getVerifiedDeliveryContact(token, user_id);
-      }
-    : null;
+  let deliveryContactResolver = null;
+  if (requireDeliveryContact) {
+    if (typeof adapters.deliveryContactResolver === 'function') {
+      deliveryContactResolver = adapters.deliveryContactResolver;
+    } else if (typeof authAdapter.getVerifiedDeliveryContact === 'function') {
+      deliveryContactResolver = ({ token, user_id }) => authAdapter.getVerifiedDeliveryContact(token, user_id);
+    } else {
+      throw new Error('Missing production adapter: deliveryContactResolver');
+    }
+  }
   const checkoutConsentService = checkoutPolicy
     ? createCheckoutConsentService({ caseStore, policy: checkoutPolicy, requireDeliveryContact })
     : null;
