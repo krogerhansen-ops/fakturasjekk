@@ -65,12 +65,42 @@ export function createPaymentProviderGateway({ provider, product, allowed_provid
     });
   }
 
+  async function cancelPayment({ case_id, cancel_transaction_only = false }) {
+    if (!provider?.cancelPayment) throw new Error('Payment provider does not support payment cancellation.');
+    return provider.cancelPayment({ case_id, cancel_transaction_only });
+  }
+
+  async function refundPayment({ case_id, amount_minor = 2900, currency = 'NOK', refund_id = null }) {
+    if (!provider?.refundPayment) throw new Error('Payment provider does not support refunds.');
+    return provider.refundPayment({ case_id, amount_minor, currency, refund_id });
+  }
+
   async function pollPayment({ case_id }) {
     if (!provider?.getPayment) throw new Error('Payment provider does not support payment polling.');
     return provider.getPayment({ case_id });
   }
 
-  return { provider_name: provider.name, createSession, verifyEvent, captureAuthorized, pollPayment };
+  async function pollPaymentEvents({ case_id }) {
+    if (!provider?.getPaymentEvents) throw new Error('Payment provider does not support payment event polling.');
+    return provider.getPaymentEvents({ case_id });
+  }
+
+  async function reconcilePayment({ case_id }) {
+    if (!provider?.reconcilePayment) throw new Error('Payment provider does not support payment reconciliation.');
+    return provider.reconcilePayment({ case_id });
+  }
+
+  return {
+    provider_name: provider.name,
+    createSession,
+    verifyEvent,
+    captureAuthorized,
+    cancelPayment,
+    refundPayment,
+    pollPayment,
+    pollPaymentEvents,
+    reconcilePayment
+  };
 }
 
 export function createDevelopmentPaymentProvider({ name = 'dev-pay' } = {}) {
