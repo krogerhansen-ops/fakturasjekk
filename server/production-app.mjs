@@ -6,6 +6,7 @@ import { createSupplierResponseService } from './supplier-response-service.mjs';
 import { createPaymentWebhookService } from './payment-webhook-service.mjs';
 import { createCheckoutConsentService } from './checkout-consent-service.mjs';
 import { createOrderConfirmationService } from './order-confirmation-service.mjs';
+import { createOutboundDeliveryService } from './outbound-delivery-service.mjs';
 import { evaluateReadiness } from './readiness.mjs';
 import { evaluateLaunchGate } from './launch-gate.mjs';
 import { createApi } from './api.mjs';
@@ -49,7 +50,7 @@ export function createProductionApp({
   const rateLimiter = required(adapters.rateLimiter, 'rateLimiter', 'check');
 
   const serviceAdapters = { caseStore, storage, extractor, responseInterpreter };
-  const services = createBackendServices({
+  const backendServices = createBackendServices({
     registry,
     product,
     uploadPolicy,
@@ -58,6 +59,8 @@ export function createProductionApp({
     retentionPolicy,
     adapters: serviceAdapters
   });
+  const outboundDeliveryService = createOutboundDeliveryService({ caseStore });
+  const services = { ...backendServices, markOutboundSent: outboundDeliveryService.markSent };
   const audit = createAuditLogger({ adapter: auditAdapter });
   const management = createCaseManagement({ caseStore, storage, audit });
   const supplierResponseService = createSupplierResponseService({ caseStore, services, interpreter: responseInterpreter });
@@ -103,7 +106,7 @@ export function createProductionApp({
     production: true,
     basePath: edgeBasePath
   });
-  return { handler, fetchHandler, api, services, management, orderConfirmationService, readiness: readinessResult, launch_gate: launchGateResult };
+  return { handler, fetchHandler, api, services, management, orderConfirmationService, outboundDeliveryService, readiness: readinessResult, launch_gate: launchGateResult };
 }
 
 export async function startProductionApp({ app, port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? '0.0.0.0' } = {}) {
